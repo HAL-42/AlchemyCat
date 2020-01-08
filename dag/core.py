@@ -1,15 +1,15 @@
 """ Main module containing Graph / Node classes """
 
-import uuid
 import datetime as dt
 from functools import reduce
 import logging
 import inspect
+import copy
 
-from pyungo.io import Input, Output, get_if_exists
-from pyungo.errors import PyungoError
-from pyungo.utils import get_function_return_names
-from pyungo.data import Data
+from alchemy_cat.dag.io import Input, Output, get_if_exists
+from alchemy_cat.dag.errors import PyungoError
+from alchemy_cat.dag.utils import get_function_return_names
+from alchemy_cat.dag.data import Data
 
 
 logging.basicConfig()
@@ -65,32 +65,41 @@ class Node:
         PyungoError: In case inputs have the wrong type
     """
 
-    def __init__(self, fct, inputs, outputs, args=None, kwargs=None):
-        self._id = str(uuid.uuid4())
+    def __init__(self, fct, inputs, outputs, args=None, kwargs=None, verbose=False):
         self._fct = fct
+        self.verbose = verbose
+
         self._inputs = []
         self._process_inputs(inputs)
+
         self._args = args if args else []
         self._process_inputs(self._args, is_arg=True)
+
         self._kwargs = kwargs if kwargs else []
         self._process_inputs(self._kwargs, is_kwarg=True)
+
         self._kwargs_default = {}
         self._process_kwargs(self._kwargs)
+
         self._outputs = []
         self._process_outputs(outputs)
 
+        self._id = str(self)
+
     def __repr__(self):
-        return 'Node({}, <{}>, {}, {})'.format(
-            self._id, self._fct.__name__,
+        return 'Node(<{}>, {}, {})'.format(
+            self._fct.__name__,
             self.input_names, self.output_names
         )
 
     def __call__(self, *args, **kwargs):
         """ run the function attached to the node, and store the result """
-        t1 = dt.datetime.utcnow()
+        if self.verbose:
+            t1 = dt.datetime.utcnow()
         res = self._fct(*args, **kwargs)
-        t2 = dt.datetime.utcnow()
-        LOGGER.info('Ran {} in {}'.format(self, t2-t1))
+        if self.verbose:
+            t2 = dt.datetime.utcnow()
+            LOGGER.info('Ran {} in {}'.format(self, t2-t1))
         # save results to outputs
         if len(self._outputs) == 1:
             self._outputs[0].value = res
@@ -164,13 +173,20 @@ class Node:
             self._inputs.append(new_input)
 
     def _process_kwargs(self, kwargs):
-        """ read and store kwargs default values """
-        kwarg_values = inspect.getargspec(self._fct).defaults
-        if kwargs and kwarg_values:
-            kwarg_names = (inspect.getargspec(self._fct)
-                           .args[-len(kwarg_values):])
-            self._kwargs_default = {k: v for k, v in
-                                    zip(kwarg_names, kwarg_values)}
+        """ read and store kwargs default values
+        If the Node has kwarg placeholder, then record the default value of fun's parameter.
+        When calculate, if some kwarg placeholders have no value, then the program will try to
+        find their default value(if exits) to feed it.
+        """
+        # kwarg_values = inspect.getargspec(self._fct).defaults
+        # if kwargs and kwarg_values:
+        #     kwarg_names = (inspect.getargspec(self._fct)
+        #                    .args[-len(kwarg_values):])
+        #     self._kwargs_default = {k: v for k, v in
+        #                             zip(kwarg_names, kwarg_values)}
+        if kwargs:
+            self._kwargs_default = {k:v.default for k, v in inspect.signature(self._fct).parameters.items()
+                                    if v.default is not inspect.Parameter.empty}
 
     def _process_outputs(self, outputs):
         """ converter data passed to Output objects and store them """
@@ -181,10 +197,14 @@ class Node:
                 new_output = output
             elif isinstance(output, str):
                 new_output = Output(output)
+            else:
+                msg = 'outputs need to be of type Outputs or str'
+                raise PyungoError(msg)
             self._outputs.append(new_output)
 
     def set_value_to_input(self, input_name, value):
         """ set a value to the targeted input name
+        Attention: The value given to input will be deep copied.
 
         Args:
             input_name (str): Name of the input
@@ -195,7 +215,7 @@ class Node:
         """
         for input_ in self._inputs:
             if input_.name == input_name:
-                input_.value = value
+                input_.value = copy.deepcopy(value)
                 return
         msg = 'input "{}" does not exist in this node'.format(input_name)
         raise PyungoError(msg)
