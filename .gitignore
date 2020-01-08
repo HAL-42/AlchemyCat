@@ -9,27 +9,29 @@ __pycache__/
 .idea/
 
 # Ignore Data
-**/data/**
-!**/data/.gitkeep
-# *.csv
-# *.h5
-# *.Setup
-# *.txt
-# **/output.finished/*
-# **/output/*
+#**/data/**
+#!**/data/.gitkeep
+**/datasets/**
+!**/datasets/.gitkeep
 
-# Ignore Paper Folder
-Paper/
+# Ignore Snapshots/models/checkpoints
+*.caffemodel
+*.pth
+*.ckp
+checkpoints/
 
-# Ignore Snapshots
-snapshot/
-*.HAL42
+#Ignore Experiment Results
+/experiment/**
+/experiments/**
 
 # Ignore Log folders or files
-**/log/
-**/Log/
-**/*.log
-**/*.Log
+#**/log/
+#**/Log/
+#**/*.log
+#**/*.Log
+
+# Ignore Paper Folder
+/Paper/**
 
 # Ignore files or folders named temp/tmp
 **/temp/
