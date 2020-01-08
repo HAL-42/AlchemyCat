@@ -53,7 +53,7 @@ class _IO(object):
 
 
 class Input(_IO):
-    """ Object representing a function input
+    """ Placeholder a function's input
 
     Args:
         name (str): The variable name of the input / output
@@ -114,7 +114,7 @@ class Input(_IO):
 
 
 class Output(_IO):
-    """ Object representing a function output
+    """ Placeholder of a function's output
 
     Args:
         name (str): The variable name of the input / output
