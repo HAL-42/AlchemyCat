@@ -1,7 +1,7 @@
 """ class abstracting data passed as inputs and saved as outputs """
 from copy import deepcopy
 
-from pyungo.errors import PyungoError
+from alchemy_cat.dag.errors import PyungoError
 
 
 class Data:
