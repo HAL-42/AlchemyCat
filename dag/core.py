@@ -38,7 +38,7 @@ def topological_sort(data):
         data[key] = set(data[key])
     for k, v in data.items():
         v.discard(k)  # ignore self dependencies
-    extra_items_in_deps = reduce(set.union, data.values()) - set(data.keys())
+    extra_items_in_deps = reduce(set.union, data.values()) - set(data.keys())  # Add items without dependencies to data
     data.update({item: set() for item in extra_items_in_deps})
     while True:
         ordered = set(item for item, dep in data.items() if not dep)
@@ -202,20 +202,21 @@ class Node:
                 raise PyungoError(msg)
             self._outputs.append(new_output)
 
-    def set_value_to_input(self, input_name, value):
+    def set_value_to_input(self, input_name, value, is_deepcopy=True):
         """ set a value to the targeted input name
-        Attention: The value given to input will be deep copied.
+        Attention: If is_deepcopy if False, then make sure the input won't be modified after self._fct is called.
 
         Args:
             input_name (str): Name of the input
             value: value to be assigned to the input
+            is_deepcopy (bool): The value given to input will be deep copied if is_deepcopy is True
 
         Raises:
             PyungoError: In case the input name is unknown
         """
         for input_ in self._inputs:
             if input_.name == input_name:
-                input_.value = copy.deepcopy(value)
+                input_.value = copy.deepcopy(value) if is_deepcopy else value
                 return
         msg = 'input "{}" does not exist in this node'.format(input_name)
         raise PyungoError(msg)
@@ -228,13 +229,23 @@ class Node:
         kwargs = {i.name: i.value for i in self._inputs if i.is_kwarg}
         return self(*args, **kwargs)
 
+    def __getattr__(self, item):
+        """Attribute of self._fct can be directly get from Node object"""
+        if hasattr(self._fct, item):
+            return self._fct.__dict__[item]
+        else:
+            raise AttributeError(f"'{type(self).__name__}' object and it's self._fct {type(self._fct).__name__} "
+                                 f"has no attribute '{item}'")
+
 
 class Graph:
     """ Graph object, collection of related nodes
 
     Args:
-        inputs (list): List of optional `Input` if defined separately
-        outputs (list): List of optional `Output` if defined separately
+        inputs (list): List of optional `Input` if defined separately. New node's input will be replaced by input in
+        this list if they have the same name. So multi nodes can use the same Input object.
+        outputs (list): List of optional `Output` if defined separately. New node's output will be replaced by output in
+        this list if they have the same name. These outputs can be used to track outputs of intermediate node.
         parallel (bool): Parallelism flag
         pool_size (int): Size of the pool in case parallelism is enabled
         schema (dict): Optional JSON schema to validate inputs data
