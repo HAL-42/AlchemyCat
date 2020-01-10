@@ -398,7 +398,8 @@ class Graph:
                 inputs = [i for i in node.inputs_without_constants]
                 for inp in inputs:
                     if (not inp.is_kwarg or
-                            (inp.is_kwarg and inp.map in self._data._inputs)):
+                            (inp.is_kwarg and (inp.map in self._data._inputs
+                                                or inp.map in self._data._outputs))):
                         node.set_value_to_input(inp.name, self._data[inp.map])
                     else:
                         node.set_value_to_input(inp.name,
