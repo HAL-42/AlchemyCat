@@ -58,7 +58,8 @@ class Input(_IO):
     Args:
         name (str): The variable name of the input / output
         map (str): Optional mapping name. This is the name referenced
-            in the data inputs / outputs
+            in the data inputs / outputs. For Data object, they implement
+            the Node's with their map.
         meta (dict): Not used yet
         contract (str): Optional contract rule used by pycontracts
     """
@@ -131,6 +132,18 @@ class Output(_IO):
 
 
 def get_if_exists(provided, existing):
+    """Process the inputs/outputs of an new node.
+    The inputs/outputs of node will be replaced by graph's _inputs/_outputs if they share
+    the same name. So different nodes can use the same Input, and multi output can be gotten
+    from the graph.
+
+    Args:
+        provided (list): Inputs/Outputs of Node
+        existing (dict): _inputs/_outputs of the Graph
+
+    Returns:
+        res (list): The replaced inputs/outputs
+    """
     if not existing:
         return provided
     res = []
