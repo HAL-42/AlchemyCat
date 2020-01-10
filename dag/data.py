@@ -2,12 +2,13 @@
 from copy import deepcopy
 
 from alchemy_cat.dag.errors import PyungoError
+from alchemy_cat.dag.io import Output
 
 
 class Data:
     def __init__(self, inputs):
         self._inputs = deepcopy(inputs)
-        self._outputs = {}
+        self._outputs= {}
 
     @property
     def inputs(self):
@@ -21,10 +22,12 @@ class Data:
         try:
             return self._inputs[key]
         except KeyError:
-            return self._outputs[key]
+            return self._outputs[key].value
 
-    def __setitem__(self, key, val):
-        self._outputs[key] = val
+    def __setitem__(self, map: str, output: Output):
+        if map != output.map:
+            raise PyungoError(f"Key {map} should be equal to Output's map {output.map}")
+        self._outputs[map] = output
 
     def check_inputs(self, sim_inputs, sim_outputs, sim_kwargs):
         """ make sure data inputs provided are good enough """
