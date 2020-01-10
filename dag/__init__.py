@@ -1,5 +1,5 @@
 """ init module """
-from .core import *
+from .core import Node, Graph
+from .io import Input, Output
 
 
-__version__ = '0.9.0'
