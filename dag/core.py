@@ -5,12 +5,13 @@ from functools import reduce
 import logging
 import inspect
 import copy
+from multiprocess.pool import Pool
 
 from alchemy_cat.dag.io import Input, Output, get_if_exists
 from alchemy_cat.dag.errors import PyungoError
-from alchemy_cat.dag.utils import get_function_return_names
+from alchemy_cat.dag.utils import get_function_return_names, run_node
 from alchemy_cat.dag.data import Data
-
+from alchemy_cat.py_tools import Timer
 
 logging.basicConfig()
 LOGGER = logging.getLogger()
@@ -65,7 +66,7 @@ class Node:
         PyungoError: In case inputs have the wrong type
     """
 
-    def __init__(self, fct, inputs, outputs, args=None, kwargs=None, verbose=False):
+    def __init__(self, fct, inputs, outputs, args=None, kwargs=None, verbose=False, slim_names=None):
         self._fct = fct
         self.verbose = verbose
 
@@ -86,26 +87,22 @@ class Node:
 
         self._id = str(self)
 
+        self.slim_names = slim_names if slim_names else []
+
     def __repr__(self):
-        return 'Node(<{}>, {}, {})'.format(
-            self._fct.__name__,
-            self.input_names, self.output_names
-        )
+        if hasattr(self._fct, '__name__'):
+            fct_name = self._fct.__name__
+        else:
+            fct_name = type(self._fct).__name__
+
+        return 'Node(<{}>, {}, {})'.format(fct_name, self.input_names, self.output_names)
 
     def __call__(self, *args, **kwargs):
         """ run the function attached to the node, and store the result """
+        with Timer() as timer:
+            res = self._fct(*args, **kwargs)
         if self.verbose:
-            t1 = dt.datetime.utcnow()
-        res = self._fct(*args, **kwargs)
-        if self.verbose:
-            t2 = dt.datetime.utcnow()
-            LOGGER.info('Ran {} in {}'.format(self, t2-t1))
-        # save results to outputs
-        if len(self._outputs) == 1:
-            self._outputs[0].value = res
-        else:
-            for i, out in enumerate(self._outputs):
-                out.value = res[i]
+            LOGGER.info('Ran {} in {}'.format(self, timer))
         return res
 
     @property
@@ -185,7 +182,7 @@ class Node:
         #     self._kwargs_default = {k: v for k, v in
         #                             zip(kwarg_names, kwarg_values)}
         if kwargs:
-            self._kwargs_default = {k:v.default for k, v in inspect.signature(self._fct).parameters.items()
+            self._kwargs_default = {k: v.default for k, v in inspect.signature(self._fct).parameters.items()
                                     if v.default is not inspect.Parameter.empty}
 
     def _process_outputs(self, outputs):
@@ -202,40 +199,20 @@ class Node:
                 raise PyungoError(msg)
             self._outputs.append(new_output)
 
-    def set_value_to_input(self, input_name, value, is_deepcopy=True):
-        """ set a value to the targeted input name
-        Attention: If is_deepcopy if False, then make sure the input won't be modified after self._fct is called.
-
-        Args:
-            input_name (str): Name of the input
-            value: value to be assigned to the input
-            is_deepcopy (bool): The value given to input will be deep copied if is_deepcopy is True
-
-        Raises:
-            PyungoError: In case the input name is unknown
-        """
-        for input_ in self._inputs:
-            if input_.name == input_name:
-                input_.value = copy.deepcopy(value) if is_deepcopy else value
-                return
-        msg = 'input "{}" does not exist in this node'.format(input_name)
-        raise PyungoError(msg)
-
     def run_with_loaded_inputs(self):
         """ Run the node with the attached function and loaded input values """
         args = [i.value for i in self._inputs
                 if not i.is_arg and not i.is_kwarg]
         args.extend([i.value for i in self._inputs if i.is_arg])
         kwargs = {i.name: i.value for i in self._inputs if i.is_kwarg}
-        return self(*args, **kwargs)
-
-    def __getattr__(self, item):
-        """Attribute of self._fct can be directly get from Node object"""
-        if hasattr(self._fct, item):
-            return self._fct.__dict__[item]
+        rslts = self(*args, **kwargs)
+        # Save outputs
+        if len(self._outputs) == 1:
+            self._outputs[0].value = rslts
         else:
-            raise AttributeError(f"'{type(self).__name__}' object and it's self._fct {type(self._fct).__name__} "
-                                 f"has no attribute '{item}'")
+            for output, rslt in zip(self._outputs, rslts):
+                output.value = rslt
+        return rslts
 
 
 class Graph:
@@ -246,26 +223,28 @@ class Graph:
         this list if they have the same name. So multi nodes can use the same Input object.
         outputs (list): List of optional `Output` if defined separately. New node's output will be replaced by output in
         this list if they have the same name. These outputs can be used to track outputs of intermediate node.
-        parallel (bool): Parallelism flag
-        pool_size (int): Size of the pool in case parallelism is enabled
+        pool_size (int): Size of the pool. 0 means don't use parallel.
         schema (dict): Optional JSON schema to validate inputs data
         verbosity (int): 0: No log output; 1: Only give graph level log; >1: Give graph and node level log.
+        slim (bool): If True, use copy rather than deepcopy when setting value of Node's input.
 
     Raises:
         ImportError will raise in case parallelism is chosen and `multiprocess`
             not installed
     """
-    def __init__(self, inputs=None, outputs=None, parallel=False, pool_size=2,
-                 schema=None, verbosity=0):
+
+    def __init__(self, inputs=None, outputs=None, pool_size=0, schema=None, verbosity=0, slim=False):
         self._nodes = {}
         self._data = None
-        self._parallel = parallel
         self._pool_size = pool_size
         self._schema = schema
-        self._sorted_dep = None
+        # self._sorted_dep = None
         self._inputs = {i.name: i for i in inputs} if inputs else None
         self._outputs = {o.name: o for o in outputs} if outputs else None
         self.verbosity = verbosity
+
+        self._dag = None
+        self.slim = slim
 
     @property
     def data(self):
@@ -297,11 +276,23 @@ class Graph:
 
     @property
     def dag(self):
-        """ return the ordered nodes graph """
+        """ If dag is not built, build dag. Return the ordered nodes graph """
+        if self._dag is None:
+            dag = []
+            for node_ids in topological_sort(self._dependencies()):
+                nodes = [self._get_node(node_id) for node_id in node_ids]
+                dag.append(nodes)
+            self._dag = dag
+        return self._dag
+
+    @property
+    def ordered_nodes(self):
+        """Same to the dag except returned nodes is 1-Dimension"""
+        dag = self.dag
+
         ordered_nodes = []
-        for node_ids in topological_sort(self._dependencies()):
-            nodes = [self._get_node(node_id) for node_id in node_ids]
-            ordered_nodes.append(nodes)
+        for nodes in dag:
+            ordered_nodes.extend(nodes)
         return ordered_nodes
 
     @staticmethod
@@ -313,24 +304,40 @@ class Graph:
 
         Returns:
             results (tuple): node id, node output values
+
+        Raises:
+            PyungoError
         """
         return (node.id, node.run_with_loaded_inputs())
 
     def _register(self, f, **kwargs):
         """ get provided inputs if anmy and create a new node """
+        if not hasattr(f, "__call__"):
+            raise PyungoError(f"Registered function {f} should be callable")
+
         inputs = kwargs.get('inputs')
         outputs = kwargs.get('outputs')
         args_names = kwargs.get('args')
         kwargs_names = kwargs.get('kwargs')
+        slim_names = kwargs.get('slim_names')
+
+        # Instantiate f if f is functor
+        if inspect.isclass(f):
+            f = f(**(kwargs.get('init', {})))
+        elif kwargs.get('init'):
+            raise PyungoError("Only functor can be initialized with 'init'")
+
         self._create_node(
-            f, inputs, outputs, args_names, kwargs_names
+            f, inputs, outputs, args_names, kwargs_names, slim_names
         )
 
     def register(self, **kwargs):
         """ register decorator """
+
         def decorator(f):
             self._register(f, **kwargs)
             return f
+
         return decorator
 
     def add_node(self, function, **kwargs):
@@ -345,11 +352,11 @@ class Graph:
         """
         self._register(function, **kwargs)
 
-    def _create_node(self, fct, inputs, outputs, args_names, kwargs_names):
+    def _create_node(self, fct, inputs, outputs, args_names, kwargs_names, slim_names):
         """ create a save the node to the graph """
         inputs = get_if_exists(inputs, self._inputs)
         outputs = get_if_exists(outputs, self._outputs)
-        node = Node(fct, inputs, outputs, args_names, kwargs_names, True if self.verbosity > 1 else False)
+        node = Node(fct, inputs, outputs, args_names, kwargs_names, True if self.verbosity > 1 else False, slim_names)
         # assume that we cannot have two nodes with the same output names
         for n in self._nodes.values():
             for out_name in n.output_names:
@@ -357,6 +364,7 @@ class Graph:
                     msg = '{} output already exist'.format(out_name)
                     raise PyungoError(msg)
         self._nodes[node.id] = node
+        self._dag = None
 
     def _dependencies(self):
         """ return dependencies among the nodes """
@@ -369,13 +377,18 @@ class Graph:
                         d.append(node2.id)
         return dep
 
+    @property
+    def dependencies(self):
+        """Return dependencies of each node"""
+        return self._dependencies()
+
     def _get_node(self, id_):
         """ get a node from its id """
         return self._nodes[id_]
 
-    def _topological_sort(self):
-        """ run topological sort algorithm """
-        self._sorted_dep = list(topological_sort(self._dependencies()))
+    # def _topological_sort(self):
+    #     """ run topological sort algorithm """
+    #     self._sorted_dep = list(topological_sort(self._dependencies()))
 
     def calculate(self, data):
         """ run graph calculations """
@@ -389,60 +402,51 @@ class Graph:
             jsonschema.validate(instance=data, schema=self._schema)
 
         if self.verbosity:
-            t1 = dt.datetime.utcnow()
+            timer = Timer().start()
             LOGGER.info('Starting calculation...')
 
         self._data = Data(data)
         self._data.check_inputs(self.sim_inputs, self.sim_outputs, self.sim_kwargs)
-        if not self._sorted_dep:
-            self._topological_sort()
-        for items in self._sorted_dep:
+
+        def set_node_input_value(node, input, value):
+            if not self.slim and input.name not in node.slim_names:
+                input.value = copy.deepcopy(value)
+            else:
+                input.value = value
+
+        for nodes in self.dag:
             # loading node with inputs
-            for item in items:
-                node = self._get_node(item)
+            for node in nodes:
                 inputs = [i for i in node.inputs_without_constants]
                 for inp in inputs:
                     if (not inp.is_kwarg or
                             (inp.is_kwarg and (inp.map in self._data._inputs
-                                                or inp.map in self._data._outputs))):
-                        node.set_value_to_input(inp.name, self._data[inp.map])
+                                               or inp.map in self._data._outputs))):
+                        set_node_input_value(node, inp, self._data[inp.map])
                     else:
-                        node.set_value_to_input(inp.name,
-                                                node._kwargs_default[inp.name])
+                        set_node_input_value(node, inp, node._kwargs_default[inp.name])
 
             # running nodes
-            if self._parallel:
-                try:
-                    from multiprocess import Pool
-                except ImportError:
-                    msg = 'multiprocess package is needed for parralelism'
-                    raise ImportError(msg)
+            if self._pool_size:
                 pool = Pool(self._pool_size)
-                results = pool.map(
-                    Graph.run_node,
-                    [self._get_node(i) for i in items]
-                )
+                pool.map(lambda node: node.run_with_loaded_inputs, nodes)
                 pool.close()
                 pool.join()
-                results = {k: v for k, v in results}
             else:
-                results = {}
-                for item in items:
-                    node = self._get_node(item)
-                    res = node.run_with_loaded_inputs()
-                    results[node.id] = res
+                for node in nodes:
+                    node.run_with_loaded_inputs()
+
             # save results
-            for item in items:
-                node = self._get_node(item)
-                res = results[node.id]
-                if len(node.outputs) == 1:
-                    self._data[node.outputs[0].map] = res
-                else:
-                    for i, out in enumerate(node.outputs):
-                        self._data[out.map] = res[i]
+            for node in nodes:
+                for output in node._outputs:
+                    self._data[output.map] = output
 
         if self.verbosity:
-            t2 = dt.datetime.utcnow()
-            LOGGER.info('Calculation finished in {}'.format(t2-t1))
+            timer.close()
+            LOGGER.info(f'Calculation finished in {timer}')
 
-        return res
+        last_node_outputs = self.dag[-1][-1]._outputs
+        if len(last_node_outputs) == 1:
+            return last_node_outputs[0].value
+        else:
+            return tuple(output.value for output in last_node_outputs)
