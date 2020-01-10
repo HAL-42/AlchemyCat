@@ -249,13 +249,14 @@ class Graph:
         parallel (bool): Parallelism flag
         pool_size (int): Size of the pool in case parallelism is enabled
         schema (dict): Optional JSON schema to validate inputs data
+        verbosity (int): 0: No log output; 1: Only give graph level log; >1: Give graph and node level log.
 
     Raises:
         ImportError will raise in case parallelism is chosen and `multiprocess`
             not installed
     """
     def __init__(self, inputs=None, outputs=None, parallel=False, pool_size=2,
-                 schema=None):
+                 schema=None, verbosity=0):
         self._nodes = {}
         self._data = None
         self._parallel = parallel
@@ -264,6 +265,7 @@ class Graph:
         self._sorted_dep = None
         self._inputs = {i.name: i for i in inputs} if inputs else None
         self._outputs = {o.name: o for o in outputs} if outputs else None
+        self.verbosity = verbosity
 
     @property
     def data(self):
@@ -347,7 +349,7 @@ class Graph:
         """ create a save the node to the graph """
         inputs = get_if_exists(inputs, self._inputs)
         outputs = get_if_exists(outputs, self._outputs)
-        node = Node(fct, inputs, outputs, args_names, kwargs_names)
+        node = Node(fct, inputs, outputs, args_names, kwargs_names, True if self.verbosity > 1 else False)
         # assume that we cannot have two nodes with the same output names
         for n in self._nodes.values():
             for out_name in n.output_names:
@@ -385,8 +387,11 @@ class Graph:
                 msg = 'jsonschema package is needed for validating data'
                 raise ImportError(msg)
             jsonschema.validate(instance=data, schema=self._schema)
-        t1 = dt.datetime.utcnow()
-        LOGGER.info('Starting calculation...')
+
+        if self.verbosity:
+            t1 = dt.datetime.utcnow()
+            LOGGER.info('Starting calculation...')
+
         self._data = Data(data)
         self._data.check_inputs(self.sim_inputs, self.sim_outputs, self.sim_kwargs)
         if not self._sorted_dep:
@@ -435,6 +440,9 @@ class Graph:
                 else:
                     for i, out in enumerate(node.outputs):
                         self._data[out.map] = res[i]
-        t2 = dt.datetime.utcnow()
-        LOGGER.info('Calculation finished in {}'.format(t2-t1))
+
+        if self.verbosity:
+            t2 = dt.datetime.utcnow()
+            LOGGER.info('Calculation finished in {}'.format(t2-t1))
+
         return res
