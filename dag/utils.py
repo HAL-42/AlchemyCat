@@ -46,15 +46,4 @@ def run_node(node):
     Returns:
         rslts: Node's call output
     """
-    args = [i.value for i in node._inputs
-                if not i.is_arg and not i.is_kwarg]
-    args.extend([i.value for i in node._inputs if i.is_arg])
-    kwargs = {i.name: i.value for i in node._inputs if i.is_kwarg}
-    rslts = node(*args, **kwargs)
-    # Save outputs
-    if len(node._outputs) == 1:
-        node._outputs[0].value = rslts
-    else:
-        for output, rslt in zip(node._outputs, rslts):
-            output.value = rslt
-    return rslts
+    return node.run_with_loaded_inputs()
