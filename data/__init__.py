@@ -8,4 +8,5 @@
 @time: 2020/1/7 17:12
 @desc:
 """
-__all__ = ['dataset']
+from .dataset import Dataset
+from .data_auger import DataAuger, MultiMap, RandMap
