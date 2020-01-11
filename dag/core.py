@@ -5,7 +5,7 @@ from functools import reduce
 import logging
 import inspect
 import copy
-from multiprocess.pool import Pool
+from multiprocessing.pool import Pool
 
 from alchemy_cat.dag.io import Input, Output, get_if_exists
 from alchemy_cat.dag.errors import PyungoError
@@ -429,9 +429,16 @@ class Graph:
             # running nodes
             if self._pool_size:
                 pool = Pool(self._pool_size)
-                pool.map(lambda node: node.run_with_loaded_inputs, nodes)
+                rslts = pool.map(run_node, nodes)  # ! The output of node's won't be copied back
                 pool.close()
                 pool.join()
+
+                for node, rslt in zip(nodes, rslts):
+                    if len(node._outputs) == 1:
+                        node._outputs[0].value = rslt
+                    else:
+                        for output, r in zip(node._outputs, rslt):
+                            output.value = r
             else:
                 for node in nodes:
                     node.run_with_loaded_inputs()
