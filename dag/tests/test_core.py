@@ -198,26 +198,25 @@ def test_simple_without_decorator():
     assert graph.data['e'] == -1.5
 
 
-@pytest.mark.skip("Parallel still have problem in multiprocessing/multiprocess module")
+def par_f_my_function(a, b):
+        return a + b
+
+def par_f_my_function3(d, a):
+    return d - a
+
+def par_f_my_function2(c):
+    return c / 10.
+
 def test_simple_parralel():
     """ TODO: We could mock and make sure things are called correctly """
 
     graph = Graph(pool_size=2)
 
-    def f_my_function(a, b):
-        return a + b
-
-    def f_my_function3(d, a):
-        return d - a
-
-    def f_my_function2(c):
-        return c / 10.
-
-    graph.add_node(f_my_function, inputs=['a', 'b'], outputs=['c'])
-    graph.add_node(f_my_function3, inputs=['d', 'a'], outputs=['e'])
-    graph.add_node(f_my_function2, inputs=['c'], outputs=['d'])
-    graph.add_node(f_my_function2, inputs=['c'], outputs=['f'])
-    graph.add_node(f_my_function2, inputs=['c'], outputs=['g'])
+    graph.add_node(par_f_my_function, inputs=['a', 'b'], outputs=['c'])
+    graph.add_node(par_f_my_function3, inputs=['d', 'a'], outputs=['e'])
+    graph.add_node(par_f_my_function2, inputs=['c'], outputs=['d'])
+    graph.add_node(par_f_my_function2, inputs=['c'], outputs=['f'])
+    graph.add_node(par_f_my_function2, inputs=['c'], outputs=['g'])
 
     res = graph.calculate(data={'a': 2, 'b': 3})
 
