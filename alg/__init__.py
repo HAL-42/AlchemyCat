@@ -8,6 +8,9 @@
 @time: 2019/12/7 23:58
 @desc:
 """
+from alchemy_cat.alg.cnn_align import find_nearest_even_size, find_nearest_odd_size
+
+
 # Taken from python 3.5 docs
 def _accumulate(iterable, fn=lambda x, y: x + y):
     'Return running totals'
