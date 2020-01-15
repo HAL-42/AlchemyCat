@@ -8,6 +8,18 @@
 @time: 2020/1/15 6:27
 @desc:
 """
+def _check_input(size, min_n: int):
+    size = int(size)
+    min_n = int(min_n)
+    if not isinstance(size, int) or not isinstance(min_n, int):
+        raise ValueError(f"size={size}, min_n={min_n} should be able to be int()")
+    if size <= 0:
+        raise ValueError(f"size=f{size} should > 0")
+    if min_n < 1:
+        raise ValueError(f"min_n=f{min_n} should >= 1")
+    return size, min_n
+
+
 def find_nearest_odd_size(size, min_n: int=4, is_both_way: bool=False):
     """Find the nearest number to the size which can be writen as k * 2 ^ min_n + 1
 
@@ -17,24 +29,20 @@ def find_nearest_odd_size(size, min_n: int=4, is_both_way: bool=False):
 
     Returns: nearest odd size larger than size if not is_both_way, else nearest odd size smaller or larger than size.
     """
-    size = int(size)
-    min_n = int(min_n)
-    if not isinstance(size, int) or not isinstance(min_n, int):
-        raise ValueError(f"size={size}, min_n={min_n} should be able to be int()")
-    if size <= 0:
-        raise ValueError(f"size=f{size} should > 0")
-    if min_n < 1:
-        raise ValueError(f"min_n=f{min_n} should >= 1")
-    # * Make size odd
-    size = size if size % 2 else size + 1
-    # * Find nearest odd size
-    i = 0
-    while ((size + 2 * i - 1) % (2 ** min_n)) or (size + 2 * i - 1 <= 0):
-        if is_both_way:
-            i = i * -1 if i > 0 else (i * -1) + 1
-        else:
-            i += 1
-    return size + 2 * i
+    size, min_n = _check_input(size, min_n)
+
+    base = 2 ** min_n
+    k = size // base
+    residual = size % base
+
+    if residual == 1 and k >=1:
+        return size
+    elif not is_both_way:
+        return (k * base + 1) if residual == 0 else ((k + 1) * base + 1)
+    else:
+        left_gap = (base -1) if (residual == 0) else (residual - 1)
+        right_gap = 1 if (residual == 0) else (base + 1 - residual)
+        return (size - left_gap) if (left_gap < right_gap and (size - left_gap) >= (base + 1)) else (size + right_gap)
 
 
 def find_nearest_even_size(size, min_n: int=4, is_both_way: bool=False):
@@ -46,24 +54,20 @@ def find_nearest_even_size(size, min_n: int=4, is_both_way: bool=False):
 
     Returns: nearest odd size larger than size if not is_both_way, else nearest even size smaller or larger than size.
     """
-    size = int(size)
-    min_n = int(min_n)
-    if not isinstance(size, int) or not isinstance(min_n, int):
-        raise ValueError(f"size={size}, min_n={min_n} should be able to be int()")
-    if size <= 0:
-        raise ValueError(f"size=f{size} should > 0")
-    if min_n < 1:
-        raise ValueError(f"min_n=f{min_n} should >= 1")
-    # * Make size odd
-    size = size + 1 if size % 2 else size
-    # * Find nearest odd size
-    i = 0
-    while (size + 2 * i) % (2 ** min_n) or (size + 2 * i <= 0):
-        if is_both_way:
-            i = i * -1 if i > 0 else (i * -1) + 1
-        else:
-            i += 1
-    return size + 2 * i
+    size, min_n = _check_input(size, min_n)
+
+    base = 2 ** min_n
+    k = size // base
+    residual = size % base
+
+    if residual == 0 and k >= 1:
+        return size
+    elif not is_both_way:
+        return (k + 1) * base
+    else:
+        left_gap = residual
+        right_gap = base - residual
+        return (size - left_gap) if (left_gap < right_gap and k >= 1) else (size + right_gap)
 
 
 if __name__ == "__main__":
