@@ -13,7 +13,7 @@ import torch.nn.functional as F
 
 from typing import Union, Any, Optional, Callable, Iterable
 
-from alchemy_cat.alg import size2HW
+from alchemy_cat.alg.utils import size2HW
 
 
 def _pad_imgs(imgs, size):
@@ -42,7 +42,7 @@ def _pad_labels(labels, size, ignore_label):
     return F.pad(labels, [0, pad_w, 0, pad_h], mode='constant', value=ignore_label)
 
 
-def msc_flip_inference(imgs: torch.Tensor, model: Callable, msc_factors: Union[list[int], tuple[int]], is_flip: bool=True,
+def msc_flip_inference(imgs: torch.Tensor, model: Callable, msc_factors: Union[list, tuple], is_flip: bool=True,
                        pad_imgs_to: Union[None, Iterable, int]=None, pad_aligner: Optional[Callable]=None,
                        msc_aligner: Optional[Callable]=None) -> torch.Tensor:
     """MSC and flip inference
@@ -79,12 +79,14 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable, msc_factors: Union[l
 
     def merge_flipped_probs(probs):
         """merge flipped probs by calculate the average of origin and flipped prob"""
-        return torch.mean(probs.view(2, probs.shape[0] // 2, *probs.shape[1:]), dim=0)
+        dual_logits = probs.view(2, probs.shape[0] // 2, *probs.shape[1:])
+        dual_logits[1] = dual_logits[1].flip([3])
+        return torch.mean(dual_logits, dim=0)
 
     # * Get probs from each scale
     msc_probs = []
     for msc_factor in msc_factors:
-        scaled_h, scaled_w = (int(s * msc_factor) for s in padded_imgs[-2:])
+        scaled_h, scaled_w = (int(s * msc_factor) for s in (padded_h, padded_w))
         if msc_aligner is not None:
             scaled_h, scaled_w = msc_aligner(scaled_h), msc_aligner(scaled_w)
 
