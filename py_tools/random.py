@@ -56,7 +56,7 @@ def set_py_rand_seed(seed: Union[int, str]):
     random.seed(int(seed))
 
 
-def set_rand_rand(seed: Union[int, str]):
+def set_rand_seed(seed: Union[int, str]):
     """Set rand seed for numpy, torch(cpu, cuda, cudnn), python
 
     Args:
