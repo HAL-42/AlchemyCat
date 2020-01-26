@@ -9,7 +9,13 @@
 @desc:
 """
 from alchemy_cat.alg.cnn_align import find_nearest_even_size, find_nearest_odd_size
+from alchemy_cat.alg.msc_flip_inference import msc_flip_inference
 
+from alchemy_cat.py_tools import is_int
+
+from collections import Iterable
+
+from typing import Any
 
 # Taken from python 3.5 docs
 def _accumulate(iterable, fn=lambda x, y: x + y):
@@ -25,3 +31,19 @@ def _accumulate(iterable, fn=lambda x, y: x + y):
     for element in it:
         total = fn(total, element)
         yield total
+
+
+def size2HW(size: Any) -> tuple:
+    """Convert size to H, W
+
+    Args:
+        size (Any): If size is int, return (size, size), else return (size[0], size[1])
+
+    Returns: (H, W) converted from size
+    """
+    if is_int(size):
+        return int(size), int(size)
+    elif len(size) == 2 and is_int(size[0]) and is_int(size[1]):
+        return int(size[0]), int(size[1])
+    else:
+        raise ValueError("size should be int or [int, int] or (int, int)")
