@@ -8,6 +8,8 @@
 @time: 2020/1/26 23:08
 @desc:
 """
+from collections.abc import Iterator
+
 from typing import Any
 
 from alchemy_cat.py_tools import is_int
@@ -41,6 +43,8 @@ def size2HW(size: Any) -> tuple:
     """
     if is_int(size):
         return int(size), int(size)
+    if isinstance(size, Iterator):
+        return size2HW(list(size))
     elif len(size) == 2 and is_int(size[0]) and is_int(size[1]):
         return int(size[0]), int(size[1])
     else:
