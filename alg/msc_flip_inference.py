@@ -11,7 +11,7 @@
 import torch
 import torch.nn.functional as F
 
-from typing import Union, Any, Optional, Callable, Iterable
+from typing import Union, List, Tuple, Optional, Callable, Iterable
 
 from alchemy_cat.alg.utils import size2HW
 
@@ -42,7 +42,7 @@ def _pad_labels(labels, size, ignore_label):
     return F.pad(labels, [0, pad_w, 0, pad_h], mode='constant', value=ignore_label)
 
 
-def msc_flip_inference(imgs: torch.Tensor, model: Callable, msc_factors: Union[list, tuple], is_flip: bool=True,
+def msc_flip_inference(imgs: torch.Tensor, model: Callable, msc_factors: Union[List[int], Tuple[int]], is_flip: bool=True,
                        pad_imgs_to: Union[None, Iterable, int]=None, pad_aligner: Optional[Callable]=None,
                        msc_aligner: Optional[Callable]=None) -> torch.Tensor:
     """MSC and flip inference
