@@ -106,20 +106,3 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable, msc_factors: Union[L
 
     # * return with size of origin img
     return probs[:, :, :origin_h, :origin_w]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
