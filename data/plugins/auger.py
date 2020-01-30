@@ -235,11 +235,11 @@ class RandScale(RandMap):
             self.aligner = aligner
 
     def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None):
+        scaled_factor = self.rand_seed
+
         if label is not None:
             if img.shape[-2:] != label.shape[-2:]:
                 raise ValueError(f"RandScale's img size {img.shape[-2:]} should be equal to label{img.shape[-2:]} size")
-
-        scaled_factor = self.rand_seed
 
         scaled_h, scaled_w = \
             self.aligner(int(scaled_factor * img.shape[-2])), self.aligner(int(scaled_factor * img.shape[-1]))
@@ -255,8 +255,49 @@ class RandScale(RandMap):
 
 
 class MultiScale(MultiMap):
+    def __init__(self, scale_factors: Iterable, aligner: Optional[Callable]=None):
+        """Auger to Multi rescale the input img and corresponding label
 
+        Args:
+            scale_factors: scale_factors: scale factors. eg. [0.5, 1, 1.5] means the img (and label) will be
+            rand scale with factor 0.5, 1.0 or 1.5
+            aligner: If not None, the scaled_size calculated by scale_factor * img_size will be fix by
+            aligner(scaled_size)
+        """
+        super(MultiScale, self).__init__()
 
+        self.scaled_factors = []
+        for factor in scale_factors:
+            factor = float(factor)
+            if factor <= 0:
+                raise ValueError(f"scale factors {scale_factors} must all larger than 0")
+            self.scaled_factors.append(factor)
+
+        self.output_num = len(self.scaled_factors)
+
+        if aligner is None:
+            self.aligner = lambda x: x
+        else:
+            self.aligner = aligner
+
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None):
+        scaled_factor = self.scaled_factors[self.output_index]
+
+        if label is not None:
+            if img.shape[-2:] != label.shape[-2:]:
+                raise ValueError(f"RandScale's img size {img.shape[-2:]} should be equal to label{img.shape[-2:]} size")
+
+        scaled_h, scaled_w = \
+            self.aligner(int(scaled_factor * img.shape[-2])), self.aligner(int(scaled_factor * img.shape[-1]))
+
+        scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
+        if label is not None:
+            scaled_label = cv2.resize(label, (scaled_w, scaled_h), interpolation=cv2.INTER_NEAREST)
+
+        if label is not None:
+            return scaled_img, scaled_label
+        else:
+            return scaled_img
 
 
 
