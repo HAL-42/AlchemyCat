@@ -105,7 +105,7 @@ class RandColorJitter(RandMap):
 
     def __init__(self, max_delta_bright: int=32, range_mul_contract: tuple=(0.5, 1.5),
                  range_mul_saturate: tuple=(0.5, 1.5), max_delta_hue: int=18,
-                 jitter_prob: Union[list, tuple, float]=0.5):
+                 jitter_prob: Union[Iterable[float], float]=0.5):
         """Random color jitter for image
 
         Args:
@@ -135,12 +135,15 @@ class RandColorJitter(RandMap):
             raise ValueError(f"max_delta_hue={max_delta_hue} should be larger than 0")
         self.max_delta_hue = max_delta_hue
 
-        jps = [jitter_prob] if isinstance(jitter_prob, float) else jitter_prob
+        jps = [jitter_prob] * 4 if isinstance(jitter_prob, float) else list(jitter_prob)
+        if len(jps) != 4:
+            raise ValueError(f"If the jitter_prob is not float, then "
+                             f"you must give each step's probability(Length of jitter_prob {jitter_prob} must be 4).")
         for jp in jps:
             if jp < 0 or jp > 1:
-                raise ValueError(f"jitter probs={jitter_prob} should >=0 and <=1")
+                raise ValueError(f"jitter probs={jps} should >=0 and <=1")
 
-        self.jitter_prob = jitter_prob if isinstance(jitter_prob, list) else [jitter_prob] * 4
+        self.jitter_prob = jps
 
     def generate_rand_seed(self, *fwd_args, **fwd_kwargs):
         rand_seed = {}
