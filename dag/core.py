@@ -1,11 +1,12 @@
 """ Main module containing Graph / Node classes """
 
-import datetime as dt
 from functools import reduce
 import logging
 import inspect
 import copy
 from multiprocessing.pool import Pool
+
+from typing import List
 
 from alchemy_cat.dag.io import Input, Output, get_if_exists
 from alchemy_cat.dag.errors import PyungoError
@@ -233,7 +234,8 @@ class Graph:
             not installed
     """
 
-    def __init__(self, inputs=None, outputs=None, pool_size=0, schema=None, verbosity=0, slim=False):
+    def __init__(self, inputs: List[Input]=None, outputs: List[Output]=None, pool_size: int=0,
+                 schema: dict=None, verbosity: int=0, slim: bool=False):
         self._nodes = {}
         self._data = None
         self._pool_size = pool_size
