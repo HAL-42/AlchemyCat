@@ -16,7 +16,7 @@ from numpy.random import permutation
 import numpy as np
 import torch
 
-from alchemy_cat.alg import _accumulate
+from alchemy_cat.alg import accumulate
 
 
 class Dataset(object):
@@ -199,4 +199,4 @@ def random_split(dataset, lengths):
         raise ValueError("Sum of input lengths does not equal the length of the input dataset!")
 
     indices = permutation(sum(lengths)).tolist()
-    return [Subset(dataset, indices[offset - length:offset]) for offset, length in zip(_accumulate(lengths), lengths)]
+    return [Subset(dataset, indices[offset - length:offset]) for offset, length in zip(accumulate(lengths), lengths)]
