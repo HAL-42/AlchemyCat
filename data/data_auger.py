@@ -16,6 +16,8 @@ from functools import reduce
 
 from alchemy_cat.dag import Graph
 from alchemy_cat.data import Dataset
+from alchemy_cat.py_tools import is_int
+from alchemy_cat.alg import accumulate
 
 
 class RandMap(object):
@@ -47,7 +49,9 @@ class RandMap(object):
         Returns:
             rand_seed: Generated rand seed
         """
-        prob = np.array(self.weight, dtype=np.float32) / np.sum(self.weight)
+        prob = None
+        if self.weight is not None:
+            prob = np.array(self.weight, dtype=np.float32) / np.sum(self.weight)
         rand_seed_index = np.random.choice(len(self), p=prob)
         return self.rand_seeds[rand_seed_index]
 
@@ -89,7 +93,9 @@ class MultiMap(object):
         self._output_index = 0
 
     def __len__(self):
-        return self.output_num
+        if not is_int(self.output_num):
+            raise ValueError(f"{self.__class__.__name__}'s output_num {self.output_num} is not an int value")
+        return int(self.output_num)
 
     @property
     def output_index(self):
@@ -97,6 +103,9 @@ class MultiMap(object):
 
     @output_index.setter
     def output_index(self, value):
+        if not is_int(value):
+            raise ValueError(f"output_index {value} should be int")
+
         if value < 0:
             value += len(self)
 
@@ -117,11 +126,22 @@ class MultiMap(object):
 
 class DataAuger(object):
 
-    def __init__(self, dataset: Dataset, verbosity=0, rand_seed_log = None):
+    def __init__(self, dataset: Dataset, verbosity: int=0, pool_size: int=0, slim: bool=False,
+                 rand_seed_log: str = None):
+        """Given dataset and argument it with a calculate graph.
+
+        Args:
+            dataset: dataset to be augmented
+            verbosity: Calculate graph's verbosity. 0: No log output; 1: Only give graph level log;
+            >1: Give graph and node level log.
+            pool_size: Calculate graph's pool size. 0 means don't use parallel.
+            slim: If True, calculate graph use copy rather than deepcopy when setting value of Node's input.
+            rand_seed_log: lmdb database where rand seeds saved
+        """
         self._dataset = dataset
         self.rand_seed_log = rand_seed_log
 
-        self.graph = Graph(verbosity=verbosity)
+        self.graph = Graph(verbosity=verbosity, pool_size=pool_size, slim=slim)
         self.ordered_nodes = self.graph.ordered_nodes
         self.multi_nodes = [node for node in self.ordered_nodes if isinstance(node._fct, MultiMap)]
         self.rand_nodes = [node for node in self.ordered_nodes if isinstance(node._fct, RandMap)]
@@ -143,26 +163,31 @@ class DataAuger(object):
 
     def _get_divide_factors(self):
         divide_factors = self.multi_factors[::-1][:-1]
-        divide_factors = reduce(lambda x, y: x * y, divide_factors)
+        divide_factors = accumulate(divide_factors, lambda x, y: x * y)
         return divide_factors[::-1] + [1]
 
     @property
     def dataset(self):
+        """Get auger's dataset"""
         return self._dataset
 
     @dataset.setter
     def dataset(self, value):
+        """Reset auger's dataset"""
         self._dataset = value
         self.multi_factors = self._get_multi_factors()
 
     @property
     def multi_factor(self):
+        """Return the number of one example were auger to"""
         return reduce(lambda x, y: x * y, self.multi_factors[1:])
 
     def __len__(self):
+        """Return the size of augmented dataset"""
         return reduce(lambda x, y: x * y, self.multi_factors)
 
     def load_indices(self, idx):
+        """Set every multi node's idx and return dataset's idx with auger's idx"""
         dataset_idx = idx // self.divide_factors[0]
         idx %= self.divide_factors[0]
 
@@ -173,6 +198,7 @@ class DataAuger(object):
         return dataset_idx
 
     def calculate_indices(self, idx):
+        """Return dataset's idx and every multi node's idx with auger's idx"""
         dataset_idx = idx // self.divide_factors[0]
         idx %= self.divide_factors[0]
 
@@ -185,6 +211,7 @@ class DataAuger(object):
 
     @property
     def rand_seeds(self):
+        """Return rand seed of every rand node"""
         rand_seeds = {}
 
         for node in self.rand_nodes:
@@ -192,6 +219,7 @@ class DataAuger(object):
         return rand_seeds
 
     def load_rand_seeds(self, rand_seeds):
+        """Load rand seed from rand_seeds"""
         for node in self.rand_nodes:
             node._fct.rand_seed = rand_seeds[node._id]
 
@@ -199,7 +227,7 @@ class DataAuger(object):
         example = self._dataset[self.load_indices(idx)]
 
         if self.rand_seed_log is not None:
-            env = lmdb.open(self.rand_seed_log.encode(), meminit=False)
+            env = lmdb.open(self.rand_seed_log, meminit=False)
             with env.begin() as txn:
                 rand_seeds = txn.get(str(idx).encode())
             if rand_seeds is not None:
