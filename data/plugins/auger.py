@@ -8,12 +8,13 @@
 @time: 2020/1/13 9:43
 @desc:
 """
-from typing import Optional, Union, Iterable, Callable
+from typing import Optional, Union, Iterable, Callable, Tuple
 import numpy as np
 import cv2
 
 from alchemy_cat.data.data_auger import RandMap, MultiMap
 from alchemy_cat.py_tools import Compose, Lambda, is_intarr
+from alchemy_cat.py_tools import is_int, is_float
 
 
 
@@ -198,7 +199,14 @@ class RandColorJitter(RandMap):
             img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
         return img
 
-    def forward(self, img: np.ndarray):
+    def forward(self, img: np.ndarray) -> np.ndarray:
+        """Color jitter img according to rand seed
+
+        Args:
+            img (np.ndarray):  img to be jitter
+
+        Returns: img after jittering
+        """
         if not is_intarr(img):
             raise ValueError('Image should be int array')
 
@@ -234,15 +242,23 @@ class RandScale(RandMap):
         else:
             self.aligner = aligner
 
-    def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None):
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None) -> Union[np.ndarray, Tuple[np.ndarray]]:
+        """Rand Scale img according to rand seed
+
+        Args:
+            img (np.ndarray): img with shape (H, W, C)
+            label (Optional[np.ndarray]): label with shape (H, W)
+
+        Returns: Scaled img and label(if exit)
+        """
         scaled_factor = self.rand_seed
 
         if label is not None:
-            if img.shape[-2:] != label.shape[-2:]:
+            if img.shape[:2] != label.shape:
                 raise ValueError(f"RandScale's img size {img.shape[-2:]} should be equal to label{img.shape[-2:]} size")
 
         scaled_h, scaled_w = \
-            self.aligner(int(scaled_factor * img.shape[-2])), self.aligner(int(scaled_factor * img.shape[-1]))
+            self.aligner(int(scaled_factor * img.shape[0])), self.aligner(int(scaled_factor * img.shape[1]))
 
         scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
         if label is not None:
@@ -280,15 +296,23 @@ class MultiScale(MultiMap):
         else:
             self.aligner = aligner
 
-    def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None):
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None) -> Union[np.ndarray, Tuple[np.ndarray]]:
+        """Rand Scale img according to rand seed
+
+        Args:
+            img (np.ndarray): img with shape (H, W, C)
+            label (Optional[np.ndarray]): label with shape (H, W)
+
+        Returns: Scaled img and label(if exit)
+        """
         scaled_factor = self.scaled_factors[self.output_index]
 
         if label is not None:
-            if img.shape[-2:] != label.shape[-2:]:
+            if img.shape[:2] != label.shape:
                 raise ValueError(f"RandScale's img size {img.shape[-2:]} should be equal to label{img.shape[-2:]} size")
 
         scaled_h, scaled_w = \
-            self.aligner(int(scaled_factor * img.shape[-2])), self.aligner(int(scaled_factor * img.shape[-1]))
+            self.aligner(int(scaled_factor * img.shape[0])), self.aligner(int(scaled_factor * img.shape[1]))
 
         scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
         if label is not None:
@@ -300,6 +324,20 @@ class MultiScale(MultiMap):
             return scaled_img
 
 
+def pad_img_label(img: np.ndarray, label: np.ndarray, pad_imgs_to: Union[None, Iterable, int]=0,
+                  pad_aligner: Optional[Callable]=lambda x: x, img_pad_val: Union[int, float, Iterable]=0.0,
+                  ignore_label: int=255) -> Union[np.ndarray, Tuple[np.ndarray]]:
+    if img.shape[-2:] != label.shape[-2:]:
+        raise ValueError(f"RandScale's img size {img.shape[-2:]} should be equal to label{img.shape[-2:]} size")
 
+    if not is_int(ignore_label):
+        raise ValueError(f"ignore_label{ignore_label} should be int")
+    else:
+        ignore_label = int(ignore_label)
+
+    if is_int(img_pad_val) or is_float(img_pad_val):
+        img_pad_val = [img_pad_val] * img.shape[-3]
+
+    cv2.copyMakeBorder()
 
 
