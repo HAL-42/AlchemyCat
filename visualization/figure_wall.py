@@ -10,7 +10,7 @@
 """
 import numpy as np
 from matplotlib import pyplot as plt
-from typing import Union
+from typing import Union, List, Optional
 
 from alchemy_cat.visualization.utils import stack_figs
 from alchemy_cat.py_tools import is_intarr
@@ -21,12 +21,13 @@ class FigureWall(object):
     A class to operate a figure wall
     """
 
-    def __init__(self, figs: Union[list, np.ndarray], is_normalize: bool = False, space_width: int = 1):
+    def __init__(self, figs: Union[List[Union[np.ndarray, 'FigureWall']], np.ndarray], is_normalize: bool = False,
+                 space_width: int = 1):
         """
         Args:
-            figs (list, np.ndarray):
+            figs (list, np.ndarray): List[fig] or figs. fig is supposed to be (H, W, C) and RGB mode.
             is_normalize (bool): If true, the figures will be min-max normalized
-            space_width: Space width between figs
+            space_width (int): Space width between figs
         """
         if isinstance(figs, list):
             if isinstance(figs[0], np.ndarray):
@@ -56,7 +57,7 @@ class FigureWall(object):
         """
         raise NotImplementedError
 
-    def plot(self, **kwargs):
+    def plot(self, **kwargs) -> plt.Figure:
         """
         Show figure wall.
         Args:
@@ -82,7 +83,7 @@ class FigureWall(object):
         """
         plt.imsave(img_file, self.tiled_figs)
 
-    def __add__(self, other):
+    def __add__(self, other: 'FigureWall') -> 'FigureWall':
         """
         Args:
             other (FigureWall): A figure wall instance
@@ -123,19 +124,31 @@ class SquareFigureWall(FigureWall):
 
 
 class RectFigureWall(FigureWall):
-    """
-    Figures will be tiled to an Rectangle
-    """
 
-    def __init__(self, figs: Union[list, np.ndarray], is_normalize: bool = False, space_width: int = 1,
-                 row_num: int=None, col_num: int=None):
+    def __init__(self, figs: Union[List[Union[np.ndarray, 'FigureWall']], np.ndarray], is_normalize: bool = False,
+                 space_width: int = 1, row_num: Optional[int]=None, col_num: Optional[int]=None):
+        """Figures will be tiled to an Rectangle
+
+        Args:
+            figs (list, np.ndarray): List[fig] or figs. fig is supposed to be (H, W, C) and RGB mode.
+            is_normalize (bool): If true, the figures will be min-max normalized
+            space_width (int): Space width between figs
+            row_num (Optional[int]): row num of rectangle figure wall. If None, it will be calculated by ceil(figure's num / col_num)
+            col_num (Optional[int]): cow num of rectangle figure wall. If None, it will be calculated by ceil(figure's num / row_num)
+        """
         self.row_num = row_num
         self.col_num = col_num
         super(RectFigureWall, self).__init__(figs, is_normalize, space_width)
 
     def _tile_figs(self, space_width):
-        if self.row_num is None or self.col_num is None:
+        if self.row_num is None and self.col_num is None:
             raise ValueError(f"row_num={self.row_num} or col_num={self.col_num} should not be int, not None")
+
+        figs_num = self.figs.shape[0]
+        if self.row_num is None:
+            self.row_num = int(np.ceil(figs_num / self.col_num))
+        elif self.col_num is None:
+            self.col_num = int(np.ceil(figs_num / self.row_num))
 
         n = self.row_num * self.col_num
 
@@ -208,6 +221,12 @@ if __name__ == "__main__":
     sq_wall.plot(dpi=300)
 
     rect_wall = RectFigureWall(list(np.random.randn(10, 224, 224, 3)), is_normalize=True, space_width=5, row_num=2, col_num=5)
+    rect_wall.plot(dpi=300)
+
+    rect_wall = RectFigureWall(list(np.random.randn(9, 224, 224, 3)), is_normalize=True, space_width=5, row_num=2)
+    rect_wall.plot(dpi=300)
+
+    rect_wall = RectFigureWall(list(np.random.randn(9, 224, 224, 3)), is_normalize=True, space_width=5, col_num=4)
     rect_wall.plot(dpi=300)
 
     wall_wall = RowFigureWall([col_wall, row_wall, sq_wall], space_width=10)
