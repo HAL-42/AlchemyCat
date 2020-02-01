@@ -9,18 +9,20 @@
 @desc:
 """
 import numpy as np
+import torch
+
+from typing import Union
 
 
 def stack_figs(in_list: list) -> np.ndarray:
-    """
+    """Arrays in list will be padded to the max height/width in the list. The padding value will be 0 and located at right
+    and bottom.
+
     Args:
         in_list (list): A list of numpy array shaped (H, W, C) with length N
 
     Returns:
         np.ndarray: Stacked np array with shape (N, H, W, C)
-
-    Arrays in list will be padded to the max height/width in the list. The padding value will be 0 and located at right
-    and bottom.
     """
     max_h = 0
     max_w = 0
@@ -40,10 +42,10 @@ def stack_figs(in_list: list) -> np.ndarray:
 def HWC2CHW(arr: np.ndarray) -> np.ndarray:
     """
     Args:
-        arr (np.ndarray): nparray with shape (..., H, W, C)
+        arr (np.ndarray): ndarray with shape (..., H, W, C)
 
     Returns:
-        (np.ndarray): nparray transposed to (..., C, H, W)
+        (np.ndarray): ndarray transposed to (..., C, H, W)
     """
     return arr.transpose(tuple(range(0, arr.ndim - 3)) + (-1, -3, -2))
 
@@ -51,15 +53,15 @@ def HWC2CHW(arr: np.ndarray) -> np.ndarray:
 def CHW2HWC(arr: np.ndarray) -> np.ndarray:
     """
     Args:
-        arr (np.ndarray): nparray with shape (..., C, H, W)
+        arr (np.ndarray): ndarray with shape (..., C, H, W)
 
     Returns:
-        (np.ndarray): nparray transposed to (..., H, W, C)
+        (np.ndarray): ndarray transposed to (..., H, W, C)
     """
     return arr.transpose(tuple(range(0, arr.ndim - 3)) + (-2, -1 -3))
 
 
-def RGB2BGR(arr):
+def RGB2BGR(arr: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
     """
     Args:
         arr (Tensor, ndarray): arr with shape (..., C[RGB])
@@ -70,7 +72,7 @@ def RGB2BGR(arr):
     return arr[..., ::-1]
 
 
-def BGR2RGB(arr):
+def BGR2RGB(arr: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
     """
     Args:
         arr (Tensor, ndarray): arr with shape (..., C[BGR])

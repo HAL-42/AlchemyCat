@@ -13,7 +13,7 @@ import os.path as osp
 import sys
 import torch
 from addict import Dict
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 
 import yaml
 from yamlinclude import YamlIncludeConstructor
@@ -21,7 +21,7 @@ from yamlinclude import YamlIncludeConstructor
 from alchemy_cat.py_tools.random import set_rand_seed
 
 
-def get_device(is_cuda: bool=True, verbosity: bool=True):
+def get_device(is_cuda: bool=True, verbosity: bool=True) -> torch.device:
     """Get default device
 
     Args:
@@ -62,7 +62,8 @@ def open_config(config_path: str, is_yaml: bool=False) -> Union[Dict, dict]:
 
 
 def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, config_path: Optional[str]=None,
-             experiments_root = "experiment", fix_random: bool=False, verbosity: bool=True):
+             experiments_root: str = "experiment", fix_random: bool=False, verbosity: bool=True) \
+            -> Union[Tuple[torch.device, Dict], torch.device]:
     """Init torch training environment
 
     Args:
@@ -70,7 +71,7 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
         is_benchmark (bool): If True, set torch.backends.cudnn.benchmark = True
         is_train (bool): If False, disable grad
         config_path (Optional[str]): The path of yaml config
-        experiments_root (bool): The path where experiments result are stored
+        experiments_root (str): The path where experiments result are stored
         fix_random (bool): If True, fix random of torch, numpy, python's random module
         verbosity (bool): If True, print detailed info
 

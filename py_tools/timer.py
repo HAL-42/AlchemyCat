@@ -8,9 +8,10 @@
 @time: 2020/1/11 1:40
 @desc:
 """
-import sys
 import time
 from timeit import default_timer
+
+from typing import Optional
 
 
 class Timer(object):
@@ -18,7 +19,14 @@ class Timer(object):
                     'ms': 1000,
                     'us': 1000000}
 
-    def __init__(self, unit=None, precision=4, name="Default Timer"):
+    def __init__(self, unit: Optional[str]=None, precision: int=4, name: str="Default Timer"):
+        """Timer to record the time interval in program
+
+        Args:
+            unit: Timer's unit. Can be s, ms, us. If not given, then the program will adaptively choose a unit.
+            precision: Timer's output precision. The total time's decimal part will be rounded according to this precision.
+            name: Timer's name.
+        """
         if unit is not None and unit not in Timer.__unitfactor:
             raise ValueError('Unsupported time unit.')
         self._start = 0
@@ -67,7 +75,7 @@ class Timer(object):
         else:
             total *= Timer.__unitfactor[self._unit]
             total = round(self._total, self._precision)
-            ret = f'{total}{self._unit}'
+            ret = f"{total}{self._unit}"
 
         return ret
 

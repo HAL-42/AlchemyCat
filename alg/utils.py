@@ -10,7 +10,7 @@
 """
 from collections.abc import Iterator
 
-from typing import Any
+from typing import Any, Tuple, Iterable, Callable
 
 from alchemy_cat.py_tools import is_int
 
@@ -18,7 +18,7 @@ from alchemy_cat.py_tools import is_int
 __all__ = ['accumulate', 'size2HW']
 
 # Taken from python 3.5 docs
-def accumulate(iterable, fn=lambda x, y: x + y):
+def accumulate(iterable: Iterable, fn: Callable=lambda x, y: x + y):
     'Return running totals'
     # _accumulate([1,2,3,4,5]) --> 1 3 6 10 15
     # _accumulate([1,2,3,4,5], operator.mul) --> 1 2 6 24 120
@@ -33,7 +33,7 @@ def accumulate(iterable, fn=lambda x, y: x + y):
         yield total
 
 
-def size2HW(size: Any) -> tuple:
+def size2HW(size: Any) -> Tuple[int, int]:
     """Convert size to H, W
 
     Args:
@@ -49,3 +49,5 @@ def size2HW(size: Any) -> tuple:
         return int(size[0]), int(size[1])
     else:
         raise ValueError("size should be int or [int, int] or (int, int)")
+
+
