@@ -4,7 +4,7 @@
 @author: Xiaobo Yang
 @contact: hal_42@zju.edu.cn
 @software: PyCharm
-@file: auger.py
+@file: augers.py
 @time: 2020/1/13 9:43
 @desc:
 """
