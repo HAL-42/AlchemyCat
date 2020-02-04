@@ -13,16 +13,15 @@ import numpy as np
 import cv2
 
 from alchemy_cat.data.data_auger import RandMap, MultiMap
-from alchemy_cat.py_tools import Compose, Lambda, is_intarr
-from alchemy_cat.py_tools import is_int, is_float
-
+from alchemy_cat.py_tools import Compose, Lambda
+from alchemy_cat.py_tools import is_int, is_intarr, is_floatarr
+from alchemy_cat.alg import size2HW, color2scalar
 
 
 class RandMirror(RandMap):
-
     rand_seeds = [1, -1]
 
-    def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None) -> Union[np.ndarray, tuple]:
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, tuple]:
         """ Random mirror image and it's label(if exits)
 
         Args:
@@ -38,10 +37,9 @@ class RandMirror(RandMap):
 
 
 class MultiMirror(MultiMap):
-
     output_num = 2
 
-    def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None) -> Union[np.ndarray, tuple]:
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, tuple]:
         """Multi output of mirrored img and label(if exits).
         output_index = 0: Don't mirror
         output_index = 1: mirror
@@ -61,10 +59,9 @@ class MultiMirror(MultiMap):
 
 
 class RandUpDown(RandMap):
-
     rand_seeds = [1, -1]
 
-    def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None) -> Union[np.ndarray, tuple]:
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, tuple]:
         """ Random Upside Down image and it's label(if exits)
 
         Args:
@@ -80,10 +77,9 @@ class RandUpDown(RandMap):
 
 
 class MultiUpDown(MultiMap):
-
     output_num = 2
 
-    def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None) -> Union[np.ndarray, tuple]:
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, tuple]:
         """Multi output of upside down img and label(if exits).
         output_index = 0: Don't upside down
         output_index = 1: upside down
@@ -104,9 +100,9 @@ class MultiUpDown(MultiMap):
 
 class RandColorJitter(RandMap):
 
-    def __init__(self, max_delta_bright: int=32, range_mul_contract: tuple=(0.5, 1.5),
-                 range_mul_saturate: tuple=(0.5, 1.5), max_delta_hue: int=18,
-                 jitter_prob: Union[Iterable[float], float]=0.5):
+    def __init__(self, max_delta_bright: int = 32, range_mul_contract: tuple = (0.5, 1.5),
+                 range_mul_saturate: tuple = (0.5, 1.5), max_delta_hue: int = 18,
+                 jitter_prob: Union[Iterable[float], float] = 0.5):
         """Random color jitter for image
 
         Args:
@@ -171,19 +167,19 @@ class RandColorJitter(RandMap):
 
         return rand_seed
 
-    def jitter_bright(self, img:np.ndarray):
+    def jitter_bright(self, img: np.ndarray):
         delta_bright = self.rand_seed.get('delta_bright')
         if delta_bright is not None:
             return cv2.convertScaleAbs(img, alpha=1, beta=delta_bright)
         return img
 
-    def jitter_contract(self, img:np.ndarray):
+    def jitter_contract(self, img: np.ndarray):
         mul_contract = self.rand_seed.get('mul_contract')
         if mul_contract is not None:
             return cv2.convertScaleAbs(img, alpha=mul_contract, beta=0)
         return img
 
-    def jitter_saturate(self, img:np.ndarray):
+    def jitter_saturate(self, img: np.ndarray):
         mul_saturate = self.rand_seed.get('mul_saturate')
         if mul_saturate is not None:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -191,7 +187,7 @@ class RandColorJitter(RandMap):
             img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
         return img
 
-    def jitter_hue(self, img:np.ndarray):
+    def jitter_hue(self, img: np.ndarray):
         delta_hue = self.rand_seed.get('delta_hue')
         if delta_hue is not None:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -217,16 +213,48 @@ class RandColorJitter(RandMap):
         return ordered_jitters(img)
 
 
+def _check_img_size_equal_label_size(img, label):
+    if label is not None and img.shape[:2] != label.shape:
+        raise ValueError(f"img size {img.shape[:2]} should be equal to label{label.shape} size")
+
+
+def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.ndarray]=None, aligner: Callable=lambda x: x) \
+        -> Union[np.ndarray, Tuple[np.ndarray]]:
+    """Scale img and label accroding to scaled factor
+
+    Args:
+        scale_factor: scaled factor
+        img: img to be scaled
+        label: If not none, label to be scaled
+        aligner: The scaled size will be refined by Callable aligner
+
+    Returns: Scaled img and label(If exits)
+    """
+    if scale_factor <= 0:
+        raise ValueError(f"scale_factor={scale_factor} must > 0")
+
+    _check_img_size_equal_label_size(img, label)
+
+    scaled_h, scaled_w = \
+        aligner(int(scale_factor * img.shape[0])), aligner(int(scale_factor * img.shape[1]))
+    scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
+
+    if label is not None:
+        scaled_label = cv2.resize(label, (scaled_w, scaled_h), interpolation=cv2.INTER_NEAREST)
+        return scaled_img, scaled_label
+    else:
+        return scaled_img
+
+
 class RandScale(RandMap):
 
-    def __init__(self, scale_factors: Iterable, aligner: Optional[Callable]=None):
+    def __init__(self, scale_factors: Iterable, aligner: Callable=lambda x: x):
         """Auger to rand rescale the input img and corresponding label
 
         Args:
             scale_factors: scale_factors: scale factors. eg. [0.5, 1, 1.5] means the img (and label) will be
             rand scale with factor 0.5, 1.0 or 1.5
-            aligner: If not None, the scaled_size calculated by scale_factor * img_size will be fix by
-            aligner(scaled_size)
+            aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size)
         """
         super(RandScale, self).__init__()
 
@@ -237,12 +265,9 @@ class RandScale(RandMap):
                 raise ValueError(f"scale factors {scale_factors} must all larger than 0")
             self.rand_seeds.append(factor)
 
-        if aligner is None:
-            self.aligner = lambda x: x
-        else:
-            self.aligner = aligner
+        self.aligner = aligner
 
-    def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None) -> Union[np.ndarray, Tuple[np.ndarray]]:
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
         """Rand Scale img according to rand seed
 
         Args:
@@ -251,34 +276,19 @@ class RandScale(RandMap):
 
         Returns: Scaled img and label(if exit)
         """
-        scaled_factor = self.rand_seed
+        scale_factor = self.rand_seed
 
-        if label is not None:
-            if img.shape[:2] != label.shape:
-                raise ValueError(f"RandScale's img size {img.shape[-2:]} should be equal to label{img.shape[-2:]} size")
-
-        scaled_h, scaled_w = \
-            self.aligner(int(scaled_factor * img.shape[0])), self.aligner(int(scaled_factor * img.shape[1]))
-
-        scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
-        if label is not None:
-            scaled_label = cv2.resize(label, (scaled_w, scaled_h), interpolation=cv2.INTER_NEAREST)
-
-        if label is not None:
-            return scaled_img, scaled_label
-        else:
-            return scaled_img
+        return scale_img_label(scale_factor, img, label, self.aligner)
 
 
 class MultiScale(MultiMap):
-    def __init__(self, scale_factors: Iterable, aligner: Optional[Callable]=None):
+    def __init__(self, scale_factors: Iterable, aligner: Callable=lambda x: x):
         """Auger to Multi rescale the input img and corresponding label
 
         Args:
             scale_factors: scale_factors: scale factors. eg. [0.5, 1, 1.5] means the img (and label) will be
             rand scale with factor 0.5, 1.0 or 1.5
-            aligner: If not None, the scaled_size calculated by scale_factor * img_size will be fix by
-            aligner(scaled_size)
+            aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size)
         """
         super(MultiScale, self).__init__()
 
@@ -291,12 +301,9 @@ class MultiScale(MultiMap):
 
         self.output_num = len(self.scaled_factors)
 
-        if aligner is None:
-            self.aligner = lambda x: x
-        else:
-            self.aligner = aligner
+        self.aligner = aligner
 
-    def forward(self, img: np.ndarray, label: Optional[np.ndarray]=None) -> Union[np.ndarray, Tuple[np.ndarray]]:
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
         """Rand Scale img according to rand seed
 
         Args:
@@ -305,39 +312,177 @@ class MultiScale(MultiMap):
 
         Returns: Scaled img and label(if exit)
         """
-        scaled_factor = self.scaled_factors[self.output_index]
+        scale_factor = self.scaled_factors[self.output_index]
 
-        if label is not None:
-            if img.shape[:2] != label.shape:
-                raise ValueError(f"RandScale's img size {img.shape[-2:]} should be equal to label{img.shape[-2:]} size")
-
-        scaled_h, scaled_w = \
-            self.aligner(int(scaled_factor * img.shape[0])), self.aligner(int(scaled_factor * img.shape[1]))
-
-        scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
-        if label is not None:
-            scaled_label = cv2.resize(label, (scaled_w, scaled_h), interpolation=cv2.INTER_NEAREST)
-
-        if label is not None:
-            return scaled_img, scaled_label
-        else:
-            return scaled_img
+        return scale_img_label(scale_factor, img, label, self.aligner)
 
 
-def pad_img_label(img: np.ndarray, label: np.ndarray, pad_imgs_to: Union[None, Iterable, int]=0,
-                  pad_aligner: Optional[Callable]=lambda x: x, img_pad_val: Union[int, float, Iterable]=0.0,
-                  ignore_label: int=255) -> Union[np.ndarray, Tuple[np.ndarray]]:
-    if img.shape[-2:] != label.shape[-2:]:
-        raise ValueError(f"RandScale's img size {img.shape[-2:]} should be equal to label{img.shape[-2:]} size")
+def pad_img_label(img: np.ndarray, label: np.ndarray, pad_img_to: Union[Iterable, int] = 0,
+                  pad_aligner: Optional[Callable] = lambda x: x, img_pad_val: Union[int, float, Iterable] = 0.0,
+                  ignore_label: int = 255) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    """Pad img to size pad_aligner(max(img_origin_size, pad_img_to))
+
+    Args:
+        img (np.ndarray): img to be padded
+        label (np.ndarray): label to be padded
+        pad_img_to (Union[None, Iterable, int]): img pad size. If value is int, the img_pad_to will be parsed as H=value, W=value. Else will be parsed as H=list(value)[0], W=list(value)[1]
+        pad_aligner (Optional[Callable]): Final pad size will be refine by callable aligner
+        img_pad_val: (Union[int, float, Iterable]): If value is int or float, return (value, value, value), if value is Iterable with 3 element, return Tuple(value), else raise error
+        ignore_label (int): value to pad the label.
+
+    Returns: Padded img and label(if given)
+    """
+    _check_img_size_equal_label_size(img, label)
 
     if not is_int(ignore_label):
         raise ValueError(f"ignore_label{ignore_label} should be int")
     else:
         ignore_label = int(ignore_label)
 
-    if is_int(img_pad_val) or is_float(img_pad_val):
-        img_pad_val = [img_pad_val] * img.shape[-3]
+    img_pad_scalar = color2scalar(img_pad_val)
 
-    cv2.copyMakeBorder()
+    pad_to_h, pad_to_w = size2HW(pad_img_to)
+    img_h, img_w = size2HW(img.shape[:2])
+    padded_h, padded_w = pad_aligner(max(pad_to_h, img_h)), pad_aligner(max(pad_to_w, img_w))
+    pad_h, pad_w = padded_h - img_h, padded_w - img_w
+
+    if pad_h < 0 or pad_w < 0:
+        raise ValueError("pad aligner's return size must larger than input size")
+
+    img = cv2.copyMakeBorder(img, 0, pad_h, 0, pad_w, borderType=cv2.BORDER_CONSTANT, value=img_pad_scalar)
+    if label is not None:
+        label = cv2.copyMakeBorder(label, 0, pad_h, 0, pad_w, borderType=cv2.BORDER_CONSTANT, value=ignore_label)
+
+    if label is None:
+        return img, label
+    else:
+        return img
 
 
+def int_img2float32_img(img: np.ndarray) -> np.ndarray:
+    """Convert int img to float32 img
+
+    Args:
+        img (np.ndarray): int numpy img
+
+    Returns: float32 img
+    """
+    if not is_intarr(img):
+        raise ValueError(f"img {img} is supposed to be an int arr")
+    return img.astype(np.float32)
+
+
+def centralize(img: np.ndarray, mean: Union[int, float, Iterable], std: Union[int, float, Iterable, None] = None):
+    """Centralize img by minus the mean and divide the std
+
+    Args:
+        img: float img with size (H, W, C) to be centralized
+        mean: mean value to be minus
+        std: If not None, std value to be divided after img is minuted mean value
+
+    Returns: Centralized img
+    """
+    if not is_floatarr(img):
+        raise ValueError(f"img to be centralized should be float array")
+
+    mean_scalar, std_scalar = np.array(color2scalar(mean), dtype=np.float32), \
+                              np.array(color2scalar(std), dtype=np.float32) if std is not None else None
+
+    img = img - mean  # Return copy
+    if std_scalar is not None:
+        img /= std  # Inplace
+
+    return img
+
+
+def _crop_img_label(img, label, offset_h, offset_w, crop_h, crop_w) -> Union[np.ndarray, Tuple[np.ndarray]]:
+    cropped_img = img[offset_h:offset_h + crop_h, offset_w:offset_w + crop_w, :]
+    if label is None:
+        return cropped_img
+    else:
+        cropped_label = label[offset_h:offset_h + crop_h, offset_w:offset_w + crop_w]
+        return cropped_img, cropped_label
+
+
+class RandCrop(RandMap):
+
+    def __init__(self, crop_size: Union[int, Iterable[int]]):
+        """Random crop img to crop_size
+
+        Args:
+            crop_size: Crop size. If size is int, the crop_height=value, crop_width=value. Else will be parsed as crop_height=list(value)[0], crop_width=list(value)[1]
+        """
+        super(RandCrop, self).__init__()
+
+        self.crop_h, self.crop_w = size2HW(crop_size)
+
+    def generate_rand_seed(self, img: np.ndarray, label: Optional[np.ndarray] = None):
+        img_h, img_w = img.shape[:2]
+
+        if img_h < self.crop_h or img_w < self.crop_w:
+            raise ValueError(f"img_h {img_h} must >= crop_h {self.crop_h}; img_w {img_w} must >= crop_w {self.crop_w}")
+
+        offset_h = np.random.randint(0, img_h - self.crop_h + 1)
+        offset_w = np.random.randint(0, img_w - self.crop_w + 1)
+
+        return int(offset_h), int(offset_w)
+
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
+        """Generate rand cropped img and label accroding to rand seed
+
+        Args:
+            img: img to be cropped
+            label: If not None, means label to be cropped
+
+        Returns: Cropped img and label(if not None)
+        """
+        _check_img_size_equal_label_size(img, label)
+
+        img_h, img_w = img.shape[:2]
+        offset_h, offset_w = self.rand_seed
+        if offset_h + self.crop_h > img_h or offset_w + self.crop_w > img_w:
+            raise ValueError(f"Crop size out of range. offset_h + crop_h = {offset_h + self.crop_h}, "
+                             f"offset_w + crop_w = {offset_w + self.crop_w}, while img has shape {(img_h, img_w)}")
+
+        return _crop_img_label(img, label, offset_h, offset_w, self.crop_h, self.crop_w)
+
+
+class FiveCrop(MultiMap):
+    output_num = 5
+
+    def __init__(self, crop_size: Union[int, Iterable[int]]):
+        """Five crop img to crop_size, with index 0-4 meaning left-top, right-top, left-bottom, right-bottom, center
+
+        Args:
+            crop_size: Crop size. If size is int, the crop_height=value, crop_width=value. Else will be parsed as crop_height=list(value)[0], crop_width=list(value)[1]
+        """
+        super(FiveCrop, self).__init__()
+
+        self.crop_h, self.crop_w = size2HW(crop_size)
+
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
+        """Return cropped img and label according to output_index
+
+        Args:
+            img: img to be cropped
+            label: If not None, label to be cropped
+
+        Returns: Cropped img and label(If exits)
+        """
+        _check_img_size_equal_label_size(img, label)
+
+        img_h, img_w = img.shape[:2]
+        if img_h < self.crop_h or img_w < self.crop_w:
+            raise ValueError(f"img_h {img_h} must >= crop_h {self.crop_h}; img_w {img_w} must >= crop_w {self.crop_w}")
+
+        bias_h, bias_w = img_h - self.crop_h, img_w - self.crop_w
+        offset_h, offset_w = 0, 0
+
+        if self.output_index & 1:
+            offset_w += bias_w
+        if self.output_index & 2:
+            offset_h += bias_h
+        if self.output_index & 4:
+            offset_h, offset_w = bias_h // 2, bias_w // 2
+
+        return _crop_img_label(img, label, offset_h, offset_w, self.crop_h, self.crop_w)
