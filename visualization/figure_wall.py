@@ -16,6 +16,9 @@ from alchemy_cat.visualization.utils import stack_figs
 from alchemy_cat.py_tools import is_intarr
 
 
+__all__ = ["SquareFigureWall", "RectFigureWall", "RowFigureWall", "ColumnFigureWall"]
+
+
 class FigureWall(object):
     """
     A class to operate a figure wall

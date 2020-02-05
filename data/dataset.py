@@ -19,6 +19,9 @@ import torch
 from alchemy_cat.alg import accumulate
 
 
+__all__ = ["Dataset", "IterableDataset", "ChainDataset", "TensorDataset", "Subset", "random_split"]
+
+
 class Dataset(object):
     def __getitem__(self, index):
         if isinstance(index, slice):

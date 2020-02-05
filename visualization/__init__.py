@@ -8,4 +8,4 @@
 @time: 2020/1/7 22:15
 @desc:
 """
-__all__ = ["figure_wall"]
+from alchemy_cat.visualization.figure_wall import *

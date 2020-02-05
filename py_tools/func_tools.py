@@ -8,6 +8,9 @@
 @time: 2020/1/15 1:46
 @desc:
 """
+__all__ = ["Lambda", "Compose"]
+
+
 # Copy from torch.vision
 class Lambda(object):
     """Apply a user-defined lambda as a transform.

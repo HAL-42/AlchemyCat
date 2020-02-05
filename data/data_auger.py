@@ -20,6 +20,9 @@ from alchemy_cat.py_tools import is_int
 from alchemy_cat.alg import accumulate
 
 
+__all__ = ["RandMap", "MultiMap", "DataAuger"]
+
+
 class RandMap(object):
 
     rand_seeds = None # Can be overloaded. The static rand seeds where rand seed is selected.

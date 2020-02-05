@@ -8,5 +8,5 @@
 @time: 2020/1/7 17:12
 @desc:
 """
-from .dataset import Dataset
-from .data_auger import DataAuger, MultiMap, RandMap
+from alchemy_cat.data.dataset import *
+from .data_auger import *

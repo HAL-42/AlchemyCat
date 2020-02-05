@@ -14,6 +14,9 @@ import torch
 from typing import Union
 
 
+__all__ = ["HWC2CHW", "CHW2HWC", "BGR2RGB", "RGB2BGR"]
+
+
 def stack_figs(in_list: list) -> np.ndarray:
     """Arrays in list will be padded to the max height/width in the list. The padding value will be 0 and located at right
     and bottom.

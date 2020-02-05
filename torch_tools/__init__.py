@@ -8,4 +8,4 @@
 @time: 2020/1/16 4:46
 @desc:
 """
-from alchemy_cat.torch_tools.env import get_device, init_env, open_config
+from alchemy_cat.torch_tools.env import *

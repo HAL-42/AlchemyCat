@@ -8,3 +8,5 @@
 @time: 2020/2/4 11:53
 @desc:
 """
+from alchemy_cat.contrib.voc.utils import *
+from alchemy_cat.contrib.voc.voc2012seg import *
