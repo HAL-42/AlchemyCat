@@ -19,14 +19,12 @@ from alchemy_cat.data import Dataset
 from alchemy_cat.py_tools import is_int
 from alchemy_cat.alg import accumulate
 
-
 __all__ = ["RandMap", "MultiMap", "DataAuger"]
 
 
 class RandMap(object):
-
-    rand_seeds = None # Can be overloaded. The static rand seeds where rand seed is selected.
-    weight = None     # Can be overloaded. The static weight to choose the rand seeds
+    rand_seeds = None  # Can be overloaded. The static rand seeds where rand seed is selected.
+    weight = None  # Can be overloaded. The static weight to choose the rand seeds
 
     def __init__(self):
         self._rand_seed = None
@@ -37,7 +35,7 @@ class RandMap(object):
             return list(signature(func).parameters.keys())
 
         if get_param_names(self.generate_rand_seed) != get_param_names(self.__call__) and \
-            get_param_names(self.generate_rand_seed) != get_param_names(self.forward):
+                get_param_names(self.generate_rand_seed) != get_param_names(self.forward):
             raise RuntimeError(f"{type(self).__name__}'s self.generate_rand_seed's args is not "
                                f"equal to the args of self.__call__ or self.forward")
 
@@ -46,11 +44,11 @@ class RandMap(object):
 
     def generate_rand_seed(self, *fwd_args, **fwd_kwargs):
         """Generate rand seed which will be used in forward.
+
         Can be overloaded to dynamically generate the rand seed according to the forward() inputs.
         But the arguments of this function should be exactly the same to the forward() function.
 
-        Returns:
-            rand_seed: Generated rand seed
+        Returns: Generated rand seed
         """
         prob = None
         if self.weight is not None:
@@ -89,7 +87,6 @@ class RandMap(object):
 
 
 class MultiMap(object):
-
     output_num = None
 
     def __init__(self):
@@ -112,7 +109,7 @@ class MultiMap(object):
         if value < 0:
             value += len(self)
 
-        if value <0 or value >= len(self):
+        if value < 0 or value >= len(self):
             raise ValueError(f"output_index value {value} to be set is out of range [{0}, {self.output_num})")
 
         self._output_index = value
@@ -129,14 +126,14 @@ class MultiMap(object):
 
 class DataAuger(object):
 
-    def __init__(self, dataset: Dataset, verbosity: int=0, pool_size: int=0, slim: bool=False,
+    def __init__(self, dataset: Dataset, verbosity: int = 0, pool_size: int = 0, slim: bool = False,
                  rand_seed_log: str = None):
         """Given dataset and argument it with a calculate graph.
 
         Args:
             dataset: dataset to be augmented
             verbosity: Calculate graph's verbosity. 0: No log output; 1: Only give graph level log;
-            >1: Give graph and node level log.
+                >1: Give graph and node level log.
             pool_size: Calculate graph's pool size. 0 means don't use parallel.
             slim: If True, calculate graph use copy rather than deepcopy when setting value of Node's input.
             rand_seed_log: lmdb database where rand seeds saved
