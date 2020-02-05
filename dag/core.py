@@ -334,7 +334,15 @@ class Graph:
         )
 
     def register(self, **kwargs):
-        """ register decorator """
+        """ register decorator
+
+            Keyword Args:
+                inputs (list): List of inputs (Input, str, or dict)
+                outputs (list): List of outputs (Output or str)
+                args (list): List of optional args
+                kwargs (list): List of optional kwargs
+                slim_names (list): List of args which should use copy rather than deepcopy
+        """
 
         def decorator(f):
             self._register(f, **kwargs)
@@ -347,10 +355,14 @@ class Graph:
 
         Args:
             function (function): Python function attached to the node
+            kwargs: Additional setting for Node
+
+        Keyword Args:
             inputs (list): List of inputs (Input, str, or dict)
             outputs (list): List of outputs (Output or str)
             args (list): List of optional args
             kwargs (list): List of optional kwargs
+            slim_names (list): List of args which should use copy rather than deepcopy
         """
         self._register(function, **kwargs)
 
