@@ -142,6 +142,8 @@ class DataAuger(object):
         self.rand_seed_log = rand_seed_log
 
         self.graph = Graph(verbosity=verbosity, pool_size=pool_size, slim=slim)
+        self.build_graph()
+
         self.ordered_nodes = self.graph.ordered_nodes
         self.multi_nodes = [node for node in self.ordered_nodes if isinstance(node._fct, MultiMap)]
         self.rand_nodes = [node for node in self.ordered_nodes if isinstance(node._fct, RandMap)]
@@ -163,7 +165,7 @@ class DataAuger(object):
 
     def _get_divide_factors(self):
         divide_factors = self.multi_factors[::-1][:-1]
-        divide_factors = accumulate(divide_factors, lambda x, y: x * y)
+        divide_factors = list(accumulate(divide_factors, lambda x, y: x * y))
         return divide_factors[::-1] + [1]
 
     @property
