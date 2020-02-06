@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from typing import Union, List, Optional
 
 from alchemy_cat.visualization.utils import stack_figs
-from alchemy_cat.py_tools import is_intarr
+from alchemy_cat.py_tools import is_intarr, indent
 
 
 __all__ = ["SquareFigureWall", "RectFigureWall", "RowFigureWall", "ColumnFigureWall"]
@@ -99,6 +99,11 @@ class FigureWall(object):
         cls = type(self)
         figs = list(self.figs) + list(other.figs)
         return cls(figs, space_width=self.space_width)
+
+    def __repr__(self):
+        return f"FigureWall <{self.__class__.__name__}:>" + "\n" + \
+                indent(f"#figs: {self.figs.shape[0]}") + "\n" + \
+                indent(f"space width: {self.space_width}")
 
 
 class SquareFigureWall(FigureWall):

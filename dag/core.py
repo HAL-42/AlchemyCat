@@ -471,3 +471,6 @@ class Graph:
             return last_node_outputs[0].value
         else:
             return tuple(output.value for output in last_node_outputs)
+
+    def __repr__(self):
+        return f"Graph with {len(self._nodes)} nodes in " + "slim mode" if self.slim is True else "none-slim mode"

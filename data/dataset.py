@@ -17,6 +17,7 @@ import numpy as np
 import torch
 
 from alchemy_cat.alg import accumulate
+from alchemy_cat.py_tools import indent
 
 
 __all__ = ["Dataset", "IterableDataset", "ChainDataset", "TensorDataset", "Subset", "random_split"]
@@ -49,9 +50,8 @@ class Dataset(object):
         raise NotImplementedError
 
     def __repr__(self):
-        fmt_str = "Dataset: " + self.__class__.__name__ + "\n"
-        fmt_str += "    # data: {}\n".format(self.__len__())
-        return fmt_str
+        return f"Dataset <{self.__class__.__name__}>:\n" + \
+               indent("#data: {}".format(self.__len__()))
 
 
 class IterableDataset(Dataset):

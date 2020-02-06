@@ -16,7 +16,7 @@ from functools import reduce
 
 from alchemy_cat.dag import Graph
 from alchemy_cat.data import Dataset
-from alchemy_cat.py_tools import is_int
+from alchemy_cat.py_tools import is_int, indent
 from alchemy_cat.alg import accumulate
 
 __all__ = ["RandMap", "MultiMap", "DataAuger"]
@@ -85,6 +85,11 @@ class RandMap(object):
         self._is_rand_seed_set = False
         return ret
 
+    def __repr__(self):
+        return f"RandMap: {self.__class__.__name__}\n" \
+                + f"    _rand_seed: {self._rand_seed}\n" \
+                + f"    _is_rand_seed_set: {self._is_rand_seed_set}"
+
 
 class MultiMap(object):
     output_num = None
@@ -122,6 +127,12 @@ class MultiMap(object):
 
     def __call__(self, *fwd_args, **fwd_kwargs):
         return self.forward(*fwd_args, **fwd_kwargs)
+
+    def __repr__(self):
+        return f"MultiMap: {self.__class__.__name__}\n" \
+                + f"    output_num: {self.output_num}\n" \
+                + f"    _output_index: {self._output_index}"
+
 
 
 class DataAuger(object):
@@ -244,3 +255,9 @@ class DataAuger(object):
             env.close()
 
         return ret
+
+    def __repr__(self):
+        return f"DataAuger <{self.__class__.__name__}>:\n" \
+                + indent(f"graph: {self.graph}") + "\n" \
+                + indent(f"dataset: {self.dataset}") + "\n" \
+                + indent(f"#DataAuger: {len(self)}")
