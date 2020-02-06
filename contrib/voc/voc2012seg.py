@@ -47,9 +47,6 @@ class _VOCBase(IterableDataset):
     def __len__(self):
         return len(self.files)
 
-    def get_item(self, index):
-        raise NotImplementedError
-
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
