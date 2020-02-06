@@ -10,21 +10,19 @@
 """
 import cv2
 import numpy as np
-import torch
 from PIL import Image
 import os.path as osp
 
-from alchemy_cat.data.dataset import Dataset
+from alchemy_cat.data.dataset import IterableDataset, Dataset
 from alchemy_cat import BGR2RGB
 from contrib.voc.utils import label_map2color_map
-
 
 __all__ = ['VOC', 'VOCAug']
 
 
-class VOC(Dataset):
+class _VOCBase(IterableDataset):
     """
-    PASCAL VOC Segmentation dataset
+    PASCAL VOC and VOC Aug Segmentation base dataset
     """
     mean_bgr = [104.008, 116.669, 122.675]
     ignore_label = 255
@@ -44,6 +42,24 @@ class VOC(Dataset):
         cv2.setNumThreads(0)
 
     def _set_files(self):
+        raise NotImplementedError
+
+    def __len__(self):
+        return len(self.files)
+
+    def get_item(self, index):
+        raise NotImplementedError
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
+
+class VOC(_VOCBase):
+    """
+    PASCAL VOC Segmentation dataset
+    """
+    def _set_files(self):
         self.root = osp.join(self.root, f"VOC{self.year}")
         self.image_dir = osp.join(self.root, "JPEGImages")
         self.label_dir = osp.join(self.root, "SegmentationClass")
@@ -53,13 +69,10 @@ class VOC(Dataset):
                 self.root, "ImageSets", "Segmentation", self.split + ".txt"
             )
             file_list = tuple(open(file_list, "r"))
-            file_list = [id.rstrip() for id in file_list]
+            file_list = [id_.rstrip() for id_ in file_list]
             self.files = file_list
         else:
             raise ValueError("Invalid split name: {}".format(self.split))
-
-    def __len__(self):
-        return len(self.files)
 
     def get_item(self, index):
         # Set paths
@@ -72,27 +85,18 @@ class VOC(Dataset):
         return image_id, image, label
 
 
-class VOCAug(Dataset):
+class VOCAug(_VOCBase):
     """
-    PASCAL VOC Segmentation dataset
+    PASCAL VOC Aug Segmentation dataset
     """
-    mean_bgr = [104.008, 116.669, 122.675]
-    ignore_label = 255
-
-    def __init__(self, root: str="datasets", year="2012", split: str="train"):
+    def __init__(self, root: str = "datasets", year="2012", split: str = "train"):
         """
         Args:
             root (str): The parent dir of VOC dataset
             split (str): "train"/"val"/"trainval"/"train_aug"/"trainval_aug"
         """
-        self.root = root
-        self.year = year
-        self.split = split
-        self.files = []
         self.labels = []
-        self._set_files()
-
-        cv2.setNumThreads(0)
+        super(VOCAug, self).__init__(root, year, split)
 
     def _set_files(self):
         self.root = osp.join(self.root, f"VOC{self.year}")
@@ -106,9 +110,6 @@ class VOCAug(Dataset):
             self.files, self.labels = list(zip(*file_list))
         else:
             raise ValueError("Invalid split name: {}".format(self.split))
-
-    def __len__(self):
-        return len(self.files)
 
     def get_item(self, index):
         # Set paths
@@ -134,10 +135,12 @@ if __name__ == "__main__":
                                   row_num=2, col_num=5, space_width=10)
     voc_fig_wall.plot(dpi=600)
 
+    plt.show()
+
     vocaug_indexes = np.random.choice(len(voc_aug), size=10, replace=False)
     vocaug_fig_wall = RectFigureWall([RowFigureWall([BGR2RGB(item[1]), label_map2color_map(item[2])], space_width=40)
                                       for item in voc_aug[vocaug_indexes]],
-                                  row_num=2, col_num=5, space_width=10)
+                                     row_num=2, col_num=5, space_width=10)
     vocaug_fig_wall.plot(dpi=600)
 
     plt.show()
