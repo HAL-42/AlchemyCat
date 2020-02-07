@@ -9,3 +9,4 @@
 @desc:
 """
 from alchemy_cat.visualization.figure_wall import *
+from alchemy_cat.visualization.utils import *

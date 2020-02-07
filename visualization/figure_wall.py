@@ -10,7 +10,8 @@
 """
 import numpy as np
 from matplotlib import pyplot as plt
-from typing import Union, List, Optional
+from typing import Union, Optional, Iterable
+from collections import abc
 
 from alchemy_cat.visualization.utils import stack_figs
 from alchemy_cat.py_tools import is_intarr, indent
@@ -24,11 +25,11 @@ class FigureWall(object):
     A class to operate a figure wall
     """
 
-    def __init__(self, figs: Union[List[Union[np.ndarray, 'FigureWall']], np.ndarray], is_normalize: bool = False,
-                 space_width: int = 1):
+    def __init__(self, figs: Union[np.ndarray, Iterable[Union[np.ndarray, 'FigureWall']]],
+                 is_normalize: bool = False, space_width: int = 1):
         """
         Args:
-            figs (list, np.ndarray): List[fig] or figs. fig is supposed to be (H, W, C) and RGB mode.
+            figs (Iterable, np.ndarray): Iterable[fig] or figs. fig is supposed to be (H, W, C) and RGB mode.
             is_normalize (bool): If true, the figures will be min-max normalized
             space_width (int): Space width between figs
         """
@@ -39,8 +40,11 @@ class FigureWall(object):
                 self.figs = stack_figs([figure_wall.tiled_figs for figure_wall in figs])
         elif isinstance(figs, np.ndarray):
             self.figs = figs
+        elif isinstance(figs, abc.Iterable):
+            self.__init__(list(figs), is_normalize, space_width)
+            return
         else:
-            raise TypeError("The figs should be list of imgs or ndarray")
+            raise TypeError("The figs should be Iterator of (H, W, C) imgs or (N, H, W, C) ndarray")
 
         if is_normalize:
             self.figs = (self.figs - self.figs.min()) / (self.figs.max() - self.figs.min())
@@ -133,7 +137,7 @@ class SquareFigureWall(FigureWall):
 
 class RectFigureWall(FigureWall):
 
-    def __init__(self, figs: Union[List[Union[np.ndarray, 'FigureWall']], np.ndarray], is_normalize: bool = False,
+    def __init__(self, figs: Union[Iterable[Union[np.ndarray, 'FigureWall']], np.ndarray], is_normalize: bool = False,
                  space_width: int = 1, row_num: Optional[int]=None, col_num: Optional[int]=None):
         """Figures will be tiled to an Rectangle
 
