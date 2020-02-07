@@ -261,3 +261,7 @@ class DataAuger(object):
                 + indent(f"graph: {self.graph}") + "\n" \
                 + indent(f"dataset: {self.dataset}") + "\n" \
                 + indent(f"#DataAuger: {len(self)}")
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
