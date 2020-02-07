@@ -15,3 +15,4 @@ from alchemy_cat.py_tools.is_type import *
 from alchemy_cat.py_tools.timer import Timer
 from alchemy_cat.py_tools.func_tools import *
 from alchemy_cat.py_tools.str_formatters import *
+from alchemy_cat.py_tools.random import *
