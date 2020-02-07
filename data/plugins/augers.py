@@ -100,8 +100,8 @@ class MultiUpDown(MultiMap):
 
 class RandColorJitter(RandMap):
 
-    def __init__(self, max_delta_bright: int = 32, range_mul_contract: tuple = (0.5, 1.5),
-                 range_mul_saturate: tuple = (0.5, 1.5), max_delta_hue: int = 18,
+    def __init__(self, max_delta_bright: int = 25, range_mul_contract: tuple = (0.6, 1.4),
+                 range_mul_saturate: tuple = (0.5, 1.5), max_delta_hue: int = 25,
                  jitter_prob: Union[Iterable[float], float] = 0.5):
         """Random color jitter for image
 
