@@ -190,9 +190,9 @@ class RandColorJitter(RandMap):
     def jitter_hue(self, img: np.ndarray):
         delta_hue = self.rand_seed.get('delta_hue')
         if delta_hue is not None:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV_FULL)
             img[:, :, 0] = cv2.convertScaleAbs(img[:, :, 0], alpha=1, beta=delta_hue)
-            img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
+            img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR_FULL)
         return img
 
     def forward(self, img: np.ndarray) -> np.ndarray:
