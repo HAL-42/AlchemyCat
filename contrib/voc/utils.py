@@ -34,13 +34,13 @@ label2color = np.ones((256, 3), dtype=np.uint8) * 255
 label2color[:21, :] = VOC_COLOR
 
 def color_map2label_map(color_map: np.ndarray) -> np.ndarray:
-    """
+    """Convert VOC color map to label map
+
     Args:
         color_map (np.ndarray):
             Labels with shape (..., C)
     Returns (np.ndarray):
         Labels with shape (...)
-    Convert VOC color map to label map
     """
     color_id_map = ((color_map[..., 0] * 256 + color_map[..., 1]) * 256
            + color_map[..., 2])
@@ -48,13 +48,13 @@ def color_map2label_map(color_map: np.ndarray) -> np.ndarray:
 
 
 def label_map2color_map(label_map: np.ndarray) -> np.ndarray:
-    """
+    """Convert VOC label map to color map
+
     Args:
         label_map (np.ndarray):
             Labels with shape (...)
     Returns (np.ndarray):
         color_map with shape (..., C)
-    Convert VOC label map to color map
     """
     color_map = label_map[..., np.newaxis]
     color_map = np.concatenate((color_map, color_map, color_map), axis=-1)
