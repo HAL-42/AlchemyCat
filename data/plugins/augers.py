@@ -118,12 +118,12 @@ class RandColorJitter(RandMap):
             raise ValueError(f"max_delta_bright={max_delta_bright} should be larger than 0")
         self.max_delta_bright = max_delta_bright
 
-        if range_mul_contract[0] <= 0 or range_mul_contract[0] <= range_mul_contract[1]:
+        if range_mul_contract[0] <= 0 or range_mul_contract[0] >= range_mul_contract[1]:
             raise ValueError(
                 f"range_mul_contract={range_mul_contract}'s lower bound should larger than 0, lower than upper bound")
         self.range_mul_contract = range_mul_contract
 
-        if range_mul_saturate[0] <= 0 or range_mul_saturate[0] <= range_mul_saturate[1]:
+        if range_mul_saturate[0] <= 0 or range_mul_saturate[0] >= range_mul_saturate[1]:
             raise ValueError(
                 f"range_mul_saturate={range_mul_saturate}'s lower bound should larger than 0, lower than upper bound")
         self.range_mul_saturate = range_mul_saturate
