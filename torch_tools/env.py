@@ -14,6 +14,7 @@ import sys
 import torch
 from addict import Dict
 from typing import Union, Optional, Tuple
+import cv2
 
 import yaml
 from yamlinclude import YamlIncludeConstructor
@@ -65,8 +66,8 @@ def open_config(config_path: str, is_yaml: bool=False) -> Union[Dict, dict]:
 
 
 def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, config_path: Optional[str]=None,
-             experiments_root: str = "experiment", fix_random: bool=False, verbosity: bool=True) \
-            -> Union[Tuple[torch.device, Dict], torch.device]:
+             experiments_root: str = "experiment", fix_random: bool=False,
+             cv2_num_threads: int=0, verbosity: bool=True) -> Union[Tuple[torch.device, Dict], torch.device]:
     """Init torch training environment
 
     Args:
@@ -76,6 +77,7 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
         config_path (Optional[str]): The path of yaml config
         experiments_root (str): The path where experiments result are stored
         fix_random (bool): If True, fix random of torch, numpy, python's random module
+        cv2_num_threads (int): Set cv2 threads num by cv2.setNumThreads(cv2_num_threads)
         verbosity (bool): If True, print detailed info
 
     Returns: Default device if config_path is not given, rather (Default Device, CONFIG)
@@ -93,6 +95,9 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
     torch.backends.cudnn.benchmark = is_benchmark
     if verbosity:
         print(f"torch.backends.cudnn.benchmark = {is_benchmark}")
+
+    # * Set cv2 threads num
+    cv2.setNumThreads(cv2_num_threads)
 
     # * If test, disable grad
     torch.set_grad_enabled(is_train)

@@ -39,8 +39,6 @@ class _VOCBase(IterableDataset):
         self.files = []
         self._set_files()
 
-        cv2.setNumThreads(0)
-
     def _set_files(self):
         raise NotImplementedError
 
