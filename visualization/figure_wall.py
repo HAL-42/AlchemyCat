@@ -38,13 +38,15 @@ class FigureWall(object):
                 self.figs = stack_figs(figs)
             elif isinstance(figs[0], FigureWall):
                 self.figs = stack_figs([figure_wall.tiled_figs for figure_wall in figs])
+            else:
+                raise ValueError("The fig should be ndarray or FigureWall")
         elif isinstance(figs, np.ndarray):
             self.figs = figs
         elif isinstance(figs, abc.Iterable):
             self.__init__(list(figs), is_normalize, space_width)
             return
         else:
-            raise TypeError("The figs should be Iterator of (H, W, C) imgs or (N, H, W, C) ndarray")
+            raise ValueError("The figs should be Iterator of (H, W, C) imgs or (N, H, W, C) ndarray")
 
         if is_normalize:
             self.figs = (self.figs - self.figs.min()) / (self.figs.max() - self.figs.min())
