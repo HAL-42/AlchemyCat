@@ -12,7 +12,7 @@ from collections.abc import Iterator
 
 from typing import Any, Tuple, Iterable, Callable, Union
 
-from alchemy_cat.py_tools import is_int, is_float
+from alchemy_cat.py_tools import is_int, is_float, totuple
 
 
 __all__ = ['accumulate', 'size2HW', 'color2scalar']
@@ -59,14 +59,15 @@ def color2scalar(val: Union[int, float, Iterable]) -> Tuple:
     """Convert color value to color scalar
 
     Args:
-        val (Union[int, float, Iterable]): If val is int or float, return (val, val, val), if value is Iterable with 3 element, return Tuple(val), else raise error
+        val (Union[int, float, Iterable]): If val is int or float, return (val, val, val), if value is Iterable with 3
+            element, return totuple(val), else raise error
 
     Returns: tuple color scalar
     """
     if is_int(val) or is_float(val):
         img_pad_scalar = (val,) * 3
     else:
-        img_pad_scalar = tuple(val)
+        img_pad_scalar = totuple(val)
         if len(img_pad_scalar) != 3:
             raise ValueError(f"If img_pad_value {val} is scalar, it should be a 3-channel color scalar")
 

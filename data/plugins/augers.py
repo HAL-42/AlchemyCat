@@ -14,7 +14,7 @@ import cv2
 
 from alchemy_cat.data.data_auger import RandMap, MultiMap
 from alchemy_cat.py_tools import Compose, Lambda
-from alchemy_cat.py_tools import is_int, is_intarr, is_floatarr
+from alchemy_cat.py_tools.type import is_int, is_intarr, is_floatarr, tolist
 from alchemy_cat.alg import size2HW, color2scalar
 
 
@@ -132,7 +132,7 @@ class RandColorJitter(RandMap):
             raise ValueError(f"max_delta_hue={max_delta_hue} should be larger than 0")
         self.max_delta_hue = max_delta_hue
 
-        jps = [jitter_prob] * 4 if isinstance(jitter_prob, float) else list(jitter_prob)
+        jps = [jitter_prob] * 4 if isinstance(jitter_prob, float) else tolist(jitter_prob)
         if len(jps) != 4:
             raise ValueError(f"If the jitter_prob is not float, then "
                              f"you must give each step's probability(Length of jitter_prob {jitter_prob} must be 4).")
@@ -325,9 +325,11 @@ def pad_img_label(img: np.ndarray, label: Optional[np.ndarray]=None, pad_img_to:
     Args:
         img (np.ndarray): img to be padded
         label (np.ndarray): label to be padded
-        pad_img_to (Union[None, Iterable, int]): img pad size. If value is int, the img_pad_to will be parsed as H=value, W=value. Else will be parsed as H=list(value)[0], W=list(value)[1]
+        pad_img_to (Union[None, Iterable, int]): img pad size. If value is int, the img_pad_to will be parsed as
+            H=value, W=value. Else will be parsed as H=list(value)[0], W=list(value)[1]
         pad_aligner (Optional[Callable]): Final pad size will be refine by callable aligner
-        img_pad_val: (Union[int, float, Iterable]): If value is int or float, return (value, value, value), if value is Iterable with 3 element, return Tuple(value), else raise error
+        img_pad_val: (Union[int, float, Iterable]): If value is int or float, return (value, value, value),
+            if value is Iterable with 3 element, return totuple(value), else raise error
         ignore_label (int): value to pad the label.
 
     Returns: Padded img and label(if given)
@@ -340,6 +342,9 @@ def pad_img_label(img: np.ndarray, label: Optional[np.ndarray]=None, pad_img_to:
         ignore_label = int(ignore_label)
 
     img_pad_scalar = color2scalar(img_pad_val)
+    if is_intarr(img) and is_floatarr(np.array(img_pad_val)):
+        raise ValueError("Input img is int array, while img_pad_val has float. Which may cause unexpected "
+                         "behaviour when padding. Using int_img2float32img before padding int img with float value.")
 
     pad_to_h, pad_to_w = size2HW(pad_img_to)
     img_h, img_w = size2HW(img.shape[:2])
@@ -410,7 +415,8 @@ class RandCrop(RandMap):
         """Random crop img to crop_size
 
         Args:
-            crop_size: Crop size. If size is int, the crop_height=value, crop_width=value. Else will be parsed as crop_height=list(value)[0], crop_width=list(value)[1]
+            crop_size: Crop size. If size is int, the crop_height=value, crop_width=value. Else will be parsed as
+                crop_height=list(value)[0], crop_width=list(value)[1]
         """
         super(RandCrop, self).__init__()
 
@@ -454,7 +460,8 @@ class FiveCrop(MultiMap):
         """Five crop img to crop_size, with index 0-4 meaning left-top, right-top, left-bottom, right-bottom, center
 
         Args:
-            crop_size: Crop size. If size is int, the crop_height=value, crop_width=value. Else will be parsed as crop_height=list(value)[0], crop_width=list(value)[1]
+            crop_size: Crop size. If size is int, the crop_height=value, crop_width=value. Else will be parsed as
+                crop_height=list(value)[0], crop_width=list(value)[1]
         """
         super(FiveCrop, self).__init__()
 

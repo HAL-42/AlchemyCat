@@ -4,15 +4,17 @@
 @author: Xiaobo Yang
 @contact: hal_42@zju.edu.cn
 @software: PyCharm
-@file: is_type.py
+@file: type.py
 @time: 2020/1/8 8:13
 @desc:
 """
+from typing import Any
+
 import numpy as np
 import torch
 
 
-__all__ = ["is_intarr", "is_int", "is_floatarr", "is_float"]
+__all__ = ["is_intarr", "is_int", "is_floatarr", "is_float", "tolist", "totuple"]
 
 
 def is_int(elem) -> bool:
@@ -99,3 +101,41 @@ def is_floatarr(arr) -> bool:
             return True
 
     return False
+
+
+def tolist(arr: Any) -> list:
+    """Return arr.tolist() for ndarray and tensor, other wise return list(arr)
+        list(tensor) or list(ndarray) return a list with tensor or numpy scalar when arr with dim=1, which
+        may cause confusing result for some function can't recognize tensor or scalar as python datatype.
+
+        When the arr to be converted to list can be tensor/ndarray or other type both, this function can make sure
+        the output list has python datatype element.
+    Args:
+        arr: arr need to be converted to list
+
+    Returns:
+        converted arr with type list
+    """
+    if isinstance(arr, torch.Tensor) or isinstance(arr, np.ndarray):
+        return arr.tolist()
+    else:
+        return list(arr)
+
+
+def totuple(arr: Any) -> tuple:
+    """Return tuple(arr.tolist()) for ndarray and tensor, other wise return list(arr)
+        tuple(tensor) or tuple(ndarray) return a tuple with tensor or numpy scalar when arr with dim=1, which
+        may cause confusing result for some function can't recognize tensor or scalar as python datatype.
+
+        When the arr to be converted to tuple can be tensor/ndarray or other type both, this function can make sure
+        the output tuple has python datatype element.
+    Args:
+        arr: arr need to be converted to tuple
+
+    Returns:
+        converted arr with type tuple
+    """
+    if isinstance(arr, torch.Tensor) or isinstance(arr, np.ndarray):
+        return tuple(arr.tolist())
+    else:
+        return tuple(arr)
