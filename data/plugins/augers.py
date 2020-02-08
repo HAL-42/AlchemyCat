@@ -353,7 +353,7 @@ def pad_img_label(img: np.ndarray, label: Optional[np.ndarray]=None, pad_img_to:
     if label is not None:
         label = cv2.copyMakeBorder(label, 0, pad_h, 0, pad_w, borderType=cv2.BORDER_CONSTANT, value=ignore_label)
 
-    if label is None:
+    if label is not None:
         return img, label
     else:
         return img
