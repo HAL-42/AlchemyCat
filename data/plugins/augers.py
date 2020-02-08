@@ -317,7 +317,7 @@ class MultiScale(MultiMap):
         return scale_img_label(scale_factor, img, label, self.aligner)
 
 
-def pad_img_label(img: np.ndarray, label: np.ndarray, pad_img_to: Union[Iterable, int] = 0,
+def pad_img_label(img: np.ndarray, label: Optional[np.ndarray]=None, pad_img_to: Union[Iterable, int] = 0,
                   pad_aligner: Optional[Callable] = lambda x: x, img_pad_val: Union[int, float, Iterable] = 0.0,
                   ignore_label: int = 255) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
     """Pad img to size pad_aligner(max(img_origin_size, pad_img_to))
