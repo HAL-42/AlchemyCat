@@ -76,17 +76,20 @@ class Input(_IO):
         )
 
     @classmethod
-    def constant(cls, name, value, meta=None):
+    def constant(cls, name, value, meta=None, is_arg=False, is_kwarg=False):
         """ Alternate constructor for inputs that are constant
 
         Args:
             name (str): The variable name of the input / output
             value: The defined constant value, can be anything
             meta (dict): Not used yet
+            is_arg (bool): Whether the Input is constant arg
+            is_kwarg (bool): Whether the Input is constant kwarg
         """
         me = cls(name, meta)
         me.value = value
         me.is_constant = True
+        me.is_arg, me.is_kwarg = is_arg, is_kwarg
         return me
 
     @classmethod

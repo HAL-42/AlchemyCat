@@ -77,9 +77,12 @@ class Node:
         self._args = args if args else []
         self._process_inputs(self._args, is_arg=True)
 
+        if isinstance(kwargs, dict):
+            kwargs = [{key: value} for key, value in kwargs.items()]
         self._kwargs = kwargs if kwargs else []
         self._process_inputs(self._kwargs, is_kwarg=True)
 
+        # If node's some kwargs don't have corresponding output value in Graph, use it's default value.
         self._kwargs_default = {}
         self._process_kwargs(self._kwargs)
 
@@ -124,9 +127,9 @@ class Node:
         return inputs
 
     @property
-    def kwargs(self):
+    def kwargs_name(self):
         """ return the list of kwargs """
-        return self._kwargs
+        return [kwarg if isinstance(kwarg, str) else list(kwarg.keys())[0] for kwarg in self._kwargs]
 
     @property
     def outputs(self):
@@ -147,9 +150,13 @@ class Node:
         # if inputs are None, we inspect the function signature
         if inputs is None:
             inputs = list(inspect.signature(self._fct).parameters.keys())
+
         for input_ in inputs:
             if isinstance(input_, Input):
                 new_input = input_
+                if is_arg or is_kwarg:
+                    msg = "arg or kwarg can't be Input"
+                    raise PyungoError(msg)
             elif isinstance(input_, str):
                 if is_arg:
                     new_input = Input.arg(input_)
@@ -164,7 +171,7 @@ class Node:
                     raise PyungoError(msg)
                 key = next(iter(input_))
                 value = input_[key]
-                new_input = Input.constant(key, value)
+                new_input = Input.constant(key, value, is_arg=is_arg, is_kwarg=is_kwarg)
             else:
                 msg = 'inputs need to be of type Input, str or dict'
                 raise PyungoError(msg)
@@ -255,7 +262,7 @@ class Graph:
 
     @property
     def sim_inputs(self):
-        """ return input names (mapped) of every nodes """
+        """ return input names (mapped) of every nodes need feeding from Data """
         inputs = []
         for node in self._nodes.values():
             inputs.extend([i.map for i in node.inputs_without_constants
@@ -265,7 +272,7 @@ class Graph:
     @property
     def sim_kwargs(self):
         """ return kwarg names (mapped) of every nodes """
-        kwargs = [k for node in self._nodes.values() for k in node.kwargs]
+        kwargs = [k for node in self._nodes.values() for k in node.kwargs_name]
         return kwargs
 
     @property
@@ -317,11 +324,11 @@ class Graph:
         if not hasattr(f, "__call__"):
             raise PyungoError(f"Registered function {f} should be callable")
 
-        inputs = kwargs.get('inputs')
-        outputs = kwargs.get('outputs')
-        args_names = kwargs.get('args')
-        kwargs_names = kwargs.get('kwargs')
-        slim_names = kwargs.get('slim_names')
+        node_inputs = kwargs.get('inputs')
+        node_outputs = kwargs.get('outputs')
+        node_args = kwargs.get('args')
+        node_kwargs = kwargs.get('kwargs')
+        node_slim_names = kwargs.get('slim_names')
 
         # Instantiate f if f is functor
         if inspect.isclass(f):
@@ -330,7 +337,7 @@ class Graph:
             raise PyungoError("Only functor can be initialized with 'init'")
 
         self._create_node(
-            f, inputs, outputs, args_names, kwargs_names, slim_names
+            f, node_inputs, node_outputs, node_args, node_kwargs, node_slim_names
         )
 
     def register(self, **kwargs):
@@ -342,6 +349,7 @@ class Graph:
                 args (list): List of optional args
                 kwargs (list): List of optional kwargs
                 slim_names (list): List of args which should use copy rather than deepcopy
+                init (dict): init dict for functor
         """
 
         def decorator(f):
@@ -363,14 +371,15 @@ class Graph:
             args (list): List of optional args
             kwargs (list): List of optional kwargs
             slim_names (list): List of args which should use copy rather than deepcopy
+            init (dict): init dict for functor
         """
         self._register(function, **kwargs)
 
-    def _create_node(self, fct, inputs, outputs, args_names, kwargs_names, slim_names):
+    def _create_node(self, fct, inputs, outputs, args, kwargs, slim_names):
         """ create a save the node to the graph """
         inputs = get_if_exists(inputs, self._inputs)
         outputs = get_if_exists(outputs, self._outputs)
-        node = Node(fct, inputs, outputs, args_names, kwargs_names, True if self.verbosity > 1 else False, slim_names)
+        node = Node(fct, inputs, outputs, args, kwargs, True if self.verbosity > 1 else False, slim_names)
         # assume that we cannot have two nodes with the same output names
         for n in self._nodes.values():
             for out_name in n.output_names:
@@ -474,3 +483,6 @@ class Graph:
 
     def __repr__(self):
         return f"Graph with {len(self._nodes)} nodes in " + "slim mode" if self.slim is True else "none-slim mode"
+
+##
+
