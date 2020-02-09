@@ -580,6 +580,38 @@ def test_provide_inputs_outputs():
 
     res = graph.calculate(data={'a': 2, 'b': 3})
     assert res == -3
+    assert inputs[0].value == 2
+    assert inputs[1].value == 3
+    assert outputs[0].value == 5
+
+
+def test_provide_args_kwargs():
+
+    inputs = [Input('b'), Input('c')]
+    outputs = [Output('c')]
+
+    graph = Graph(inputs=inputs, outputs=outputs)
+
+    @graph.register(
+        inputs=['a'],
+        args=['b'],
+        outputs=['c']
+    )
+    def f_my_function(a, *b):
+        return a + b[0]
+
+    @graph.register(
+        inputs=['a'],
+        kwargs=['c'],
+        outputs=['d']
+    )
+    def f_my_function1(a, c=100):
+        return a - c
+
+    res = graph.calculate(data={'a': 2, 'b': 3})
+    assert res == -3
+    assert inputs[0].value == 3
+    assert inputs[1].value == 5
     assert outputs[0].value == 5
 
 

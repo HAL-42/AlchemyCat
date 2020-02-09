@@ -147,7 +147,7 @@ def get_if_exists(provided, existing):
     Returns:
         res (list): The replaced inputs/outputs
     """
-    if not existing:
+    if not existing or not provided:
         return provided
     res = []
     for p in provided:

@@ -129,7 +129,7 @@ class Node:
     @property
     def kwargs_name(self):
         """ return the list of kwargs """
-        return [kwarg if isinstance(kwarg, str) else list(kwarg.keys())[0] for kwarg in self._kwargs]
+        return [i.name for i in self._inputs if i.is_kwarg]
 
     @property
     def outputs(self):
@@ -154,9 +154,8 @@ class Node:
         for input_ in inputs:
             if isinstance(input_, Input):
                 new_input = input_
-                if is_arg or is_kwarg:
-                    msg = "arg or kwarg can't be Input"
-                    raise PyungoError(msg)
+                new_input.is_arg = is_arg
+                new_input.is_kwarg = is_kwarg
             elif isinstance(input_, str):
                 if is_arg:
                     new_input = Input.arg(input_)
@@ -377,8 +376,9 @@ class Graph:
 
     def _create_node(self, fct, inputs, outputs, args, kwargs, slim_names):
         """ create a save the node to the graph """
-        inputs = get_if_exists(inputs, self._inputs)
-        outputs = get_if_exists(outputs, self._outputs)
+        inputs, outputs, args, kwargs = \
+            map(get_if_exists, *zip([inputs, self._inputs], [outputs, self._outputs],
+                                    [args, self._inputs], [kwargs, self._inputs]))
         node = Node(fct, inputs, outputs, args, kwargs, True if self.verbosity > 1 else False, slim_names)
         # assume that we cannot have two nodes with the same output names
         for n in self._nodes.values():
