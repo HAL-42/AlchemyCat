@@ -29,6 +29,31 @@ def test_simple():
     assert graph.data['e'] == -1.5
 
 
+def test_constant_inputs():
+    graph = Graph()
+
+    @graph.register(inputs=[{'a': 2}, {'b': 3}], outputs=['c'])
+    def f_my_function(a, b):
+        return a + b
+
+    @graph.register(inputs=['d', 'a'], outputs=['e'])
+    def f_my_function3(d, a):
+        return d - a
+
+    @graph.register(inputs=['c'], outputs=['d'])
+    def f_my_function2(c):
+        return c / 10.
+
+    res = graph.calculate(data={'a' :2})
+    assert res == -1.5
+    assert graph.data['e'] == -1.5
+
+    # make sure it is indepodent
+    res = graph.calculate(data={'a': 2})
+    assert res == -1.5
+    assert graph.data['e'] == -1.5
+
+
 def test_slim_graph():
     import numpy as np
     graph = Graph(slim=True)
@@ -358,6 +383,43 @@ def test_args_kwargs():
     assert graph.data['e'] == 14
 
 
+def test_constant_args_kwargs():
+    graph = Graph()
+
+    @graph.register(
+        inputs=['a', 'b'],
+        args=['c', {'cc': 6}],
+        kwargs=['d', {'dc': 7}],
+        outputs=['e']
+    )
+    def f_my_function(a, b, *args, **kwargs):
+        return a + b + args[0] + args[1] + kwargs['d'] + kwargs['dc']
+
+    res = graph.calculate(data={'a': 2, 'b': 3, 'c': 4, 'd': 5})
+
+    assert res == 27
+    assert graph.data['e'] == 27
+
+
+def test_constant_dict_kwargs():
+    graph = Graph()
+
+    @graph.register(
+        inputs=['a', 'b'],
+        args=['c'],
+        kwargs={'d': 5, 'dc': 6},
+        outputs=['e']
+    )
+    def f_my_function(a, b, *args, **kwargs):
+        return a + b + args[0] + kwargs['d'] + kwargs['dc']
+
+    res = graph.calculate(data={'a': 2, 'b': 3, 'c': 4})
+
+    assert res == 20
+    assert graph.data['e'] == 20
+
+
+
 def test_diff_input_function_arg_name():
     graph = Graph()
 
@@ -459,7 +521,7 @@ def test_Input_type_input():
     assert res == 5
 
 
-@pytest.mark.skip("Parallel still have problem in multiprocessing/multiprocess module")
+@pytest.mark.skip("Don't Support Contract Now")
 def test_contract_inputs():
     from contracts import ContractNotRespected
     graph = Graph()
@@ -478,7 +540,7 @@ def test_contract_inputs():
     assert "Condition -2 > 0 not respected" in str(err.value)
 
 
-@pytest.mark.skip("Parallel still have problem in multiprocessing/multiprocess module")
+@pytest.mark.skip("Don't Support Contract Now")
 def test_contract_outputs():
     from contracts import ContractNotRespected
     graph = Graph()
