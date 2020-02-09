@@ -92,7 +92,7 @@ def test_rand_mirror(voc_dataset):
         elif rand_seed == -1:
             mirrored += 1
         else:
-            raise pytest.raises(ValueError(f"rand_seed={rand_seed} is not 1 or -1"))
+            raise ValueError(f"rand_seed={rand_seed} is not 1 or -1")
 
     assert mirrored + not_mirrored == len(voc_dataset)
     assert mirrored / len(voc_dataset) == pytest.approx(0.5, abs=0.04)
@@ -148,7 +148,7 @@ def test_multi_mirror(voc_dataset):
         elif mirror == -1:
             mirrored += 1
         else:
-            raise pytest.raises(ValueError(f"mirror={mirror} is not 1 or -1"))
+            raise ValueError(f"mirror={mirror} is not 1 or -1")
 
     assert mirrored + not_mirrored == 2 * len(voc_dataset)
     assert mirrored == not_mirrored
@@ -199,7 +199,7 @@ def test_rand_updown(voc_dataset):
         elif rand_seed == -1:
             updown += 1
         else:
-            raise pytest.raises(ValueError(f"rand_seed={rand_seed} is not 1 or -1"))
+            raise ValueError(f"rand_seed={rand_seed} is not 1 or -1")
 
     assert updown + not_updown == len(voc_dataset)
     assert updown / len(voc_dataset) == pytest.approx(0.5, abs=0.04)
@@ -255,7 +255,7 @@ def test_multi_updown(voc_dataset):
         elif updown == -1:
             updown += 1
         else:
-            raise pytest.raises(ValueError(f"mirror={updown} is not 1 or -1"))
+            raise ValueError(f"mirror={updown} is not 1 or -1")
 
     assert updown + not_updown == 2 * len(voc_dataset)
     assert updown == not_updown
@@ -556,13 +556,11 @@ def test_rand_crop(voc_dataset):
 
     auger.graph.add_node(RandCrop, inputs=['cropped_img'], outputs=['wrong_cropped_img'],
                          init=[{'crop_size': kErrorCropSize}])
-    try:
+    with pytest.raises(ValueError, match=f"img_h {kCropSize[0]} must >= crop_h {kErrorCropSize[0]}; " \
+                     f"img_w {kCropSize[1]} must >= crop_w {kErrorCropSize[1]}"):
         _ = auger[0]
-    except ValueError as e:
-        assert str(e) == f"img_h {kCropSize[0]} must >= crop_h {kErrorCropSize[0]}; " \
-                         f"img_w {kCropSize[1]} must >= crop_w {kErrorCropSize[1]}"
-    else:
-        pytest.raises(RuntimeError("RandCrop didn't raise error properly when crop size > img size"))
+
+
 
 
 
