@@ -23,7 +23,7 @@ def test_simple():
     assert res == -1.5
     assert graph.data['e'] == -1.5
 
-    # make sure it is indepodent
+    # make sure it is independent
     res = graph.calculate(data={'a': 2, 'b': 3})
     assert res == -1.5
     assert graph.data['e'] == -1.5
@@ -48,7 +48,7 @@ def test_constant_inputs():
     assert res == -1.5
     assert graph.data['e'] == -1.5
 
-    # make sure it is indepodent
+    # make sure it is independent
     res = graph.calculate(data={'a': 2})
     assert res == -1.5
     assert graph.data['e'] == -1.5
