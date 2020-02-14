@@ -26,8 +26,8 @@ __all__ = ["Dataset", "IterableDataset", "ChainDataset", "TensorDataset", "Subse
 class Dataset(object):
     def __getitem__(self, index):
         if isinstance(index, slice):
-            # Get the start, stop, and step from the slice
-            return [self[ii] for ii in range(*index.indices(len(self)))]
+            # Get the start, stop, and step from the slice, return an iterator
+            return (self[ii] for ii in range(*index.indices(len(self))))
         if isinstance(index, list) or isinstance(index, np.ndarray) or isinstance(index, torch.Tensor):
             return [self[ii] for ii in index]
         elif isinstance(int(index), int):
@@ -72,7 +72,8 @@ class IterableDataset(Dataset):
     """
 
     def __iter__(self):
-        raise NotImplementedError
+        for i in range(len(self)):
+            yield self[i]
 
     def __add__(self, other):
         return ChainDataset([self, other])
