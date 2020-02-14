@@ -11,6 +11,7 @@
 from typing import Optional, Union, Iterable, Callable, Tuple
 import numpy as np
 import cv2
+from collections import abc
 
 from alchemy_cat.data.data_auger import RandMap, MultiMap
 from alchemy_cat.py_tools import Compose, Lambda
@@ -318,8 +319,9 @@ class MultiScale(MultiMap):
 
 
 def pad_img_label(img: np.ndarray, label: Optional[np.ndarray]=None, pad_img_to: Union[Iterable, int] = 0,
-                  pad_aligner: Optional[Callable] = lambda x: x, img_pad_val: Union[int, float, Iterable] = 0.0,
-                  ignore_label: int = 255) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+                  pad_aligner: Union[Callable, Iterable[Callable]] = lambda x: x,
+                  img_pad_val: Union[int, float, Iterable] = 0.0, ignore_label: int = 255,
+                  pad_location: Union[str, int]='right-bottom') -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
     """Pad img to size pad_aligner(max(img_origin_size, pad_img_to))
 
     Args:
@@ -331,32 +333,72 @@ def pad_img_label(img: np.ndarray, label: Optional[np.ndarray]=None, pad_img_to:
         img_pad_val: (Union[int, float, Iterable]): If value is int or float, return (value, value, value),
             if value is Iterable with 3 element, return totuple(value), else raise error
         ignore_label (int): value to pad the label.
+        pad_location (Union[str, int]): Indicate pad location. Can be 'left-top'/0, 'right-top'/1, 'left-bottom'/2
+            'right-bottom'/3, 'center'/4.
 
     Returns: Padded img and label(if given)
     """
+    # * Check img size = label size
     _check_img_size_equal_label_size(img, label)
 
+    # * Check ignore label value
     if not is_int(ignore_label):
         raise ValueError(f"ignore_label{ignore_label} should be int")
     else:
         ignore_label = int(ignore_label)
 
+    # * Get img pad scalar. If img is int array, then pad val can't be float.
     img_pad_scalar = color2scalar(img_pad_val)
     if is_intarr(img) and is_floatarr(np.array(img_pad_val)):
         raise ValueError("Input img is int array, while img_pad_val has float. Which may cause unexpected "
                          "behaviour when padding. Using int_img2float32img before padding int img with float value.")
 
+    # * Get pad aligner
+    if isinstance(pad_aligner, abc.Callable):
+        pad_aligner_h, pad_aligner_w = pad_aligner, pad_aligner
+    elif isinstance(pad_aligner, abc.Iterable):
+        pad_aligner_h, pad_aligner_w = pad_aligner
+    else:
+        raise ValueError(f"pad_aligner {pad_aligner} must be Callable or Iterable[Callable]")
+
+    # * Get pad_h, pad_w
     pad_to_h, pad_to_w = size2HW(pad_img_to)
     img_h, img_w = size2HW(img.shape[:2])
-    padded_h, padded_w = pad_aligner(max(pad_to_h, img_h)), pad_aligner(max(pad_to_w, img_w))
+    padded_h, padded_w = pad_aligner_h(max(pad_to_h, img_h)), pad_aligner_w(max(pad_to_w, img_w))
     pad_h, pad_w = padded_h - img_h, padded_w - img_w
 
     if pad_h < 0 or pad_w < 0:
         raise ValueError("pad aligner's return size must larger than input size")
 
-    img = cv2.copyMakeBorder(img, 0, pad_h, 0, pad_w, borderType=cv2.BORDER_CONSTANT, value=img_pad_scalar)
+    # * Get right/left/bottom/top pad size
+    if isinstance(pad_location, str):
+        pad_location_index_dict = {'left-top': 0, 'right-top': 1, 'left-bottom': 2, 'right-bottom':3, 'center':4}
+        pad_location_index = pad_location_index_dict.get(pad_location)
+        if pad_location is None:
+            raise ValueError(f"pad_location should be in {list(pad_location_index_dict.keys())}")
+    else:
+        pad_location_index = pad_location
+        if pad_location_index not in [0, 1, 2, 3, 4]:
+            raise ValueError(f"If pad location is given by int, then it should be in range 0~4")
+
+    pad_left, pad_right, pad_top, pad_bottom = 0, 0, 0, 0
+    if pad_location_index & 1:
+        pad_right = pad_w
+    else:
+        pad_left = pad_w
+    if pad_location_index & 2:
+        pad_bottom = pad_h
+    else:
+        pad_top = pad_h
+    if pad_location_index & 4:
+        pad_top, pad_bottom = pad_h // 2, (pad_h + 1) // 2   # floor(pad_h/2), ceil(pad_h/2)
+        pad_left, pad_right = (pad_w) // 2, (pad_w + 1) // 2
+
+    img = cv2.copyMakeBorder(img, pad_top, pad_bottom, pad_left, pad_right,
+                             borderType=cv2.BORDER_CONSTANT, value=img_pad_scalar)
     if label is not None:
-        label = cv2.copyMakeBorder(label, 0, pad_h, 0, pad_w, borderType=cv2.BORDER_CONSTANT, value=ignore_label)
+        label = cv2.copyMakeBorder(label, pad_top, pad_bottom, pad_left, pad_right,
+                                   borderType=cv2.BORDER_CONSTANT, value=ignore_label)
 
     if label is not None:
         return img, label
