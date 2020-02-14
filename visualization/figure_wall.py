@@ -26,24 +26,30 @@ class FigureWall(object):
     """
 
     def __init__(self, figs: Union[np.ndarray, Iterable[Union[np.ndarray, 'FigureWall']]],
-                 is_normalize: bool = False, space_width: int = 1):
+                 is_normalize: bool = False, space_width: int = 1,
+                 img_pad_val: Union[int, float, Iterable] = (127, 140, 141),
+                 pad_location: Union[str, int]='right-bottom'):
         """
         Args:
             figs (Iterable, np.ndarray): Iterable[fig] or figs. fig is supposed to be (H, W, C) and RGB mode.
             is_normalize (bool): If true, the figures will be min-max normalized
             space_width (int): Space width between figs
+            img_pad_val: (Union[int, float, Iterable]): Img pad value when stack imgs.If value is int or float, return
+                (value, value, value), if value is Iterable with 3 element, return totuple(value), else raise error
+            pad_location (Union[str, int]): Img pad location when stack imgs. Indicate pad location. Can be
+                'left-top'/0, 'right-top'/1, 'left-bottom'/2, 'right-bottom'/3, 'center'/4.
         """
         if isinstance(figs, list):
             if isinstance(figs[0], np.ndarray):
-                self.figs = stack_figs(figs)
+                self.figs = stack_figs(figs, img_pad_val, pad_location)
             elif isinstance(figs[0], FigureWall):
-                self.figs = stack_figs([figure_wall.tiled_figs for figure_wall in figs])
+                self.figs = stack_figs([figure_wall.tiled_figs for figure_wall in figs], img_pad_val, pad_location)
             else:
                 raise ValueError("The fig should be ndarray or FigureWall")
         elif isinstance(figs, np.ndarray):
             self.figs = figs
         elif isinstance(figs, abc.Iterable):
-            self.__init__(list(figs), is_normalize, space_width)
+            self.__init__(list(figs), is_normalize, space_width, img_pad_val, pad_location)
             return
         else:
             raise ValueError("The figs should be Iterator of (H, W, C) imgs or (N, H, W, C) ndarray")
@@ -225,6 +231,11 @@ class RowFigureWall(FigureWall):
 
 
 if __name__ == "__main__":
+    from alchemy_cat.contrib.voc import VOCAug
+    voc_dataset = VOCAug()
+    img_wall = RowFigureWall([img for _, img, label in voc_dataset[:3]], pad_location='center')
+    img_wall.plot(dpi=600)
+
     col_wall = ColumnFigureWall(list(np.random.randn(10, 224, 224, 3)), is_normalize=True, space_width=5)
     col_wall.plot(dpi=300)
 
