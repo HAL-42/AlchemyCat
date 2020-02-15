@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from typing import Union, Optional, Iterable
 from collections import abc
 
-from alchemy_cat.visualization.utils import stack_figs
+from alchemy_cat.visualization.utils import stack_figs, BGR2RGB
 from alchemy_cat.py_tools import is_intarr, indent
 
 
@@ -28,7 +28,7 @@ class FigureWall(object):
     def __init__(self, figs: Union[np.ndarray, Iterable[Union[np.ndarray, 'FigureWall']]],
                  is_normalize: bool = False, space_width: int = 1,
                  img_pad_val: Union[int, float, Iterable] = (127, 140, 141),
-                 pad_location: Union[str, int]='right-bottom'):
+                 pad_location: Union[str, int]='right-bottom', color_channel_order: str='RGB'):
         """
         Args:
             figs (Iterable, np.ndarray): Iterable[fig] or figs. fig is supposed to be (H, W, C) and RGB mode.
@@ -38,6 +38,8 @@ class FigureWall(object):
                 (value, value, value), if value is Iterable with 3 element, return totuple(value), else raise error
             pad_location (Union[str, int]): Img pad location when stack imgs. Indicate pad location. Can be
                 'left-top'/0, 'right-top'/1, 'left-bottom'/2, 'right-bottom'/3, 'center'/4.
+            plot_lib (str): Indicate color channel order. If 'BGR', then figs will be convert to RGB before show and
+                save. Default is 'RGB'.
         """
         if isinstance(figs, list):
             if isinstance(figs[0], np.ndarray):
@@ -61,7 +63,11 @@ class FigureWall(object):
 
         self.space_width = space_width
 
-    def _tile_figs(self, space_width):
+        if color_channel_order not in ('BGR', 'RGB'):
+            raise ValueError(f"color_channel_order {color_channel_order} must be \"BGR\" or \"RGB\"")
+        self.color_channel_order = color_channel_order
+
+    def _tile_figs(self, space_width) -> np.ndarray:
         """
         Tiles figs to figure wall.
         Args:
@@ -81,8 +87,10 @@ class FigureWall(object):
         Returns:
             Showed figure
         """
+        tiled_figs = self.tiled_figs if self.color_channel_order == 'RGB' else BGR2RGB(self.tiled_figs)
+
         figure = plt.figure(**kwargs)
-        plt.imshow(self.tiled_figs)
+        plt.imshow(tiled_figs)
         plt.axis('off')
 
         return figure
@@ -96,7 +104,9 @@ class FigureWall(object):
         Returns:
             None
         """
-        plt.imsave(img_file, self.tiled_figs)
+        tiled_figs = self.tiled_figs if self.color_channel_order == 'RGB' else BGR2RGB(self.tiled_figs)
+
+        plt.imsave(img_file, tiled_figs)
 
     def __add__(self, other: 'FigureWall') -> 'FigureWall':
         """
