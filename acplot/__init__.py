@@ -8,5 +8,5 @@
 @time: 2020/1/7 22:15
 @desc:
 """
-from alchemy_cat.visualization.figure_wall import *
-from alchemy_cat.visualization.utils import *
+from alchemy_cat.acplot.figure_wall import *
+from alchemy_cat.acplot.utils import *

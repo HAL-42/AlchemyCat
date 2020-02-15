@@ -114,7 +114,7 @@ class VOCAug(_VOCBase):
 
 
 if __name__ == "__main__":
-    from alchemy_cat.visualization.figure_wall import RectFigureWall, RowFigureWall
+    from alchemy_cat.acplot.figure_wall import RectFigureWall, RowFigureWall
     import matplotlib.pyplot as plt
 
     voc = VOC()

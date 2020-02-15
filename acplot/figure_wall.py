@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from typing import Union, Optional, Iterable
 from collections import abc
 
-from alchemy_cat.visualization.utils import stack_figs, BGR2RGB
+from alchemy_cat.acplot.utils import stack_figs, BGR2RGB
 from alchemy_cat.py_tools import is_intarr, indent
 
 
