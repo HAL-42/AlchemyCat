@@ -111,7 +111,8 @@ class RandColorJitter(RandMap):
             range_mul_contract (tuple): range of multiplier of contract
             range_mul_saturate (tuple): range of multiplier of saturate
             max_delta_hue (int): max delta of hue
-            jitter_prob (Union[list, tuple, float]): probs of each jitter step (jitter bright, jitter contract, jitter saturate, jitter hue) implemented
+            jitter_prob (Union[list, tuple, float]): probs of each jitter step (jitter bright, jitter contract,
+                jitter saturate, jitter hue) implemented
         """
         super(RandColorJitter, self).__init__()
 
@@ -219,8 +220,8 @@ def _check_img_size_equal_label_size(img, label):
         raise ValueError(f"img size {img.shape[:2]} should be equal to label{label.shape} size")
 
 
-def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.ndarray]=None,
-                    aligner: Union[Callable, Iterable[Callable]]=lambda x: x) -> Union[np.ndarray, Tuple[np.ndarray]]:
+def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.ndarray] = None,
+                    aligner: Union[Callable, Iterable[Callable]] = lambda x: x) -> Union[np.ndarray, Tuple[np.ndarray]]:
     """Scale img and label accroding to scaled factor
 
     Args:
@@ -257,7 +258,7 @@ def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.nda
 
 class RandScale(RandMap):
 
-    def __init__(self, scale_factors: Iterable, aligner: Union[Callable, Iterable[Callable]]=lambda x: x):
+    def __init__(self, scale_factors: Iterable, aligner: Union[Callable, Iterable[Callable]] = lambda x: x):
         """Auger to rand rescale the input img and corresponding label
 
         Args:
@@ -292,7 +293,7 @@ class RandScale(RandMap):
 
 
 class MultiScale(MultiMap):
-    def __init__(self, scale_factors: Iterable, aligner: Callable=lambda x: x):
+    def __init__(self, scale_factors: Iterable, aligner: Callable = lambda x: x):
         """Auger to Multi rescale the input img and corresponding label
 
         Args:
@@ -328,10 +329,10 @@ class MultiScale(MultiMap):
         return scale_img_label(scale_factor, img, label, self.aligner)
 
 
-def pad_img_label(img: np.ndarray, label: Optional[np.ndarray]=None, pad_img_to: Union[Iterable, int] = 0,
+def pad_img_label(img: np.ndarray, label: Optional[np.ndarray] = None, pad_img_to: Union[Iterable, int] = 0,
                   pad_aligner: Union[Callable, Iterable[Callable]] = lambda x: x,
                   img_pad_val: Union[int, float, Iterable] = 0.0, ignore_label: int = 255,
-                  pad_location: Union[str, int]='right-bottom') -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+                  pad_location: Union[str, int] = 'right-bottom') -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
     """Pad img to size pad_aligner(max(img_origin_size, pad_img_to))
 
     Args:
@@ -383,7 +384,7 @@ def pad_img_label(img: np.ndarray, label: Optional[np.ndarray]=None, pad_img_to:
 
     # * Get right/left/bottom/top pad size
     if isinstance(pad_location, str):
-        pad_location_index_dict = {'left-top': 0, 'right-top': 1, 'left-bottom': 2, 'right-bottom':3, 'center':4}
+        pad_location_index_dict = {'left-top': 0, 'right-top': 1, 'left-bottom': 2, 'right-bottom': 3, 'center': 4}
         pad_location_index = pad_location_index_dict.get(pad_location)
         if pad_location is None:
             raise ValueError(f"pad_location should be in {list(pad_location_index_dict.keys())}")
@@ -402,8 +403,8 @@ def pad_img_label(img: np.ndarray, label: Optional[np.ndarray]=None, pad_img_to:
     else:
         pad_top = pad_h
     if pad_location_index & 4:
-        pad_top, pad_bottom = pad_h // 2, (pad_h + 1) // 2   # floor(pad_h/2), ceil(pad_h/2)
-        pad_left, pad_right = (pad_w) // 2, (pad_w + 1) // 2
+        pad_top, pad_bottom = pad_h // 2, (pad_h + 1) // 2  # floor(pad_h/2), ceil(pad_h/2)
+        pad_left, pad_right = pad_w // 2, (pad_w + 1) // 2
 
     img = cv2.copyMakeBorder(img, pad_top, pad_bottom, pad_left, pad_right,
                              borderType=cv2.BORDER_CONSTANT, value=img_pad_scalar)
