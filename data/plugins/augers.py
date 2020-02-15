@@ -219,15 +219,16 @@ def _check_img_size_equal_label_size(img, label):
         raise ValueError(f"img size {img.shape[:2]} should be equal to label{label.shape} size")
 
 
-def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.ndarray]=None, aligner: Callable=lambda x: x) \
-        -> Union[np.ndarray, Tuple[np.ndarray]]:
+def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.ndarray]=None,
+                    aligner: Union[Callable, Iterable[Callable]]=lambda x: x) -> Union[np.ndarray, Tuple[np.ndarray]]:
     """Scale img and label accroding to scaled factor
 
     Args:
         scale_factor: scaled factor
         img: img to be scaled
         label: If not none, label to be scaled
-        aligner: The scaled size will be refined by Callable aligner
+        aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size). If
+            Iterable, then first and second aligners separately used to align H and W.
 
     Returns: Scaled img and label(If exits)
     """
@@ -236,8 +237,15 @@ def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.nda
 
     _check_img_size_equal_label_size(img, label)
 
+    if isinstance(aligner, abc.Callable):
+        aligner_h, aligner_w = aligner, aligner
+    elif isinstance(aligner, abc.Iterable):
+        aligner_h, aligner_w = aligner
+    else:
+        raise ValueError(f"pad_aligner {aligner} must be Callable or Iterable[Callable]")
+
     scaled_h, scaled_w = \
-        aligner(int(scale_factor * img.shape[0])), aligner(int(scale_factor * img.shape[1]))
+        aligner_h(int(scale_factor * img.shape[0])), aligner_w(int(scale_factor * img.shape[1]))
     scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
 
     if label is not None:
@@ -249,13 +257,14 @@ def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.nda
 
 class RandScale(RandMap):
 
-    def __init__(self, scale_factors: Iterable, aligner: Callable=lambda x: x):
+    def __init__(self, scale_factors: Iterable, aligner: Union[Callable, Iterable[Callable]]=lambda x: x):
         """Auger to rand rescale the input img and corresponding label
 
         Args:
             scale_factors: scale_factors: scale factors. eg. [0.5, 1, 1.5] means the img (and label) will be
             rand scale with factor 0.5, 1.0 or 1.5
-            aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size)
+            aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size). If
+                Iterable, then first and second aligners separately used to align H and W.
         """
         super(RandScale, self).__init__()
 
@@ -289,7 +298,8 @@ class MultiScale(MultiMap):
         Args:
             scale_factors: scale_factors: scale factors. eg. [0.5, 1, 1.5] means the img (and label) will be
             rand scale with factor 0.5, 1.0 or 1.5
-            aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size)
+            aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size). If
+                Iterable, then first and second aligners separately used to align H and W.
         """
         super(MultiScale, self).__init__()
 
@@ -329,7 +339,8 @@ def pad_img_label(img: np.ndarray, label: Optional[np.ndarray]=None, pad_img_to:
         label (np.ndarray): label to be padded
         pad_img_to (Union[None, Iterable, int]): img pad size. If value is int, the img_pad_to will be parsed as
             H=value, W=value. Else will be parsed as H=list(value)[0], W=list(value)[1]
-        pad_aligner (Optional[Callable]): Final pad size will be refine by callable aligner
+        pad_aligner (Union[Callable, Iterable[Callable]]): Final pad size will be refine by callable aligner. If
+            Iterable, then first and second aligners separately used to align H and W.
         img_pad_val: (Union[int, float, Iterable]): If value is int or float, return (value, value, value),
             if value is Iterable with 3 element, return totuple(value), else raise error
         ignore_label (int): value to pad the label.
