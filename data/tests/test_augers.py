@@ -18,21 +18,23 @@ import cv2
 from alchemy_cat.contrib.voc import VOCAug, label_map2color_map
 from alchemy_cat.data import DataAuger
 from alchemy_cat.data.plugins.augers import RandMirror, MultiMirror, RandColorJitter, RandUpDown, MultiUpDown, \
-    int_img2float32_img, centralize, pad_img_label, RandCrop
+    int_img2float32_img, centralize, pad_img_label, RandCrop, FiveCrop, RandScale, MultiScale
 from alchemy_cat.dag import Node
-from alchemy_cat.visualization import BGR2RGB, RowFigureWall, ColumnFigureWall
+from alchemy_cat.acplot import RowFigureWall, ColumnFigureWall
 from alchemy_cat.py_tools import set_numpy_rand_seed
-from alchemy_cat.alg import find_nearest_odd_size
+from alchemy_cat.alg import find_nearest_odd_size, find_nearest_even_size
 
 set_numpy_rand_seed(0)
 
 
-def plot_img_label_pair(img_pair, label_pair=None):
-    img_wall = RowFigureWall(img_pair, space_width=20)
-    label_wall = RowFigureWall(label_pair, space_width=20) if label_pair is not None else None
+def plot_img_label_pair(img_pair, label_pair=None, img_num=None):
+    img_wall = RowFigureWall(img_pair, space_width=20, pad_location='center', color_channel_order='BGR')
+    label_wall = RowFigureWall(label_pair, space_width=20, pad_location='center', color_channel_order='BGR') \
+        if label_pair is not None else None
 
-    show_wall = ColumnFigureWall([img_wall, label_wall], space_width=20) if label_wall is not None else img_wall
-    show_wall.plot()
+    show_wall = ColumnFigureWall([img_wall, label_wall], space_width=20, color_channel_order='BGR') \
+        if label_wall is not None else img_wall
+    show_wall.plot(num=img_num)
     plt.show()
 
 
@@ -82,10 +84,10 @@ def test_rand_mirror(voc_dataset):
 
         if index % 100 == 0:
             print(Fore.BLUE + f"{index // 100}: rand_seed = {rand_seed}\n" + Style.RESET_ALL)
-            img_pair = map(BGR2RGB, [img, mirrored_img])
+            img_pair = [img, mirrored_img]
             label_pair = map(label_map2color_map, [label, mirrored_label])
 
-            plot_img_label_pair(img_pair, label_pair)
+            plot_img_label_pair(img_pair, label_pair, img_num=f"ID: {_}; index: {index}")
 
         if rand_seed == 1:
             not_mirrored += 1
@@ -138,7 +140,7 @@ def test_multi_mirror(voc_dataset):
 
         if dataset_index % 99 == 0:
             print(Fore.BLUE + f"{dataset_index // 99}: mirror = {mirror}\n" + Style.RESET_ALL)
-            img_pair = map(BGR2RGB, [img, mirrored_img])
+            img_pair = [img, mirrored_img]
             label_pair = map(label_map2color_map, [label, mirrored_label])
 
             plot_img_label_pair(img_pair, label_pair)
@@ -189,7 +191,7 @@ def test_rand_updown(voc_dataset):
 
         if index % 100 == 0:
             print(Fore.BLUE + f"{index // 100}: rand_seed = {rand_seed}\n" + Style.RESET_ALL)
-            img_pair = map(BGR2RGB, [img, updown_img])
+            img_pair = [img, updown_img]
             label_pair = map(label_map2color_map, [label, updown_label])
 
             plot_img_label_pair(img_pair, label_pair)
@@ -245,7 +247,7 @@ def test_multi_updown(voc_dataset):
 
         if dataset_index % 99 == 0:
             print(Fore.BLUE + f"{dataset_index // 99}: updown = {updown}\n" + Style.RESET_ALL)
-            img_pair = map(BGR2RGB, [img, updown_img])
+            img_pair = [img, updown_img]
             label_pair = map(label_map2color_map, [label, updown_label])
 
             plot_img_label_pair(img_pair, label_pair)
@@ -353,7 +355,7 @@ def test_rand_color_jitter(voc_dataset):
         # * Visualization
         def vis(problem):
             print(Fore.LIGHTYELLOW_EX + f"{index} [{problem}]: rand_seed = {rand_seed}" + Style.RESET_ALL)
-            plot_img_label_pair(map(BGR2RGB, [img, jitter_img, dejitter_img]))
+            plot_img_label_pair([img, jitter_img, dejitter_img])
 
         # * Test distortion ratio
         distortion_ratio = np.sum(distortion) / distortion.size
@@ -380,10 +382,6 @@ def test_rand_color_jitter(voc_dataset):
     # * Test macro mean distortion and reversible ratio
     assert np.mean(distortion_ratios) < 0.2
     assert np.nanmean(reversible_ratios) > 0.8
-
-
-def test_rand_scale():
-    pass
 
 
 def test_int_img2float32_img(voc_dataset):
@@ -426,6 +424,7 @@ def test_pad_img_label(voc_dataset):
         3. img pad to size is int or Iterable(H, W)
         4. with or without pad aligner
         5. with or without label
+        6. Different pad locations
     Args:
         voc_dataset: VOC Aug val dataset
     """
@@ -476,11 +475,34 @@ def test_pad_img_label(voc_dataset):
                                              pad_aligner=find_nearest_odd_size)
     _check_padded_img_label(img, padded_img, 513, 513, np.array([0, 0, 0]), label, padded_label)
 
+    padded_img, padded_label = pad_img_label(img, label, pad_img_to=511, img_pad_val=0,
+                                             pad_aligner=[find_nearest_odd_size, find_nearest_even_size])
+    _check_padded_img_label(img, padded_img, 513, 512, np.array([0, 0, 0]), label, padded_label)
+
     # * Test pad float without label
     float_img = int_img2float32_img(img)
     padded_img = pad_img_label(float_img, pad_img_to=513, img_pad_val=np.array([2.3, 3.3, 6.6]))
     assert padded_img.dtype is np.dtype('float32')
     _check_padded_img_label(float_img, padded_img, 513, 513, np.array([2.3, 3.3, 6.6]))
+
+    # * Test Different pad location
+    padded_img, padded_label = pad_img_label(img, label, pad_img_to=513, img_pad_val=128, pad_location='left-top')
+    assert np.all(padded_img[-img.shape[0]:, -img.shape[1]:] == img)
+    assert np.all(padded_label[-img.shape[0]:, -img.shape[1]:] == label)
+
+    padded_img, padded_label = pad_img_label(img, label, pad_img_to=513, img_pad_val=128, pad_location='left-bottom')
+    assert np.all(padded_img[:img.shape[0], -img.shape[1]:] == img)
+    assert np.all(padded_label[:label.shape[0], -label.shape[1]:] == label)
+
+    padded_img, padded_label = pad_img_label(img, label, pad_img_to=513, img_pad_val=128, pad_location='right-top')
+    assert np.all(padded_img[-img.shape[0]:, :img.shape[1]] == img)
+    assert np.all(padded_label[-label.shape[0]:, :label.shape[1]] == label)
+
+    padded_img, padded_label = pad_img_label(img, label, pad_img_to=513, img_pad_val=128, pad_location='center')
+    pad_h = 513 - img.shape[0]
+    pad_w = 513 - img.shape[1]
+    assert np.all(padded_img[pad_h // 2:-((pad_h + 1) // 2), pad_w // 2:-((pad_w + 1) // 2)] == img)
+    assert np.all(padded_label[pad_h // 2:-((pad_h + 1) // 2), pad_w // 2:-((pad_w + 1) // 2)] == label)
 
 
 def test_rand_crop(voc_dataset):
@@ -506,9 +528,8 @@ def test_rand_crop(voc_dataset):
 
         def build_graph(self):
             super(RandCropAuger, self).build_graph()
-            # TODO: Support Dict kwargs
             self.graph.add_node(pad_img_label, inputs=['img', 'label'], outputs=['padded_img', 'padded_label'],
-                                kwargs=[{'pad_img_to': kPadSize}, {'img_pad_val': 128}])
+                                kwargs={'pad_img_to': kPadSize, 'img_pad_val': 128})
 
             self.graph.add_node(RandCrop, inputs=['padded_img', 'padded_label'],
                                 outputs=['cropped_img', 'cropped_label'], init={'crop_size': kCropSize})
@@ -547,26 +568,241 @@ def test_rand_crop(voc_dataset):
 
         if i % 500 == 0:
             print(Fore.LIGHTYELLOW_EX + f"{i}: offset_h = {offset_h}; offset_w = {offset_w}" + Style.RESET_ALL)
-            img_pair = map(BGR2RGB, [padded_img, cropped_img])
+            img_pair = [padded_img, cropped_img]
             label_pair = map(label_map2color_map, [padded_label, cropped_label])
             plot_img_label_pair(img_pair, label_pair)
 
-    assert offset_h_sum == pytest.approx(kLoopTimes / (kPadSize - kCropSize[0] + 1), abs=4.0)
-    assert offset_w_sum == pytest.approx(kLoopTimes / (kPadSize - kCropSize[1] + 1), abs=4.0)
+    assert offset_h_sum == pytest.approx(kLoopTimes / (kPadSize - kCropSize[0] + 1), rel=0.5)
+    assert offset_w_sum == pytest.approx(kLoopTimes / (kPadSize - kCropSize[1] + 1), rel=0.5)
 
     auger.graph.add_node(RandCrop, inputs=['cropped_img'], outputs=['wrong_cropped_img'],
-                         init=[{'crop_size': kErrorCropSize}])
+                         init={'crop_size': kErrorCropSize})
     with pytest.raises(ValueError, match=f"img_h {kCropSize[0]} must >= crop_h {kErrorCropSize[0]}; " \
                      f"img_w {kCropSize[1]} must >= crop_w {kErrorCropSize[1]}"):
         _ = auger[0]
 
 
+def test_five_crop(voc_dataset):
+    """Test Five Crop with following steps:
+        1. Create a FiveCrop auger on voc test dataset
+        2. Test whether all img is cropped accroding to it's output_index
+        3. Test whether output_index is met with dataset index and auger index
+        4. Test whether the total number is right
+        5. Visualization
+
+    Args:
+        voc_dataset: VOCAug val dataset
+    """
+    print(Fore.LIGHTYELLOW_EX + "===========Test Rand Crop==========" + Style.RESET_ALL)
+
+    kCropH, kCropW = 513, 321
+    kCropSize = (kCropH, kCropW)
+
+    class FiveCropAuger(BaseAuger):
+
+        def build_graph(self):
+            super(FiveCropAuger, self).build_graph()
+
+            self.graph.add_node(pad_img_label, inputs=['img', 'label'], outputs=['padded_img', 'padded_label'],
+                                kwargs={'pad_img_to': kCropSize, 'img_pad_val': (173, 68, 142),
+                                        'pad_location': 'center'})
+
+            self.graph.add_node(FiveCrop, inputs=['padded_img', 'padded_label'],
+                                outputs=['cropped_img', 'cropped_label'], init={'crop_size': kCropSize})
+
+    auger = FiveCropAuger(voc_dataset, verbosity=0, slim=True)
+    multi_node: Node = auger.multi_nodes[0]
+
+    index_num = np.zeros(5, dtype=np.int)
+    for auger_index, outputs in enumerate(auger):
+        dataset_index = auger_index // 5
+
+        cropped_img, cropped_label = outputs
+        padded_img, padded_label = auger.graph.data['padded_img'], auger.graph.data['padded_label']
+        _, img ,label = voc_dataset[dataset_index]
+
+        output_index = multi_node._fct.output_index
+        assert output_index == auger_index % 5
+
+        if output_index == 0:
+            assert np.all(cropped_img == padded_img[:kCropH, :kCropW])
+            assert np.all(cropped_label == padded_label[:kCropH, :kCropW])
+        elif output_index == 1:
+            assert np.all(cropped_img == padded_img[:kCropH, -kCropW:])
+            assert np.all(cropped_label == padded_label[:kCropH, -kCropW:])
+        elif output_index == 2:
+            assert np.all(cropped_img == padded_img[-kCropH:, :kCropW])
+            assert np.all(cropped_label == padded_label[-kCropH:, :kCropW])
+        elif output_index == 3:
+            assert np.all(cropped_img == padded_img[-kCropH:, -kCropW:])
+            assert np.all(cropped_label == padded_label[-kCropH:, -kCropW:])
+        elif output_index == 4:
+            head_H = (padded_img.shape[0] - kCropH) // 2
+            tail_H = -((padded_img.shape[0] - kCropH + 1) // 2) if head_H != 0 else kCropH
+            head_W = (padded_img.shape[1] - kCropW) // 2
+            tail_W = -((padded_img.shape[1] - kCropW + 1) // 2) if head_W != 0 else kCropW
+
+            assert np.all(cropped_img == padded_img[head_H:tail_H, head_W:tail_W])
+            assert np.all(cropped_label == padded_label[head_H:tail_H, head_W:tail_W])
+        else:
+            raise ValueError(f"output_index{output_index} not in [0, 1, 2, 3, 4]")
+
+        if dataset_index % 100 == 0:
+            print(Fore.BLUE + f"{dataset_index // 100}: output_index = {output_index}\n" + Style.RESET_ALL)
+            img_row = [img, padded_img, cropped_img]
+            label_row = map(label_map2color_map, [label, padded_label, cropped_label])
+
+            plot_img_label_pair(img_row, label_row)
+
+        index_num[output_index] += 1
+
+    assert np.all(index_num == len(voc_dataset))
+    print(Fore.LIGHTYELLOW_EX + f"index_num: {index_num}" + Style.RESET_ALL)
 
 
+def test_rand_scale(voc_dataset):
+    """Test rand scale with following steps:
+        1. Create a rand_scale auger on voc val dataset
+        2. Test is all img is scale accroding to it's rand_seed
+            a) The scaled size is correct
+            b) Img and label can be roughly recovered by rescale
+        3. Test is rand distribution is random and balanced
+        4. Visualization
+
+    Args:
+        voc_dataset: VOCAug val dataset
+    """
+    print(Fore.LIGHTYELLOW_EX + "===========Test Rand Scale==========" + Style.RESET_ALL)
+
+    kScaleFactors = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+
+    class RandScaleAuger(BaseAuger):
+
+        def build_graph(self):
+            super(RandScaleAuger, self).build_graph()
+
+            self.graph.add_node(RandScale, inputs=['img', 'label'], outputs=['scaled_img', 'scaled_label'],
+                                init={'scale_factors': kScaleFactors,
+                                      'aligner': [lambda x: x + 1, lambda x: x - 1]})
+
+    auger = RandScaleAuger(voc_dataset, verbosity=0, slim=True)
+    rand_node: Node = auger.rand_nodes[0]
+
+    def vis():
+        img_pair = [img, scaled_img, recovered_img]
+        label_pair = map(label_map2color_map, [label, scaled_label, recovered_label])
+        plot_img_label_pair(img_pair, label_pair)
+
+    scale_num = np.zeros(len(kScaleFactors), dtype=np.int)
+    img_recover_ratios, label_recover_ratios = [], []
+    for index, outputs in enumerate(auger):
+        scaled_img, scaled_label = outputs
+        assert scaled_img.shape[:2] == scaled_label.shape
+
+        _, img, label = voc_dataset[index]
+        img: np.ndarray; label: np.ndarray
+
+        rand_seed = auger.rand_seeds[rand_node.id]
+        scale_num[kScaleFactors.index(rand_seed)] += 1
+
+        assert int(img.shape[0] * rand_seed) + 1 == scaled_img.shape[0]
+        assert int(img.shape[1] * rand_seed) - 1 == scaled_img.shape[1]
+
+        recovered_img = cv2.resize(scaled_img, img.shape[:2][::-1], interpolation=cv2.INTER_LINEAR)
+        img_recover_mask = np.isclose(recovered_img, img, rtol=0.1, atol=5.0)
+        img_recover_ratios.append(np.sum(img_recover_mask) / img.size)
+
+        recovered_label = cv2.resize(scaled_label, label.shape[:2][::-1], interpolation=cv2.INTER_NEAREST)
+        label_recover_mask = recovered_label == label
+        label_recover_ratios.append(np.sum(label_recover_mask) / label.size)
+
+        if img_recover_ratios[-1] < 0.7:
+            print(Fore.LIGHTRED_EX +
+                  f"img recovery fail. {index}: rand_seed = {rand_seed}\n"
+                  + Style.RESET_ALL)
+            vis()
+
+        if label_recover_ratios[-1] < 0.7:
+            print(Fore.LIGHTRED_EX +
+                  f"label recovery fail. {index}: rand_seed = {rand_seed}\n"
+                  + Style.RESET_ALL)
+            vis()
+
+        if index % 200 == 0:
+            print(Fore.LIGHTRED_EX +
+                  f"{index // 100}: rand_seed = {rand_seed}\n"
+                  + Style.RESET_ALL)
+            vis()
+
+    assert np.sum(scale_num) == len(voc_dataset)
+    assert scale_num / len(voc_dataset) == pytest.approx(1 / len(kScaleFactors), abs=0.1)
+
+    macro_img_recover_ratio = np.mean(img_recover_ratios)
+    macro_label_recover_ratio = np.mean(label_recover_ratios)
+
+    assert macro_img_recover_ratio > 0.7
+    assert macro_label_recover_ratio > 0.7
+
+    print(Fore.LIGHTYELLOW_EX +
+          f"scale_num = {scale_num}; "
+          f"macro_img_recover_ratio = {macro_img_recover_ratio}; "
+          f"macro_label_recover_ratio = {macro_label_recover_ratio}"
+          + Style.RESET_ALL)
 
 
+def test_multi_scale(voc_dataset):
+    """Test multi scale with following steps:
+        1. Create a multi mirror auger on voc test dataset
+        2. Test whether all img is scaled accroding to it's output_index
+            a) The scaled size is correct
+            b) Img and label can be roughly recovered by rescale
+        3. Test whether output_index is met with dataset index and auger index
+        4. Test whether the total number is right
+        5. Visualization
 
+    Args:
+        voc_dataset: VOCAug val dataset
+    """
+    print(Fore.LIGHTYELLOW_EX + "===========Test Multi Scale==========" + Style.RESET_ALL)
 
+    class MultiScaleAuger(BaseAuger):
 
+        def build_graph(self):
+            super(MultiScaleAuger, self).build_graph()
 
+            self.graph.add_node(MultiScale, inputs=['img', 'label'], outputs=['scaled_img', 'scaled_label'])
 
+    auger = MultiScaleAuger(voc_dataset, verbosity=0, slim=True)
+    multi_node: Node = auger.multi_nodes[0]
+
+    mirrored, not_mirrored = 0, 0
+    for auger_index, outputs in enumerate(auger):
+        mirrored_img, mirrored_label = outputs
+
+        dataset_index = auger_index // 2
+        _, img, label = voc_dataset[dataset_index]
+
+        output_index = multi_node._fct.output_index
+        assert output_index == auger_index - 2 * dataset_index
+
+        mirror = 1 if output_index == 0 else -1
+        assert np.all(mirrored_img[:, ::mirror] == img), f"Current index={dataset_index}, mirror={mirror}"
+        assert np.all(mirrored_label[:, ::mirror] == label), f"Current dataset_index={dataset_index}, mirror={mirror}"
+
+        if dataset_index % 99 == 0:
+            print(Fore.BLUE + f"{dataset_index // 99}: mirror = {mirror}\n" + Style.RESET_ALL)
+            img_pair = [img, mirrored_img]
+            label_pair = map(label_map2color_map, [label, mirrored_label])
+
+            plot_img_label_pair(img_pair, label_pair)
+
+        if mirror == 1:
+            not_mirrored += 1
+        elif mirror == -1:
+            mirrored += 1
+        else:
+            raise ValueError(f"mirror={mirror} is not 1 or -1")
+
+    assert mirrored + not_mirrored == 2 * len(voc_dataset)
+    assert mirrored == not_mirrored
+    print(Fore.LIGHTYELLOW_EX + f"mirrored: {mirrored}; not_mirrored: {not_mirrored}" + Style.RESET_ALL)
