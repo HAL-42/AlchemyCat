@@ -27,7 +27,7 @@ class _VOCBase(IterableDataset):
     mean_bgr = [104.008, 116.669, 122.675]
     ignore_label = 255
 
-    def __init__(self, root: str="datasets", year="2012", split: str="train"):
+    def __init__(self, root: str="./contrib/datasets", year="2012", split: str="train"):
         """
         Args:
             root (str): The parent dir of VOC dataset
@@ -80,7 +80,7 @@ class VOCAug(_VOCBase):
     """
     PASCAL VOC Aug Segmentation dataset
     """
-    def __init__(self, root: str = "datasets", year="2012", split: str = "train"):
+    def __init__(self, root: str = "./contrib/datasets", year="2012", split: str = "train"):
         """
         Args:
             root (str): The parent dir of VOC dataset
