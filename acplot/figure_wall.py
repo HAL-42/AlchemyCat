@@ -85,7 +85,7 @@ class FigureWall(object):
             **kwargs (): kwargs for plt.figure()
 
         Returns:
-            Showed figure
+            Shown figure
         """
         tiled_figs = self.tiled_figs if self.color_channel_order == 'RGB' else BGR2RGB(self.tiled_figs)
 
