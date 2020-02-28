@@ -221,7 +221,8 @@ def _check_img_size_equal_label_size(img, label):
 
 
 def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.ndarray] = None,
-                    aligner: Union[Callable, Iterable[Callable]] = lambda x: x) -> Union[np.ndarray, Tuple[np.ndarray]]:
+                    aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x) \
+                    -> Union[np.ndarray, Tuple[np.ndarray]]:
     """Scale img and label accroding to scaled factor
 
     Args:
@@ -258,7 +259,8 @@ def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.nda
 
 class RandScale(RandMap):
 
-    def __init__(self, scale_factors: Iterable, aligner: Union[Callable, Iterable[Callable]] = lambda x: x):
+    def __init__(self, scale_factors: Iterable,
+                 aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x):
         """Auger to rand rescale the input img and corresponding label
 
         Args:
@@ -293,7 +295,8 @@ class RandScale(RandMap):
 
 
 class MultiScale(MultiMap):
-    def __init__(self, scale_factors: Iterable, aligner: Callable = lambda x: x):
+    def __init__(self, scale_factors: Iterable,
+                 aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x):
         """Auger to Multi rescale the input img and corresponding label
 
         Args:
@@ -330,7 +333,7 @@ class MultiScale(MultiMap):
 
 
 def pad_img_label(img: np.ndarray, label: Optional[np.ndarray] = None, pad_img_to: Union[Iterable, int] = 0,
-                  pad_aligner: Union[Callable, Iterable[Callable]] = lambda x: x,
+                  pad_aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x,
                   img_pad_val: Union[int, float, Iterable] = 0.0, ignore_label: int = 255,
                   pad_location: Union[str, int] = 'right-bottom') -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
     """Pad img to size pad_aligner(max(img_origin_size, pad_img_to))

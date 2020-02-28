@@ -17,6 +17,7 @@ from alchemy_cat.py_tools import is_int, is_float, totuple
 
 __all__ = ['accumulate', 'size2HW', 'color2scalar']
 
+
 # Taken from python 3.5 docs
 def accumulate(iterable: Iterable, fn: Callable=lambda x, y: x + y):
     'Return running totals'

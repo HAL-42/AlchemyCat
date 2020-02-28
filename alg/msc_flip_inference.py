@@ -42,9 +42,10 @@ def _pad_labels(labels, size, ignore_label):
     return F.pad(labels, [0, pad_w, 0, pad_h], mode='constant', value=ignore_label)
 
 
-def msc_flip_inference(imgs: torch.Tensor, model: Callable, msc_factors: Union[List[int], Tuple[int]], is_flip: bool=True,
-                       pad_imgs_to: Union[None, Iterable, int]=None, pad_aligner: Optional[Callable]=None,
-                       msc_aligner: Optional[Callable]=None) -> torch.Tensor:
+def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Tensor],
+                       msc_factors: Union[List[int], Tuple[int]], is_flip: bool=True,
+                       pad_imgs_to: Union[None, Iterable, int]=None, pad_aligner: Optional[Callable[[int], int]]=None,
+                       msc_aligner: Optional[Callable[[int], int]]=None) -> torch.Tensor:
     """MSC and flip inference
 
     Args:
