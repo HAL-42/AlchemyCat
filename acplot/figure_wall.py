@@ -8,68 +8,88 @@
 @time: 2020/1/7 22:18
 @desc:
 """
+import copy
 import numpy as np
 from matplotlib import pyplot as plt
 from typing import Union, Optional, Iterable
 from collections import abc
 
-from alchemy_cat.acplot.utils import stack_figs, BGR2RGB
+from alchemy_cat.acplot.utils import stack_figs, BGR2RGB, RGB2BGR
 from alchemy_cat.py_tools import is_intarr, indent
+from alchemy_cat.alg import color2scalar
 
 
 __all__ = ["SquareFigureWall", "RectFigureWall", "RowFigureWall", "ColumnFigureWall"]
 
 
+KDefaultPadValue = (127, 140, 141) # BGR Default pad value
+
+
 class FigureWall(object):
-    """
-    A class to operate a figure wall
-    """
+    """A class to operate a figure wall"""
 
     def __init__(self, figs: Union[np.ndarray, Iterable[Union[np.ndarray, 'FigureWall']]],
                  is_normalize: bool = False, space_width: int = 1,
-                 img_pad_val: Union[int, float, Iterable] = (127, 140, 141),
+                 img_pad_val: Union[int, float, Iterable] = None,
                  pad_location: Union[str, int]='right-bottom', color_channel_order: str='RGB'):
-        """
+        """A class to operate a figure wall
+
         Args:
-            figs (Iterable, np.ndarray): Iterable[fig] or figs. fig is supposed to be (H, W, C) and RGB mode.
-            is_normalize (bool): If true, the figures will be min-max normalized
+            figs (Iterable, np.ndarray): Iterable[fig] or figs((N, H, W, C) ndarray). fig is supposed to be (H, W, C)
+                ndarray or a figure wall which will be seen as it's tiled_figs.
+            is_normalize (bool): (Deprecated)If true, the figures will be min-max normalized.
             space_width (int): Space width between figs
             img_pad_val: (Union[int, float, Iterable]): Img pad value when stack imgs.If value is int or float, return
-                (value, value, value), if value is Iterable with 3 element, return totuple(value), else raise error
+                (value, value, value), if value is Iterable with 3 element, return totuple(value), else raise error.
+                (Default: BGR(127, 140, 141))
             pad_location (Union[str, int]): Img pad location when stack imgs. Indicate pad location. Can be
                 'left-top'/0, 'right-top'/1, 'left-bottom'/2, 'right-bottom'/3, 'center'/4.
-            plot_lib (str): Indicate color channel order. If 'BGR', then figs will be convert to RGB before show and
-                save. Default is 'RGB'.
+            color_channel_order (str): Indicate color channel order. If 'BGR', then fig of figs should be BGR ndarray. If fig is a
+                FigureWall object, fig.BGR() will be called to make figure_wall's color channel order meet with
+                indicated order. Same to the 'RGB'.
         """
+        if color_channel_order not in ('BGR', 'RGB'):
+            raise ValueError(f"color_channel_order {color_channel_order} must be \"BGR\" or \"RGB\"")
+        color_mode_converter = (lambda x: x.BGR()) if color_channel_order == 'BGR' else (lambda x: x.RGB())
+
+        if img_pad_val is None:
+            img_pad_val = KDefaultPadValue if color_channel_order == 'BGR' else KDefaultPadValue[::-1]
+        else:
+            img_pad_val = color2scalar(img_pad_val)
+
         if isinstance(figs, list):
-            if isinstance(figs[0], np.ndarray):
-                self.figs = stack_figs(figs, img_pad_val, pad_location)
-            elif isinstance(figs[0], FigureWall):
-                self.figs = stack_figs([figure_wall.tiled_figs for figure_wall in figs], img_pad_val, pad_location)
-            else:
-                raise ValueError("The fig should be ndarray or FigureWall")
+            figs_to_stack = []
+            for fig in figs:
+                if isinstance(fig, np.ndarray):
+                    figs_to_stack.append(fig)
+                elif isinstance(fig, FigureWall):
+                    figs_to_stack.append(color_mode_converter(fig).tiled_figs)
+                else:
+                    raise ValueError(f"The fig {fig} should be ndarray or FigureWall")
+
+            self.figs = stack_figs(figs_to_stack, img_pad_val, pad_location)
         elif isinstance(figs, np.ndarray):
             self.figs = figs
         elif isinstance(figs, abc.Iterable):
-            self.__init__(list(figs), is_normalize, space_width, img_pad_val, pad_location)
+            self.__init__(list(figs), is_normalize, space_width, img_pad_val, pad_location, color_channel_order)
             return
         else:
             raise ValueError("The figs should be Iterator of (H, W, C) imgs or (N, H, W, C) ndarray")
 
+        self.color_channel_order = color_channel_order
+        self.space_width = space_width
+        self.is_normalize = is_normalize
+        self.img_pad_val = img_pad_val
+        self.pad_location = pad_location
+
         if is_normalize:
             self.figs = (self.figs - self.figs.min()) / (self.figs.max() - self.figs.min())
 
-        self.tiled_figs = self._tile_figs(space_width)
+        self.tiled_figs = self._tile_figs(self.space_width)
 
-        self.space_width = space_width
-
-        if color_channel_order not in ('BGR', 'RGB'):
-            raise ValueError(f"color_channel_order {color_channel_order} must be \"BGR\" or \"RGB\"")
-        self.color_channel_order = color_channel_order
 
     def _tile_figs(self, space_width) -> np.ndarray:
-        """
-        Tiles figs to figure wall.
+        """Tiles figs to figure wall.
         Args:
             space_width (int): Space width between figs
 
@@ -79,8 +99,7 @@ class FigureWall(object):
         raise NotImplementedError
 
     def plot(self, **kwargs) -> plt.Figure:
-        """
-        Show figure wall.
+        """Plot figure wall with pyplot.
         Args:
             **kwargs (): kwargs for plt.figure()
 
@@ -95,43 +114,112 @@ class FigureWall(object):
 
         return figure
 
-    def save(self, img_file: str):
-        """
-        Save figure wall to file.
+    def save(self, img_file: str, **kwargs):
+        """Save figure wall to file
+
         Args:
             img_file (str): Path to save the figure wall
+            kwargs (dict): key-word arguments for plt.imsave
 
         Returns:
             None
         """
         tiled_figs = self.tiled_figs if self.color_channel_order == 'RGB' else BGR2RGB(self.tiled_figs)
 
-        plt.imsave(img_file, tiled_figs)
+        plt.imsave(img_file, tiled_figs, **kwargs)
 
     def __add__(self, other: 'FigureWall') -> 'FigureWall':
-        """
+        """Collect figs from self and other's figs and tile them to a new figure wall.
+
         Args:
             other (FigureWall): A figure wall instance
 
         Returns:
-            A new figure wall with figs from self and other. The type of figure wall will follow the first factor.
-
-        Collect figs from self and other's figs and tile them to a new figure wall.
+            A new figure wall with figs from self and other. The type and attribute of figure wall
+                will follow the first factor.
         """
-        cls = type(self)
+        if not isinstance(other, FigureWall):
+            raise ValueError(f"Adder {other} <{type(other)}> should be FigureWall")
+
+        other = other.BGR() if self.color_channel_order == 'BGR' else other.RGB()
         figs = list(self.figs) + list(other.figs)
-        return cls(figs, space_width=self.space_width)
+        return type(self)(figs, self.is_normalize, self.space_width, self.img_pad_val, self.pad_location,
+                          self.color_channel_order)
 
     def __repr__(self):
         return f"FigureWall <{self.__class__.__name__}:>" + "\n" + \
                 indent(f"#figs: {self.figs.shape[0]}") + "\n" + \
                 indent(f"space width: {self.space_width}")
 
+    def BGR(self, inplace_if_converted: bool=False) -> 'FigureWall':
+        """Convert to a BGR figure wall
+
+        If figure wall is already an BGR figure wall, then return self. Else return a copy of self which is converted
+        to BGR mode when inplace_if_concerted=False, or just convert figure wall self to BGR mode then return it's self
+        when inplace_if_concerted=True
+
+        See Also:
+            FigureWall.RGB
+
+        Args:
+            inplace_if_converted: When figure wall is in RGB mode, then convert a copy of self to BGR mode to return if
+                inplace_if_converted=False, else convert self to BGR mode then return self if replace_if_converted=True.
+                (Default: False)
+
+        Returns:
+            A BGR figure wall
+        """
+        if self.color_channel_order == 'BGR':
+            return self
+
+        if inplace_if_converted:
+            ret = self
+        else:
+            ret = copy.deepcopy(self)
+
+        ret.color_channel_order = 'BGR'
+        ret.figs = RGB2BGR(ret.figs)
+        ret.tiled_figs = RGB2BGR(ret.tiled_figs)
+        ret.img_pad_val = ret.img_pad_val[::-1]
+
+        return ret
+
+    def RGB(self, inplace_if_converted: bool=False) -> 'FigureWall':
+        """Convert to a RGB figure wall
+
+        If figure wall is already an RGB figure wall, then return self. Else return a copy of self which is converted
+        to RGB mode when inplace_if_concerted=False, or just convert figure wall self to RGB mode then return it's self
+        when inplace_if_concerted=True
+
+        See Also:
+            FigureWall.BGR
+
+        Args:
+            inplace_if_converted: When figure wall is in BGR mode, then convert a copy of self to RGB mode to return if
+                inplace_if_converted=False, else convert self to RGB mode then return self if replace_if_converted=True.
+                (Default: False)
+
+        Returns:
+            A RGB figure wall
+        """
+        if self.color_channel_order == 'RGB':
+            return self
+
+        if inplace_if_converted:
+            ret = self
+        else:
+            ret = copy.deepcopy(self)
+
+        ret.color_channel_order = 'RGB'
+        ret.figs = BGR2RGB(ret.figs)
+        ret.tiled_figs = BGR2RGB(ret.tiled_figs)
+        ret.img_pad_val = ret.img_pad_val[::-1]
+
+        return ret
+
 
 class SquareFigureWall(FigureWall):
-    """
-    Figures will be tiled to an Square
-    """
+    """Figures will be tiled to an Square"""
 
     def _tile_figs(self, space_width):
         n = int(np.ceil(np.sqrt(self.figs.shape[0])))
@@ -154,6 +242,7 @@ class SquareFigureWall(FigureWall):
 
 
 class RectFigureWall(FigureWall):
+    """Figures will be tiled to a Rectangle"""
 
     def __init__(self, figs: Union[Iterable[Union[np.ndarray, 'FigureWall']], np.ndarray], is_normalize: bool = False,
                  space_width: int = 1, row_num: Optional[int]=None, col_num: Optional[int]=None):
@@ -204,9 +293,7 @@ class RectFigureWall(FigureWall):
 
 
 class ColumnFigureWall(FigureWall):
-    """
-    Figures will be tiled to a Column
-    """
+    """Figures will be tiled to a Column"""
 
     def _tile_figs(self, space_width):
         padding = ( ((0, 0), (0, space_width)) + ((0, 0),) * (self.figs.ndim - 2) )
