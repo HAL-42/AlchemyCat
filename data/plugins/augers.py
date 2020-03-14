@@ -307,14 +307,14 @@ class MultiScale(MultiMap):
         """
         super(MultiScale, self).__init__()
 
-        self.scaled_factors = []
+        self.scale_factors = []
         for factor in scale_factors:
             factor = float(factor)
             if factor <= 0:
                 raise ValueError(f"scale factors {scale_factors} must all larger than 0")
-            self.scaled_factors.append(factor)
+            self.scale_factors.append(factor)
 
-        self.output_num = len(self.scaled_factors)
+        self.output_num = len(self.scale_factors)
 
         self.aligner = aligner
 
@@ -327,7 +327,7 @@ class MultiScale(MultiMap):
 
         Returns: Scaled img and label(if exit)
         """
-        scale_factor = self.scaled_factors[self.output_index]
+        scale_factor = self.scale_factors[self.output_index]
 
         return scale_img_label(scale_factor, img, label, self.aligner)
 
