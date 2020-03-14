@@ -14,7 +14,7 @@ import numpy as np
 import torch
 
 
-__all__ = ["is_intarr", "is_int", "is_floatarr", "is_float", "tolist", "totuple"]
+__all__ = ["is_intarr", "is_int", "is_floatarr", "is_float", "tolist", "totuple", "dict_with_arr_is_eq"]
 
 
 def is_int(elem) -> bool:
@@ -139,3 +139,46 @@ def totuple(arr: Any) -> tuple:
         return tuple(arr.tolist())
     else:
         return tuple(arr)
+
+
+def dict_with_arr_is_eq(dict1: dict, dict2: dict, request_order: bool=False, rtol: float=0.0, atol: float=0.0):
+    """Compare to dict is equal when some dict's values is Tensor or ndarray
+
+    Args:
+        dict1: Fist dict to be compared.
+        dict2: Second dict to be compared
+        request_order: If True, orders of dict1 and dict2 will be compared. (Default: True)
+        rtol: param rtol for np.isclose() when compare two ndarray values
+        atol: param atol for np.isclose() when compare two ndarray values
+
+    Returns:
+        Is two dicts have keys and values
+    """
+
+    if len(dict1) != len(dict2):
+        return False
+
+    if request_order:
+        if dict1.keys() != dict2.keys():
+            return False
+
+    for key1, val1 in dict1.items():
+        if key1 not in dict2:
+            return False
+
+        val2 = dict2[key1]
+
+        val1 = val1.numpy() if isinstance(val1, torch.Tensor) else val1
+        val2 = val2.numpy() if isinstance(val2, torch.Tensor) else val2
+
+        if type(val1) != type(val2):
+            return False
+
+        if isinstance(val1, np.ndarray):
+            if not np.all(np.isclose(val1, val2, rtol, atol)):
+                return False
+        else:
+            if val1 != val2:
+                return False
+
+    return True
