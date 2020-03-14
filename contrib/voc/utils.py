@@ -33,6 +33,7 @@ for i, color in enumerate(VOC_COLOR):
 label2color = np.ones((256, 3), dtype=np.uint8) * 255
 label2color[:21, :] = VOC_COLOR
 
+
 def color_map2label_map(color_map: np.ndarray) -> np.ndarray:
     """Convert VOC color map to label map
 
