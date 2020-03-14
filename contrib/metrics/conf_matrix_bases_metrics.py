@@ -9,7 +9,10 @@
 @desc:
 """
 import numpy as np
+import pandas as pd
 import seaborn as sns
+from alchemy_cat.acplot import pretty_plot_confusion_matrix
+from alchemy_cat import quick_init
 from matplotlib import pyplot as plt
 import os
 
@@ -28,6 +31,9 @@ class ClassificationMetric(Tracker):
     """
 
     def __init__(self, class_num: Optional[int] = None, class_names: Optional[Iterable[str]]=None):
+        # * Init attributes and save init_dict
+        super(ClassificationMetric, self).__init__(quick_init(self, locals()))
+
         # * Check Input
         if class_names is None:
             if class_num is None:
@@ -40,9 +46,6 @@ class ClassificationMetric(Tracker):
                 raise ValueError(f"class_num = {class_num} should be equal to len(class_names) = {len(class_names)}")
             else:
                 class_num = len(class_names)
-
-        # * Init attributes
-        super(ClassificationMetric, self).__init__()
 
         self.class_num, self.class_names = class_num, class_names
 
@@ -94,24 +97,9 @@ class ClassificationMetric(Tracker):
         self._last_conf_matrix = self.get_conf_matrix(pred, gt, self.class_num)
         self.conf_matrix += self._last_conf_matrix
 
-    def _plot_conf_matrix(self) -> plt.Figure:
-        ax = sns.heatmap(self.conf_matrix,  # 指定绘图数据
-                         cmap=plt.cm.Blues,  # 指定填充色
-                         linewidths=.1,  # 设置每个单元方块的间隔
-                         annot=True  # 显示数值
-                         )
-
-        plt.xticks(np.arange(self.class_num) + 0.5, self.class_names)
-
-        plt.yticks(np.arange(self.class_num) + 0.5, self.class_names)
-        plt.yticks(rotation=0)
-
-        ax.set_title(f'Confusion Matrix of <{self.__class__}>')
-        ax.set_xlabel('Prediction')
-        ax.set_ylabel('Ground Truth')
-
-        fig = plt.gcf()
-        return fig
+    def _plot_conf_matrix(self, **kwargs) -> plt.Figure:
+        df = pd.DataFrame(self.conf_matrix, index=self.class_names, columns=self.class_names)
+        return pretty_plot_confusion_matrix(df, figsize=[self.class_num, self.class_num], pred_val_axis='x', **kwargs)
 
     def show_conf_matrix(self, **kwargs) -> plt.Figure:
         """Plot confusion matrix
@@ -122,8 +110,8 @@ class ClassificationMetric(Tracker):
         Returns:
             Shown figure
         """
-        fig = self._plot_conf_matrix()
-        plt.figure(**kwargs)
+        fig = self._plot_conf_matrix(**kwargs)
+        fig.show()
         plt.show()
 
         return fig
@@ -134,7 +122,7 @@ class ClassificationMetric(Tracker):
         Args:
             save_dir: Dictionary where metrics saved
             importance: Only statistics' statistic.importance > importance will be saved
-            **kwargs: key words arguments for saving confusion matrix plot confusion_matrix.png
+            **kwargs: key words arguments for plotting and saving confusion matrix plot confusion_matrix.png
         """
         # * Save statistics
         self.save_statistics(save_dir, importance)
@@ -144,7 +132,7 @@ class ClassificationMetric(Tracker):
         np.savetxt(conf_matrix_txt, self.conf_matrix, fmt="%d")
 
         # * Save confusion matrix plot
-        fig = self._plot_conf_matrix()
+        fig = self._plot_conf_matrix(**kwargs)
         fig.savefig(os.path.join(save_dir, 'confusion_matrix.png'), **kwargs)
 
     @Statistic.getter(0)
