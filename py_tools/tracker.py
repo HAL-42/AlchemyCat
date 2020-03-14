@@ -12,7 +12,7 @@ import json
 import os
 import pickle
 from pprint import pformat
-from typing import Any, Callable, DefaultDict
+from typing import Any, Callable, DefaultDict, Optional
 from collections import defaultdict, OrderedDict
 import warnings
 
@@ -55,12 +55,13 @@ class Statistic(object):
         _check_importance(importance)
         self.importance = importance
 
-    def getter(self, importance: int=0):
+    @classmethod
+    def getter(cls, importance: int=0):
         """Decorate statics with importance"""
         _check_importance(importance)
 
         def decorator(fget):
-            return type(self)(fget, importance)
+            return cls(fget, importance)
 
         return decorator
 
@@ -68,13 +69,19 @@ class Statistic(object):
         if obj is None:
             return self
 
-        statistic_statue: _StatisticStatue = obj._statistic_statues[self.name]
+        statistic_statue: _StatisticStatue = obj._statistic_status[self.name]
 
         if statistic_statue.last_update_count < obj._update_count:
+            # * Calculate statistic
             statistic_statue.last_update_count = obj._update_count
             statistic_statue.last_statistic = self.fget(obj)
             return statistic_statue.last_statistic
+        elif statistic_statue.last_update_count > obj._update_count:
+            # * Raise Error
+            raise RuntimeError(f"Statistic {self.name}'s last_update_count {statistic_statue.last_update_count} can't "
+                               f"larger than tracker {obj}'s update_count {obj.update_count}")
         else:
+            # * Return cache
             return statistic_statue.last_statistic
 
     def __repr__(self):
@@ -88,13 +95,20 @@ class Tracker(object):
     of the tracked progress.
     """
 
-    def __init__(self):
+    def __init__(self, init_dict: Optional[OrderedDict]=None):
         """Init tracker's attributes
 
-        Must be called before first in custom __init__
+        Must be called before first in custom __init__.
+
+        Args:
+            init_dict: init_dict for reset the tracker. Make sure to call by super().__init__(quick_init(self, locals())
+                if subclass is directly driven from Tracker, other wise call
+                Tracker.__init__(self, quick_init(self, locals()) in last driven class's __init__ or just modify
+                self.init_dict If None, then can't use self.reset.
         """
         self._update_count: int = 0
-        self._static_status: DefaultDict[str, _StatisticStatue] = defaultdict(_StatisticStatue)
+        self._statistic_status: DefaultDict[str, _StatisticStatue] = defaultdict(_StatisticStatue)
+        self.init_dict = init_dict
 
     def update(self, *args, **kwargs):
         """Update tracker's statues
@@ -121,10 +135,17 @@ class Tracker(object):
 
         tracker_classes = [base_cls for base_cls in self.__class__.mro() if issubclass(base_cls, Tracker)]
 
+        statistics = []
+        statistic_names = []
+        for cls in tracker_classes:
+            for statistic in cls.__dict__.values():
+                # Make sure that on class's statistic can override base class's statistic
+                if isinstance(statistic, Statistic) and statistic.name not in statistic_names:
+                    statistics.append(statistic)
+                    statistic_names.append(statistic.name)
+
         statistic_dict = {statistic: statistic.__get__(self, self.__class__)
-                for cls in tracker_classes
-                for statistic in cls.__dict__.values() if isinstance(statistic, Statistic)
-                if statistic.importance >= importance}
+                for statistic in statistics if statistic.importance >= importance}
 
         sorted_statistics = sorted(statistic_dict.items(), key=lambda item: str(item[0].importance) + item[0].name)
 
@@ -152,14 +173,18 @@ class Tracker(object):
             with open(os.path.join(save_dir, 'statistics.json'), 'w') as json_f:
                 json.dump(self.statistics(importance), json_f, indent=4)
         except:
+            os.remove(os.path.join(save_dir, 'statistics.json'))
             with open(os.path.join(save_dir, 'statistics.txt'), 'w') as txt_f:
                 txt_f.write(pformat(self.statistics(importance), indent=4))
         finally:
             with open(os.path.join(save_dir, 'statistics.pkl'), 'wb') as pkl_f:
                 pickle.dump(self.statistics(importance), pkl_f)
 
-    def reset_statistics(self):
-        self._static_status = None
+    def reset(self):
+        if self.init_dict is None:
+            raise RuntimeError(f"Tracker {self} has no init_dict. Set init_dict with quick_init in __init__")
+
+        return self.__init__(**self.init_dict)
 
     def __repr__(self):
         return f"Tracker <{self.__class__}: update_count = {self.update_count}"
