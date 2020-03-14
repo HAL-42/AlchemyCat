@@ -29,7 +29,7 @@ set_numpy_rand_seed(0)
 
 def plot_img_label_pair(img_pair, label_pair=None, img_num=None):
     img_wall = RowFigureWall(img_pair, space_width=20, pad_location='center', color_channel_order='BGR')
-    label_wall = RowFigureWall(label_pair, space_width=20, pad_location='center', color_channel_order='BGR') \
+    label_wall = RowFigureWall(label_pair, space_width=20, pad_location='center', color_channel_order='RGB') \
         if label_pair is not None else None
 
     show_wall = ColumnFigureWall([img_wall, label_wall], space_width=20, color_channel_order='BGR') \
@@ -99,6 +99,136 @@ def test_rand_mirror(voc_dataset):
     assert mirrored + not_mirrored == len(voc_dataset)
     assert mirrored / len(voc_dataset) == pytest.approx(0.5, abs=0.04)
     print(Fore.LIGHTYELLOW_EX + f"mirrored: {mirrored}; not_mirrored: {not_mirrored}" + Style.RESET_ALL)
+
+
+def test_weighted_rand_mirror(voc_dataset):
+    """Test weighted rand mirror with following steps:
+        1. Create a rand_mirror auger on voc val dataset
+        2. Test is all img is mirrored accroding to it's rand_seed
+        3. Test is rand distribution is random and weighted
+        4. Visualization
+
+    Args:
+        voc_dataset: VOCAug val dataset
+    """
+    print(Fore.LIGHTYELLOW_EX + "===========Test Rand Mirror==========" + Style.RESET_ALL)
+
+    class WeightedRandMirror(RandMirror):
+        weight = [90, 10]
+
+    class WeightedRandMirrorAuger(BaseAuger):
+
+        def build_graph(self):
+            super(WeightedRandMirrorAuger, self).build_graph()
+
+            self.graph.add_node(WeightedRandMirror,
+                                inputs=['img', 'label'], outputs=['mirrored_img', 'mirrored_label'])
+
+    auger = WeightedRandMirrorAuger(voc_dataset, verbosity=0, slim=True)
+    mirror_node: Node = auger.rand_nodes[0]
+
+    mirrored, not_mirrored = 0, 0
+    for index, outputs in enumerate(auger):
+        mirrored_img, mirrored_label = outputs
+        _, img, label = voc_dataset[index]
+
+        rand_seed = auger.rand_seeds[mirror_node.id]
+
+        assert np.all(mirrored_img[:, ::rand_seed] == img), f"Current index={index}, rand_seed={rand_seed}"
+        assert np.all(mirrored_label[:, ::rand_seed] == label), f"Current index={index}, rand_seed={rand_seed}"
+
+        if index % 100 == 0:
+            print(Fore.BLUE + f"{index // 100}: rand_seed = {rand_seed}\n" + Style.RESET_ALL)
+            img_pair = [img, mirrored_img]
+            label_pair = map(label_map2color_map, [label, mirrored_label])
+
+            plot_img_label_pair(img_pair, label_pair, img_num=f"ID: {_}; index: {index}")
+
+        if rand_seed == 1:
+            not_mirrored += 1
+        elif rand_seed == -1:
+            mirrored += 1
+        else:
+            raise ValueError(f"rand_seed={rand_seed} is not 1 or -1")
+
+    assert mirrored + not_mirrored == len(voc_dataset)
+    assert not_mirrored / len(voc_dataset) == pytest.approx(0.9, abs=0.04)
+    print(Fore.LIGHTYELLOW_EX + f"mirrored: {mirrored}; not_mirrored: {not_mirrored}" + Style.RESET_ALL)
+
+
+def test_rand_log(voc_dataset):
+    """Test rand mirror with rand log following steps:
+        1. Create two rand_mirror auger on voc val dataset
+        2. Step0: Test is all img is mirrored accroding to it's rand_seed
+        3. Step0: Test is rand distribution is random and balanced
+        4. Step1: Test is all img is mirrored accroding to it's rand_seed
+        5. Step1: Test is rand distribution is random and balanced
+        6. Test is Step0's random is the same to step1's random
+        7. Visualization
+
+    Args:
+        voc_dataset: VOCAug val dataset
+    """
+    print(Fore.LIGHTYELLOW_EX + "===========Test Rand Mirror==========" + Style.RESET_ALL)
+
+    class RandMirrorAuger(BaseAuger):
+
+        def build_graph(self):
+            super(RandMirrorAuger, self).build_graph()
+
+            self.graph.add_node(RandMirror, inputs=['img', 'label'], outputs=['mirrored_img', 'mirrored_label'])
+
+    auger0 = RandMirrorAuger(voc_dataset, verbosity=0, slim=True, rand_seed_log='./Temp/rand_log')
+    mirror_node0: Node = auger0.rand_nodes[0]
+
+    rand_seed_record0 = []
+    for index, outputs in enumerate(auger0):
+        mirrored_img, mirrored_label = outputs
+        _, img, label = voc_dataset[index]
+
+        rand_seed = auger0.rand_seeds[mirror_node0.id]
+
+        assert np.all(mirrored_img[:, ::rand_seed] == img), f"Current index={index}, rand_seed={rand_seed}"
+        assert np.all(mirrored_label[:, ::rand_seed] == label), f"Current index={index}, rand_seed={rand_seed}"
+
+        if index % 300 == 0:
+            print(Fore.BLUE + f"{index // 100}: rand_seed = {rand_seed}\n" + Style.RESET_ALL)
+            img_pair = [img, mirrored_img]
+            label_pair = map(label_map2color_map, [label, mirrored_label])
+
+            plot_img_label_pair(img_pair, label_pair, img_num=f"ID: {_}; index: {index}")
+
+        rand_seed_record0.append(rand_seed)
+
+    assert len(rand_seed_record0) == len(voc_dataset)
+    assert rand_seed_record0.count(1) / len(voc_dataset) == pytest.approx(0.5, abs=0.04)
+
+    auger1 = RandMirrorAuger(voc_dataset, verbosity=0, slim=True, rand_seed_log='./Temp/rand_log')
+    mirror_node1: Node = auger1.rand_nodes[0]
+
+    rand_seed_record1 = []
+    for index, outputs in enumerate(auger1):
+        mirrored_img, mirrored_label = outputs
+        _, img, label = voc_dataset[index]
+
+        rand_seed = auger1.rand_seeds[mirror_node1.id]
+
+        assert np.all(mirrored_img[:, ::rand_seed] == img), f"Current index={index}, rand_seed={rand_seed}"
+        assert np.all(mirrored_label[:, ::rand_seed] == label), f"Current index={index}, rand_seed={rand_seed}"
+
+        if index % 300 == 0:
+            print(Fore.BLUE + f"{index // 100}: rand_seed = {rand_seed}\n" + Style.RESET_ALL)
+            img_pair = [img, mirrored_img]
+            label_pair = map(label_map2color_map, [label, mirrored_label])
+
+            plot_img_label_pair(img_pair, label_pair, img_num=f"ID: {_}; index: {index}")
+
+        rand_seed_record1.append(rand_seed)
+
+    assert len(rand_seed_record1) == len(voc_dataset)
+    assert rand_seed_record1.count(1) / len(voc_dataset) == pytest.approx(0.5, abs=0.04)
+
+    assert rand_seed_record0 == rand_seed_record1
 
 
 def test_multi_mirror(voc_dataset):
@@ -752,7 +882,7 @@ def test_rand_scale(voc_dataset):
 
 def test_multi_scale(voc_dataset):
     """Test multi scale with following steps:
-        1. Create a multi mirror auger on voc test dataset
+        1. Create a multi scale auger on voc val dataset
         2. Test whether all img is scaled accroding to it's output_index
             a) The scaled size is correct
             b) Img and label can be roughly recovered by rescale
@@ -765,44 +895,44 @@ def test_multi_scale(voc_dataset):
     """
     print(Fore.LIGHTYELLOW_EX + "===========Test Multi Scale==========" + Style.RESET_ALL)
 
+    kScaleFactors = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+
     class MultiScaleAuger(BaseAuger):
 
         def build_graph(self):
             super(MultiScaleAuger, self).build_graph()
 
-            self.graph.add_node(MultiScale, inputs=['img', 'label'], outputs=['scaled_img', 'scaled_label'])
+            self.graph.add_node(MultiScale, inputs=['img', 'label'], outputs=['scaled_img', 'scaled_label'],
+                                init={'scale_factors': kScaleFactors,
+                                      'aligner': [lambda x: x + 1, lambda x: x - 1]})
 
     auger = MultiScaleAuger(voc_dataset, verbosity=0, slim=True)
     multi_node: Node = auger.multi_nodes[0]
 
-    mirrored, not_mirrored = 0, 0
+    scale_factor_count = [0] * len(kScaleFactors)
     for auger_index, outputs in enumerate(auger):
-        mirrored_img, mirrored_label = outputs
+        scaled_img, scaled_label = outputs
+        assert scaled_label.shape == scaled_img.shape[:2]
 
-        dataset_index = auger_index // 2
+        dataset_index = auger_index // len(kScaleFactors)
         _, img, label = voc_dataset[dataset_index]
 
         output_index = multi_node._fct.output_index
-        assert output_index == auger_index - 2 * dataset_index
+        assert output_index == auger_index - len(kScaleFactors) * dataset_index
 
-        mirror = 1 if output_index == 0 else -1
-        assert np.all(mirrored_img[:, ::mirror] == img), f"Current index={dataset_index}, mirror={mirror}"
-        assert np.all(mirrored_label[:, ::mirror] == label), f"Current dataset_index={dataset_index}, mirror={mirror}"
+        scale_factor = multi_node._fct.scale_factors[output_index]
+        assert int(img.shape[0] * scale_factor) + 1 == scaled_img.shape[0]
+        assert int(img.shape[1] * scale_factor) - 1 == scaled_img.shape[1]
 
-        if dataset_index % 99 == 0:
-            print(Fore.BLUE + f"{dataset_index // 99}: mirror = {mirror}\n" + Style.RESET_ALL)
-            img_pair = [img, mirrored_img]
-            label_pair = map(label_map2color_map, [label, mirrored_label])
+        if dataset_index % 100 == 0:
+            print(Fore.BLUE + f"{dataset_index // 100}: scaled_factor = {scale_factor}\n" + Style.RESET_ALL)
+            img_pair = [img, scaled_img]
+            label_pair = map(label_map2color_map, [label, scaled_label])
 
             plot_img_label_pair(img_pair, label_pair)
 
-        if mirror == 1:
-            not_mirrored += 1
-        elif mirror == -1:
-            mirrored += 1
-        else:
-            raise ValueError(f"mirror={mirror} is not 1 or -1")
+        scale_factor_count[kScaleFactors.index(scale_factor)] += 1
 
-    assert mirrored + not_mirrored == 2 * len(voc_dataset)
-    assert mirrored == not_mirrored
-    print(Fore.LIGHTYELLOW_EX + f"mirrored: {mirrored}; not_mirrored: {not_mirrored}" + Style.RESET_ALL)
+    assert np.sum(scale_factor_count) == len(kScaleFactors) * len(voc_dataset)
+    assert scale_factor_count == [len(voc_dataset)] * len(kScaleFactors)
+    print(Fore.LIGHTYELLOW_EX + f"scale_factor_count = {scale_factor_count}" + Style.RESET_ALL)
