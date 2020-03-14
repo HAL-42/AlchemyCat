@@ -134,7 +134,6 @@ class MultiMap(object):
                 + f"    _output_index: {self._output_index}"
 
 
-
 class DataAuger(object):
 
     def __init__(self, dataset: Dataset, verbosity: int = 0, pool_size: int = 0, slim: bool = False,
