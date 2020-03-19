@@ -24,8 +24,6 @@ from alchemy_cat.acplot import RowFigureWall, ColumnFigureWall
 from alchemy_cat.py_tools import set_numpy_rand_seed
 from alchemy_cat.alg import find_nearest_odd_size, find_nearest_even_size
 
-set_numpy_rand_seed(0)
-
 
 def plot_img_label_pair(img_pair, label_pair=None, img_num=None):
     img_wall = RowFigureWall(img_pair, space_width=20, pad_location='center', color_channel_order='BGR')
@@ -48,6 +46,11 @@ class BaseAuger(DataAuger):
 @pytest.fixture(scope="module")
 def voc_dataset():
     return VOCAug(split='val')
+
+
+def setup_function(func):
+    set_numpy_rand_seed(0)
+    print(f"-----------setup function: set_numpy_rand_seed(0)-----------")
 
 
 def test_rand_mirror(voc_dataset):
@@ -111,7 +114,7 @@ def test_weighted_rand_mirror(voc_dataset):
     Args:
         voc_dataset: VOCAug val dataset
     """
-    print(Fore.LIGHTYELLOW_EX + "===========Test Rand Mirror==========" + Style.RESET_ALL)
+    print(Fore.LIGHTYELLOW_EX + "===========Test Weighted Rand Mirror==========" + Style.RESET_ALL)
 
     class WeightedRandMirror(RandMirror):
         weight = [90, 10]
@@ -169,7 +172,7 @@ def test_rand_log(voc_dataset):
     Args:
         voc_dataset: VOCAug val dataset
     """
-    print(Fore.LIGHTYELLOW_EX + "===========Test Rand Mirror==========" + Style.RESET_ALL)
+    print(Fore.LIGHTYELLOW_EX + "===========Test Rand Log==========" + Style.RESET_ALL)
 
     class RandMirrorAuger(BaseAuger):
 
@@ -361,7 +364,7 @@ def test_multi_updown(voc_dataset):
     auger = MultiUpDownAuger(voc_dataset, verbosity=0, slim=True)
     multi_node: Node = auger.multi_nodes[0]
 
-    updown, not_updown = 0, 0
+    updown_count, not_updown_count = 0, 0
     for auger_index, outputs in enumerate(auger):
         updown_img, updown_label = outputs
 
@@ -383,15 +386,15 @@ def test_multi_updown(voc_dataset):
             plot_img_label_pair(img_pair, label_pair)
 
         if updown == 1:
-            not_updown += 1
+            not_updown_count += 1
         elif updown == -1:
-            updown += 1
+            updown_count += 1
         else:
             raise ValueError(f"mirror={updown} is not 1 or -1")
 
-    assert updown + not_updown == 2 * len(voc_dataset)
-    assert updown == not_updown
-    print(Fore.LIGHTYELLOW_EX + f"updown: {updown}; not_updown: {not_updown}" + Style.RESET_ALL)
+    assert updown_count + not_updown_count == 2 * len(voc_dataset)
+    assert updown_count == not_updown_count
+    print(Fore.LIGHTYELLOW_EX + f"updown: {updown_count}; not_updown: {not_updown_count}" + Style.RESET_ALL)
 
 
 def test_rand_color_jitter(voc_dataset):
