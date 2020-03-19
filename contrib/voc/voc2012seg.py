@@ -13,14 +13,14 @@ import numpy as np
 from PIL import Image
 import os.path as osp
 
-from alchemy_cat.data.dataset import IterableDataset, Dataset
+from alchemy_cat.data.dataset import Dataset
 from alchemy_cat import BGR2RGB
 from contrib.voc.utils import label_map2color_map
 
 __all__ = ['VOC', 'VOCAug']
 
 
-class _VOCBase(IterableDataset):
+class _VOCBase(Dataset):
     """
     PASCAL VOC and VOC Aug Segmentation base dataset
     """

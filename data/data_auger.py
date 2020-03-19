@@ -8,11 +8,13 @@
 @time: 2020/1/12 1:48
 @desc:
 """
+from typing import Union
 import numpy as np
 from inspect import signature
 import lmdb
 import pickle
 from functools import reduce
+from torch.utils import data as torch_data
 
 from alchemy_cat.dag import Graph
 from alchemy_cat.data import Dataset
@@ -134,10 +136,10 @@ class MultiMap(object):
                 + f"    _output_index: {self._output_index}"
 
 
-class DataAuger(object):
+class DataAuger(Dataset):
 
-    def __init__(self, dataset: Dataset, verbosity: int = 0, pool_size: int = 0, slim: bool = False,
-                 rand_seed_log: str = None):
+    def __init__(self, dataset: Union[Dataset, torch_data.Dataset], verbosity: int = 0, pool_size: int = 0,
+                 slim: bool = False, rand_seed_log: str = None):
         """Given dataset and argument it with a calculate graph.
 
         Args:
@@ -235,7 +237,7 @@ class DataAuger(object):
         for node in self.rand_nodes:
             node._fct.rand_seed = rand_seeds[node._id]
 
-    def __getitem__(self, idx):
+    def get_item(self, idx):
         example = self._dataset[self.load_indices(idx)]
 
         if self.rand_seed_log is not None:
@@ -260,7 +262,3 @@ class DataAuger(object):
                 + indent(f"graph: {self.graph}") + "\n" \
                 + indent(f"dataset: {self.dataset}") + "\n" \
                 + indent(f"#DataAuger: {len(self)}")
-
-    def __iter__(self):
-        for i in range(len(self)):
-            yield self[i]

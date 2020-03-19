@@ -8,23 +8,24 @@
 @time: 2019/12/7 23:46
 @desc: A dataset lib. Quite similar to torch.util.dataset.
 """
-
 import bisect
 import warnings
+from typing import Union
 
 from numpy.random import permutation
 import numpy as np
 import torch
+from torch.utils import data as torch_data
 
 from alchemy_cat.alg import accumulate
 from alchemy_cat.py_tools import indent
 
 
-__all__ = ["Dataset", "IterableDataset", "ChainDataset", "TensorDataset", "Subset", "random_split"]
+__all__ = ["Dataset", "TensorDataset", "Subset", "random_split"]
 
 
 class Dataset(object):
-    def __getitem__(self, index):
+    def __getitem__(self, index: Union[slice, list, np.ndarray, torch.Tensor, int]):
         if isinstance(index, slice):
             # Get the start, stop, and step from the slice, return an iterator
             return (self[ii] for ii in range(*index.indices(len(self))))
@@ -53,33 +54,9 @@ class Dataset(object):
         return f"Dataset <{self.__class__.__name__}>:\n" + \
                indent("#data: {}".format(self.__len__()))
 
-
-class IterableDataset(Dataset):
-    r"""An iterable Dataset.
-    All datasets that represent an iterable of data samples should subclass it.
-    Such form of datasets is particularly useful when data come from a stream.
-    All subclasses should overwrite :meth:`__iter__`, which would return an
-    iterator of samples in this dataset.
-    When a subclass is used with :class:`~torch.utils.data.DataLoader`, each
-    item in the dataset will be yielded from the :class:`~torch.utils.data.DataLoader`
-    iterator. When :attr:`num_workers > 0`, each worker process will have a
-    different copy of the dataset object, so it is often desired to configure
-    each copy independently to avoid having duplicate data returned from the
-    workers. :func:`~torch.utils.data.get_worker_info`, when called in a worker
-    process, returns information about the worker. It can be used in either the
-    dataset's :meth:`__iter__` method or the :class:`~torch.utils.data.DataLoader` 's
-    :attr:`worker_init_fn` option to modify each copy's behavior.
-    """
-
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
-
-    def __add__(self, other):
-        return ChainDataset([self, other])
-
-    # No `def __len__(self)` default?
-    # See NOTE [ Lack of Default `__len__` in Python Abstract Base Classes ]
 
 
 class TensorDataset(Dataset):
@@ -121,7 +98,7 @@ class ConcatDataset(Dataset):
         assert len(datasets) > 0, 'datasets should not be an empty iterable'
         self.datasets = list(datasets)
         for d in self.datasets:
-            assert not isinstance(d, IterableDataset), "ConcatDataset does not support IterableDataset"
+            assert len(d) >= 0
         self.cumulative_sizes = self.cumsum(self.datasets)
 
     def __len__(self):
@@ -139,39 +116,6 @@ class ConcatDataset(Dataset):
             sample_idx = idx - self.cumulative_sizes[dataset_idx - 1]
         return self.datasets[dataset_idx][sample_idx]
 
-    @property
-    def cummulative_sizes(self):
-        warnings.warn("cummulative_sizes attribute is renamed to "
-                      "cumulative_sizes", DeprecationWarning, stacklevel=2)
-        return self.cumulative_sizes
-
-
-class ChainDataset(IterableDataset):
-    r"""Dataset for chainning multiple :class:`IterableDataset` s.
-    This class is useful to assemble different existing dataset streams. The
-    chainning operation is done on-the-fly, so concatenating large-scale
-    datasets with this class will be efficient.
-    Arguments:
-        datasets (iterable of IterableDataset): datasets to be chained together
-    """
-
-    def __init__(self, datasets):
-        super(ChainDataset, self).__init__()
-        self.datasets = datasets
-
-    def __iter__(self):
-        for d in self.datasets:
-            assert isinstance(d, IterableDataset), "ChainDataset only supports IterableDataset"
-            for x in d:
-                yield x
-
-    def __len__(self):
-        total = 0
-        for d in self.datasets:
-            assert isinstance(d, IterableDataset), "ChainDataset only supports IterableDataset"
-            total += len(d)
-        return total
-
 
 class Subset(Dataset):
     r"""
@@ -181,7 +125,7 @@ class Subset(Dataset):
         indices (sequence): Indices in the whole set selected for subset
     """
 
-    def __init__(self, dataset, indices):
+    def __init__(self, dataset: Union[Dataset, torch_data.Dataset], indices):
         self.dataset = dataset
         self.indices = indices
 
@@ -192,7 +136,7 @@ class Subset(Dataset):
         return len(self.indices)
 
 
-def random_split(dataset, lengths):
+def random_split(dataset: Union[Dataset, torch_data.Dataset], lengths):
     r"""
     Randomly split a dataset into non-overlapping new datasets of given lengths.
     Arguments:
