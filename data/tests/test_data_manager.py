@@ -25,6 +25,7 @@ voc_auger = VOCTrainAuger(sub_voc_aug, slim=True,
 voc_data_manager = DataManager(dataset=sub_voc_aug, data_auger=voc_auger, log_dir='./Temp/test_data_manager',
                                batch_size=10, shuffle=True)
 
+
 def setup_function(func):
     set_rand_seed(0)
     print(f"-----------setup function: set_rand_seed(0)-----------")
@@ -104,6 +105,8 @@ def test_batches2indices(data_manager):
     flatten_batches = np.array(batches).ravel().tolist()
     assert indices == flatten_batches
     assert data_manager.epoch_indices == indices
+    indices.sort()
+    assert indices == list(range(100))
 
 
 def test_batch_num(data_manager):
