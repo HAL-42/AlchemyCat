@@ -25,9 +25,11 @@ def set_numpy_rand_seed(seed: Union[int, str]):
         seed (Union[int, str]): int seed or str, which will be hashed to get int seed
     """
     if isinstance(seed, str):
-        seed = hash(seed) % (2 ** 32)
+        seed = hash(seed)
     elif not isinstance(int(seed), int):
         raise ValueError(f"seed={seed} should be str or int")
+
+    seed = seed % (2**32)
     np.random.seed(int(seed))
 
 
@@ -42,7 +44,8 @@ def set_torch_rand_seed(seed: Union[int, str]):
     elif not isinstance(int(seed), int):
         raise ValueError(f"seed={seed} should be str or int")
     torch.manual_seed(int(seed))
-    torch.cuda.manual_seed_all(int(seed))
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(int(seed))
     torch.backends.cudnn.deterministic = True
 
 
