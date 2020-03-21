@@ -9,8 +9,7 @@
 @desc: A dataset lib. Quite similar to torch.util.dataset.
 """
 import bisect
-import warnings
-from typing import Union
+from typing import Union, Sequence
 
 from numpy.random import permutation
 import numpy as np
@@ -125,7 +124,7 @@ class Subset(Dataset):
         indices (sequence): Indices in the whole set selected for subset
     """
 
-    def __init__(self, dataset: Union[Dataset, torch_data.Dataset], indices):
+    def __init__(self, dataset: Union[Dataset, torch_data.Dataset], indices: Sequence[int]):
         self.dataset = dataset
         self.indices = indices
 
