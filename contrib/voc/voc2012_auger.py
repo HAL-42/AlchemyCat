@@ -31,6 +31,10 @@ def _attach_cls(example):
     return img_id, img, label, cls_in_label
 
 
+def _collect_example(img_id, img, label):
+    return img_id, img.copy(), label.copy() # Given continuous arr
+
+
 class _VOCBaseAuger(DataAuger):
     def build_graph(self):
         @self.graph.register(inputs=['example'], outputs=['img_id', 'img', 'label'])
@@ -105,9 +109,9 @@ class VOCTrainAuger(_VOCBaseAuger):
 
         self.graph.add_node(HWC2CHW, inputs=['mirrored_img'], outputs=['CHW_img'])
 
-        @self.graph.register(inputs=['img_id', 'CHW_img', 'mirrored_label'], outputs=['VOCTrainAuger_output'])
-        def collect_example(img_id, img, label):
-            return img_id, img, label
+        self.graph.add_node(_collect_example,
+                            inputs=['img_id', 'CHW_img', 'mirrored_label'], outputs=['VOCTrainAuger_output'])
+
 
 
 class VOCClsTrainAuger(VOCTrainAuger):
@@ -139,16 +143,14 @@ class VOCTestAuger(_VOCBaseAuger):
     def build_graph(self):
         super(VOCTestAuger, self).build_graph()
 
-        self.graph.add_node(int_img2float32_img, inputs=['img'], ouputs=['float_img'])
+        self.graph.add_node(int_img2float32_img, inputs=['img'], outputs=['float_img'])
 
         self.graph.add_node(centralize, inputs=['float_img', {'mean': self.dataset.mean_bgr}],
                             outputs=['centralized_img'])
 
         self.graph.add_node(HWC2CHW, inputs=['centralized_img'], outputs=['CHW_img'])
 
-        @self.graph.register(inputs=['img_id', 'CHW_img', 'label'], outputs=['VOCTrainAuger_output'])
-        def collect_example(img_id, img, label):
-            return (img_id, img, label)
+        self.graph.add_node(_collect_example, inputs=['img_id', 'CHW_img', 'label'], outputs=['VOCTestAuger_output'])
 
 
 class VOCClsTestAuger(VOCTestAuger):
@@ -221,3 +223,32 @@ if __name__ == '__main__':
             plt.show()
 
             print([VOC_CLASSES[cls_idx] for cls_idx in np.nonzero(cls_in_label)[0]])
+
+    voc_aug_auger = VOCClsTestAuger(voc_aug)
+
+    for index, (origin_example, augered_example) in enumerate(zip(voc_aug, voc_aug_auger)):
+        origin_img_id, origin_img, origin_label = origin_example
+        augered_img_id, augered_img, augered_label, cls_in_label = augered_example
+
+        assert origin_img_id == augered_img_id
+
+        # * Test cls_in_label
+        assert len(cls_in_label) == 21
+
+        # * Recover img
+        recovered_img = (CHW2HWC(augered_img) + np.array(VOC.mean_bgr)).astype(np.uint8)
+
+        if index % 100 == 0:
+
+            img_wall = RowFigureWall([origin_img, recovered_img],
+                                     space_width=20, pad_location='center', color_channel_order='BGR')
+            label_wall = RowFigureWall(map(label_map2color_map, [origin_label, augered_label]),
+                                       space_width=20, pad_location='center', color_channel_order='RGB')
+
+            show_wall = ColumnFigureWall([img_wall, label_wall], space_width=20)
+            show_wall.plot()
+            plt.show()
+
+            print([VOC_CLASSES[cls_idx] for cls_idx in np.nonzero(cls_in_label)[0]])
+
+        assert np.all(recovered_img == origin_img)
