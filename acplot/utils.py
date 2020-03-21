@@ -65,7 +65,7 @@ def CHW2HWC(arr: np.ndarray) -> np.ndarray:
     Returns:
         (np.ndarray): ndarray transposed to (..., H, W, C)
     """
-    return arr.transpose(tuple(range(0, arr.ndim - 3)) + (-2, -1 -3))
+    return arr.transpose(tuple(range(0, arr.ndim - 3)) + (-2, -1, -3))
 
 
 def RGB2BGR(arr: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
