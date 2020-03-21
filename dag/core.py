@@ -483,6 +483,3 @@ class Graph:
 
     def __repr__(self):
         return f"Graph with {len(self._nodes)} nodes in " + "slim mode" if self.slim is True else "none-slim mode"
-
-##
-
