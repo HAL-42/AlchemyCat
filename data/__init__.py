@@ -12,4 +12,4 @@ from alchemy_cat.data.dataset import *
 from alchemy_cat.data.data_auger import *
 from alchemy_cat.data.utils import *
 from alchemy_cat.data.prefetcher import Prefetcher
-from alchemy_cat.data.DataManager import DataManager
+from alchemy_cat.data.data_manager import DataManager

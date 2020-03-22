@@ -4,7 +4,7 @@
 @author: Xiaobo Yang
 @contact: hal_42@zju.edu.cn
 @software: PyCharm
-@file: DataManager.py
+@file: data_manager.py
 @time: 2020/3/20 23:22
 @desc:
 """
@@ -168,7 +168,8 @@ class DataManager(object):
         self.epoch_iter: Optional[Iterable] = None
 
         def worker_init_fn_(worker_id):
-            worker_init_fn(worker_id)
+            if worker_init_fn is not None:
+                worker_init_fn(worker_id)
             set_rand_seed_according_torch()
 
         self.worker_init_fn = worker_init_fn_
