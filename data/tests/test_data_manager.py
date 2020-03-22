@@ -11,6 +11,8 @@
 import pytest
 
 import numpy as np
+import sys
+import torch
 
 from alchemy_cat.contrib.voc import VOCAug, VOCTrainAuger
 from alchemy_cat.data import DataManager, Subset
@@ -22,8 +24,13 @@ sub_voc_aug.mean_bgr = VOCAug.mean_bgr
 sub_voc_aug.ignore_label = VOCAug.ignore_label
 voc_auger = VOCTrainAuger(sub_voc_aug, slim=True,
                           scale_factors=(0.5, 1.0), is_multi_mirror=True, is_color_jitter=True)
-voc_data_manager = DataManager(dataset=sub_voc_aug, data_auger=voc_auger, log_dir='./Temp/test_data_manager',
-                               batch_size=10, shuffle=True)
+
+if sys.platform == 'win32':
+    voc_data_manager = DataManager(dataset=sub_voc_aug, data_auger=voc_auger, log_dir='./Temp/test_data_manager',
+                                   batch_size=10, shuffle=True)
+else:
+    voc_data_manager = DataManager(dataset=sub_voc_aug, data_auger=voc_auger, log_dir='./Temp/test_data_manager',
+                                   batch_size=10, shuffle=True, num_workers=4)
 
 
 def setup_function(func):
@@ -124,3 +131,20 @@ def test_backtrace(data_manager):
 
     assert np.all(ret['auger_output'][1] == img)
     print(ret)
+
+
+@pytest.mark.skipif('sys.platform == "win32"')
+def test_worker_init_fn():
+    def worker_ini_fn(id):
+        print(f"WorkerID: {id} with torch seed: {torch.initial_seed()}")
+
+    data_manager = DataManager(dataset=sub_voc_aug, data_auger=voc_auger, log_dir='./Temp/test_data_manager',
+                                   batch_size=10, shuffle=True, num_workers=4, worker_init_fn=worker_ini_fn)
+
+    epoch_iter = data_manager.start_epoch()
+    for i in range(15):
+        try:
+            batch = next(epoch_iter)
+        except StopIteration:
+            epoch_iter = data_manager.start_epoch()
+            batch = next(epoch_iter)
