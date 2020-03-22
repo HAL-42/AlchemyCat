@@ -11,7 +11,7 @@
 from typing import Union, Iterable
 
 import numpy as np
-from acplot import RowFigureWall
+from alchemy_cat.acplot import RowFigureWall
 import matplotlib.pyplot as plt
 
 from alchemy_cat.data import DataAuger
@@ -19,8 +19,8 @@ from alchemy_cat.acplot import HWC2CHW, CHW2HWC
 from alchemy_cat.data.plugins.augers import RandColorJitter, RandMirror, RandScale, RandCrop, pad_img_label, \
     int_img2float32_img, MultiMirror, centralize
 from alchemy_cat.acplot import RowFigureWall, ColumnFigureWall
-from contrib.voc.voc2012seg import VOC, VOCAug, label_map2color_map
-from contrib.voc.utils import VOC_CLASSES
+from alchemy_cat.contrib.voc.voc2012seg import VOC, VOCAug, label_map2color_map
+from alchemy_cat.contrib.voc.utils import VOC_CLASSES
 
 __all__ = ['VOCTrainAuger', 'VOCClsTrainAuger', 'VOCTestAuger', 'VOCClsTestAuger']
 

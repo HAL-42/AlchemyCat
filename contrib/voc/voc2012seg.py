@@ -15,7 +15,7 @@ import os.path as osp
 
 from alchemy_cat.data.dataset import Dataset
 from alchemy_cat import BGR2RGB
-from contrib.voc.utils import label_map2color_map
+from alchemy_cat.contrib.voc.utils import label_map2color_map
 
 __all__ = ['VOC', 'VOCAug']
 
