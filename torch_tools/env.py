@@ -60,50 +60,16 @@ def open_config(config_path: str, is_yaml: bool=False) -> Union[Dict, dict]:
 
     Returns: CONFIG
     """
-    with open("configs/train.yaml", 'r') as f:
+    with open(config_path, 'r') as f:
         yaml_config = yaml.load(f, Loader=yaml.FullLoader)
-    return Dict(yaml_config)
+
+    if is_yaml:
+        return yaml_config
+    else:
+        return Dict(yaml_config)
 
 
-def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, config_path: Optional[str]=None,
-             experiments_root: str = "experiment", fix_random: bool=False,
-             cv2_num_threads: int=0, verbosity: bool=True) -> Union[Tuple[torch.device, Dict], torch.device]:
-    """Init torch training environment
-
-    Args:
-        is_cuda (bool): If False, always use CPU
-        is_benchmark (bool): If True, set torch.backends.cudnn.benchmark = True
-        is_train (bool): If False, disable grad
-        config_path (Optional[str]): The path of yaml config
-        experiments_root (str): The path where experiments result are stored
-        fix_random (bool): If True, fix random of torch, numpy, python's random module
-        cv2_num_threads (int): Set cv2 threads num by cv2.setNumThreads(cv2_num_threads)
-        verbosity (bool): If True, print detailed info
-
-    Returns: Default device if config_path is not given, rather (Default Device, CONFIG)
-    """
-    # * Show system info
-    if verbosity:
-        welcome()
-        print(f"Current working dir is {os.getcwd()}")
-        print(f"Current python environment path is\n{sys.path}")
-
-    # * Get device
-    device = get_device(is_cuda, verbosity)
-
-    # * Set benchmark
-    torch.backends.cudnn.benchmark = is_benchmark
-    if verbosity:
-        print(f"torch.backends.cudnn.benchmark = {is_benchmark}")
-
-    # * Set cv2 threads num
-    cv2.setNumThreads(cv2_num_threads)
-
-    # * If test, disable grad
-    torch.set_grad_enabled(is_train)
-    if verbosity:
-        print(f"torch.set_grad_enabled({is_train})")
-
+def parse_config(config_path: str, experiments_root: str, verbosity: int=0):
     # * Read config and set config include
     if config_path is not None:
         config_dir, _ = osp.split(config_path)
@@ -134,7 +100,10 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
 
         TEST_ID = CONFIG.get('TEST_ID')
         if TEST_ID is not None:
-            TEST_DIR = osp.join(EXP_DIR, 'tests', str(TEST_ID))
+            if TRAIN_ID is not None:
+                TEST_DIR = osp.join(EXP_DIR, TRAIN_DIR, 'tests', str(TEST_ID))
+            else:
+                TEST_DIR = osp.join(EXP_DIR, 'tests', str(TEST_ID))
             os.makedirs(TEST_DIR, exist_ok=True)
         else:
             TEST_DIR = EXP_DIR
@@ -145,21 +114,57 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
                   f"TRAIN_DIR={TRAIN_DIR}",
                   f"TEST_DIR={TEST_DIR}", sep="\n")
 
-    if fix_random:
-        if config_path is None:
-            raise ValueError(
-                "Rand seed need to be generated according to CONFIG.EXP_ID, CONFIG.TRAIN_ID, CONFIG.TEST_ID")
-        # * Get str hash seed, then set rand seed
-        def ID2str(ID):
-            return str(ID) if ID is not None else ""
+        return Dict(CONFIG)
 
-        seed = ID2str(EXP_ID) + ID2str(TRAIN_ID) + ID2str(TEST_ID)
-        set_rand_seed(seed)
+
+def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, config_path: Optional[str]=None,
+             experiments_root: str = "experiment", rand_seed: Union[int, str, int]=None,
+             cv2_num_threads: int=0, verbosity: bool=True) -> Union[Tuple[torch.device, Dict], torch.device]:
+    """Init torch training environment
+
+    Args:
+        is_cuda (bool): If False, always use CPU
+        is_benchmark (bool): If True, set torch.backends.cudnn.benchmark = True
+        is_train (bool): If False, disable grad
+        config_path (Optional[str]): The path of yaml config
+        experiments_root (str): The path where experiments result are stored
+        rand_seed : If not None, fix random of torch, numpy, python's random module with rand seeds.
+        cv2_num_threads (int): Set cv2 threads num by cv2.setNumThreads(cv2_num_threads)
+        verbosity (bool): If True, print detailed info
+
+    Returns: Default device if config_path is not given, rather (Default Device, CONFIG)
+    """
+    # * Show system info
+    if verbosity:
+        welcome()
+        print(f"Current working dir is {os.getcwd()}")
+        print(f"Current python environment path is\n{sys.path}")
+
+    # * Get device
+    device = get_device(is_cuda, verbosity)
+
+    # * Set benchmark
+    torch.backends.cudnn.benchmark = is_benchmark
+    if verbosity:
+        print(f"torch.backends.cudnn.benchmark = {is_benchmark}")
+
+    # * Set cv2 threads num
+    cv2.setNumThreads(cv2_num_threads)
+
+    # * If test, disable grad
+    torch.set_grad_enabled(is_train)
+    if verbosity:
+        print(f"torch.set_grad_enabled({is_train})")
+
+    CONFIG = parse_config(config_path, experiments_root, verbosity)
+
+    if rand_seed is not None:
+        set_rand_seed(rand_seed)
         if verbosity:
-            print(f"Set rand seed with hash({seed})")
+            print(f"Set rand seed with hash({rand_seed})")
 
     # * Return
     if config_path is not None:
-        return device, Dict(CONFIG)
+        return device, CONFIG
     else:
         return device
