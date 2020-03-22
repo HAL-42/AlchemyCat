@@ -16,20 +16,16 @@ from typing import Any, Callable, DefaultDict, Optional
 from collections import defaultdict, OrderedDict
 import warnings
 
-from py_tools import indent
-
-try:
-    from dataclasses import dataclass
-except ImportError:
-    from alchemy_cat.py_tools._dataclasses import dataclass
+from alchemy_cat.py_tools import indent
 
 __all__ = ['Statistic', 'Tracker', 'OneOffTracker']
 
 
-@dataclass
-class _StatisticStatue:
-    last_update_count: int = -1
-    last_statistic: Any = None
+class _StatisticStatue(object):
+
+    def __init__(self):
+        self.last_update_count: int = -1
+        self.last_statistic: Any = None
 
 
 def _check_importance(importance):
