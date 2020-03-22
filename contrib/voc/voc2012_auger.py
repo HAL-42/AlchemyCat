@@ -22,10 +22,10 @@ from alchemy_cat.acplot import RowFigureWall, ColumnFigureWall
 from alchemy_cat.contrib.voc.voc2012seg import VOC, VOCAug, label_map2color_map
 from alchemy_cat.contrib.voc.utils import VOC_CLASSES
 
-__all__ = ['VOCTrainAuger', 'VOCClsTrainAuger', 'VOCTestAuger', 'VOCClsTestAuger']
+__all__ = ['VOCTrainAuger', 'VOCClsTrainAuger', 'VOCTestAuger', 'VOCClsTestAuger', 'attach_cls']
 
 
-def _attach_cls(example):
+def attach_cls(example):
     img_id, img, label = example
     cls_in_label = (np.bincount(label.ravel(), minlength=VOC.ignore_label + 1) != 0).astype(np.int)[:len(VOC_CLASSES)]
     return img_id, img, label, cls_in_label
@@ -123,7 +123,7 @@ class VOCClsTrainAuger(VOCTrainAuger):
     def build_graph(self):
         super(VOCClsTrainAuger, self).build_graph()
 
-        self.graph.add_node(_attach_cls, inputs=['VOCTrainAuger_output'], outputs=['VOCTrainAugerCls_output'])
+        self.graph.add_node(attach_cls, inputs=['VOCTrainAuger_output'], outputs=['VOCTrainAugerCls_output'])
 
 
 class VOCTestAuger(_VOCBaseAuger):
@@ -162,7 +162,7 @@ class VOCClsTestAuger(VOCTestAuger):
     def build_graph(self):
         super(VOCClsTestAuger, self).build_graph()
 
-        self.graph.add_node(_attach_cls, inputs=['VOCTestAuger_output'], outputs=['VOCTestAugerCls_output'])
+        self.graph.add_node(attach_cls, inputs=['VOCTestAuger_output'], outputs=['VOCTestAugerCls_output'])
 
 
 if __name__ == '__main__':
