@@ -17,3 +17,4 @@ from alchemy_cat.py_tools.func_tools import *
 from alchemy_cat.py_tools.str_formatters import *
 from alchemy_cat.py_tools.random import *
 from alchemy_cat.py_tools.tracker import *
+from alchemy_cat.py_tools.logger import Logger
