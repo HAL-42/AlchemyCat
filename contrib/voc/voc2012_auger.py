@@ -11,7 +11,6 @@
 from typing import Union, Iterable
 
 import numpy as np
-from alchemy_cat.acplot import RowFigureWall
 import matplotlib.pyplot as plt
 
 from alchemy_cat.data import DataAuger
@@ -22,7 +21,7 @@ from alchemy_cat.acplot import RowFigureWall, ColumnFigureWall
 from alchemy_cat.contrib.voc.voc2012seg import VOC, VOCAug, label_map2color_map
 from alchemy_cat.contrib.voc.utils import VOC_CLASSES
 
-__all__ = ['VOCTrainAuger', 'VOCClsTrainAuger', 'VOCTestAuger', 'VOCClsTestAuger', 'attach_cls']
+__all__ = ['VOCTrainAuger', 'VOCClsTrainAuger', 'VOCTestAuger', 'VOCClsTestAuger', 'attach_cls', 'collect_example']
 
 
 def attach_cls(example):
@@ -31,7 +30,7 @@ def attach_cls(example):
     return img_id, img, label, cls_in_label
 
 
-def _collect_example(img_id, img, label):
+def collect_example(img_id, img, label):
     return img_id, img.copy(), label.copy() # Given continuous arr
 
 
@@ -109,7 +108,7 @@ class VOCTrainAuger(_VOCBaseAuger):
 
         self.graph.add_node(HWC2CHW, inputs=['mirrored_img'], outputs=['CHW_img'])
 
-        self.graph.add_node(_collect_example,
+        self.graph.add_node(collect_example,
                             inputs=['img_id', 'CHW_img', 'mirrored_label'], outputs=['VOCTrainAuger_output'])
 
 
@@ -150,7 +149,7 @@ class VOCTestAuger(_VOCBaseAuger):
 
         self.graph.add_node(HWC2CHW, inputs=['centralized_img'], outputs=['CHW_img'])
 
-        self.graph.add_node(_collect_example, inputs=['img_id', 'CHW_img', 'label'], outputs=['VOCTestAuger_output'])
+        self.graph.add_node(collect_example, inputs=['img_id', 'CHW_img', 'label'], outputs=['VOCTestAuger_output'])
 
 
 class VOCClsTestAuger(VOCTestAuger):
