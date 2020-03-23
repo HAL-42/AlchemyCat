@@ -15,12 +15,12 @@ import torch
 from addict import Dict
 from typing import Union, Optional, Tuple
 import cv2
+from pprint import pprint
 
 import yaml
 from yamlinclude import YamlIncludeConstructor
 
-from alchemy_cat.py_tools.random import set_rand_seed
-
+from alchemy_cat.py_tools import set_rand_seed, Logger
 
 __all__ = ["get_device", "open_config", "init_env"]
 
@@ -40,8 +40,8 @@ def get_device(is_cuda: bool=True, verbosity: bool=True) -> torch.device:
     if verbosity:
         if is_cuda:
             print("Device:")
-        for i in range(torch.cuda.device_count()):
-            print("    {}:".format(i), torch.cuda.get_device_name(i))
+            for i in range(torch.cuda.device_count()):
+                print("    {}:".format(i), torch.cuda.get_device_name(i))
         else:
             print("Device: CPU")
     return device
@@ -69,7 +69,7 @@ def open_config(config_path: str, is_yaml: bool=False) -> Union[Dict, dict]:
         return Dict(yaml_config)
 
 
-def parse_config(config_path: str, experiments_root: str, verbosity: int=0):
+def parse_config(config_path: str, experiments_root: str):
     # * Read config and set config include
     if config_path is not None:
         config_dir, _ = osp.split(config_path)
@@ -109,17 +109,13 @@ def parse_config(config_path: str, experiments_root: str, verbosity: int=0):
             TEST_DIR = EXP_DIR
         CONFIG['TEST_DIR'] = TEST_DIR
 
-        if verbosity:
-            print(f"EXP_DIR={EXP_DIR}",
-                  f"TRAIN_DIR={TRAIN_DIR}",
-                  f"TEST_DIR={TEST_DIR}", sep="\n")
-
         return Dict(CONFIG)
 
 
 def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, config_path: Optional[str]=None,
-             experiments_root: str = "experiment", rand_seed: Union[int, str, int]=None,
-             cv2_num_threads: int=0, verbosity: bool=True) -> Union[Tuple[torch.device, Dict], torch.device]:
+             experiments_root: str = "experiment", rand_seed: bool=False,
+             cv2_num_threads: int=0, verbosity: bool=True, log_stdout: bool=False) \
+        -> Union[Tuple[torch.device, Dict], torch.device]:
     """Init torch training environment
 
     Args:
@@ -128,17 +124,45 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
         is_train (bool): If False, disable grad
         config_path (Optional[str]): The path of yaml config
         experiments_root (str): The path where experiments result are stored
-        rand_seed : If not None, fix random of torch, numpy, python's random module with rand seeds.
+        rand_seed : If not True, fix random of torch, numpy, python's random module from CONFIG.RAND_SEED
         cv2_num_threads (int): Set cv2 threads num by cv2.setNumThreads(cv2_num_threads)
         verbosity (bool): If True, print detailed info
+        log_stdout (bool): If True, the stdout will be logged to corresponding experiment dir
 
     Returns: Default device if config_path is not given, rather (Default Device, CONFIG)
     """
-    # * Show system info
+    # * Read CONFIG
+    CONFIG = parse_config(config_path, experiments_root)
+
+    # * Log stdout
+    if log_stdout:
+        if 'TEST_ID' in CONFIG:
+            stdout_log_file = osp.join(CONFIG.TEST_DIR, 'stdout.log')
+        elif 'TRAIN_ID' in CONFIG:
+            stdout_log_file = osp.join(CONFIG.TRAIN_DIR, 'stdout.log')
+        else:
+            stdout_log_file = osp.join(CONFIG.EXP_ID, 'stdout.log')
+
+        Logger(stdout_log_file, real_time=True)
+
+        if verbosity:
+            print(f"Log stdout at {stdout_log_file}")
+
+    # * Welcome & Show system info
     if verbosity:
         welcome()
         print(f"Current working dir is {os.getcwd()}")
         print(f"Current python environment path is\n{sys.path}")
+        print("\n")
+
+    if verbosity:
+            print("\033[32m------------------------------- CONFIG -------------------------------\033[0m")
+            pprint(dict(CONFIG))
+            print("\033[32m----------------------------- CONFIG END -----------------------------\033[0m")
+            print("\n")
+
+    if verbosity:
+        print("\033[32m-------------------------------- INIT --------------------------------\033[0m")
 
     # * Get device
     device = get_device(is_cuda, verbosity)
@@ -150,18 +174,25 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
 
     # * Set cv2 threads num
     cv2.setNumThreads(cv2_num_threads)
+    if verbosity:
+        print(f"cv2.setNumThreads({cv2_num_threads})")
 
     # * If test, disable grad
     torch.set_grad_enabled(is_train)
     if verbosity:
         print(f"torch.set_grad_enabled({is_train})")
 
-    CONFIG = parse_config(config_path, experiments_root, verbosity)
-
-    if rand_seed is not None:
-        set_rand_seed(rand_seed)
+    # * Set rand seed
+    if rand_seed:
+        if 'RAND_SEED' not in CONFIG:
+            raise ValueError(f"CONFIG did't have key RAND_SEED")
+        set_rand_seed(CONFIG.RAND_SEED)
         if verbosity:
-            print(f"Set rand seed with hash({rand_seed})")
+            print(f"Set rand seed {CONFIG.RAND_SEED}")
+
+    if verbosity:
+        print("\033[32m------------------------------ INIT END ------------------------------\033[0m")
+        print("\n")
 
     # * Return
     if config_path is not None:
