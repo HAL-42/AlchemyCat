@@ -8,7 +8,8 @@
 @time: 2020/1/15 6:27
 @desc:
 """
-__all__ = ["find_nearest_even_size", "find_nearest_odd_size"]
+__all__ = ["find_nearest_even_size", "find_nearest_odd_size", "keep_size_padding", "odd_input_pad_size",
+           "even_input_pad_size", "get_q"]
 
 
 def _check_input(size, min_n: int):
@@ -71,6 +72,70 @@ def find_nearest_even_size(size, min_n: int=4, is_both_way: bool=False):
         left_gap = residual
         right_gap = base - residual
         return (size - left_gap) if (left_gap < right_gap and k >= 1) else (size + right_gap)
+
+
+def get_q(kernel_size: int, dilation: int):
+    """Get apparent kernel size
+
+    Args:
+        kernel_size: kernel size
+        dilation: dilate ratio of kernel
+    """
+    return (kernel_size - 1) * dilation + 1 if kernel_size % 2 == 1 else kernel_size * dilation
+
+
+def keep_size_padding(kernel_size: int, dilation: int=1):
+    """Return padding size which can remain output size unchanged when stride = 1
+
+    Apparent size of kernel must be an odd lager than 0
+
+    Args:
+        kernel_size: Kernel size
+        dilation: Dilation ratio for kernel. (Default: 1)
+
+    Returns:
+        padding size which can remain output size unchanged when stride = 1 or 2
+    """
+    q = get_q(kernel_size, dilation)
+    if q > 0 and q % 2 == 1:
+        return (q - 1) // 2
+    else:
+        raise ValueError(f"Apparent size of kernel must be an odd lager than 0")
+
+
+def odd_input_pad_size(kernel_size: int, dilation: int=1):
+    """Return proper padding for odd input
+
+    Apparent size of kernel must be an odd lager than 0
+
+    Args:
+        kernel_size: Kernel size
+        dilation: Dilation ratio for kernel. (Default: 1)
+
+    Returns:
+        When stride = 1, return pad size which can remain output size unchanged. When stride = 2, return pad
+            size which can make output size = Input Size / 2 + 0.5
+    """
+    return keep_size_padding(kernel_size, dilation)
+
+
+def even_input_pad_size(kernel_size: int, dilation: int=1):
+    """Return proper padding for even input
+
+    Apparent size of kernel must be an even lager than 0
+
+    Args:
+        kernel_size: Kernel size
+        dilation: Dilation ratio for kernel
+
+    Returns:
+        For stride = 2, return pad size which can make output size = Input Size / 2
+    """
+    q = get_q(kernel_size, dilation)
+    if q > 0 and q % 2 == 0:
+        return (q - 2) // 2
+    else:
+        raise ValueError(f"Apparent size of kernel must be an even lager than 0")
 
 
 if __name__ == "__main__":
