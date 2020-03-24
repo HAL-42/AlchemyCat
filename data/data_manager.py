@@ -19,8 +19,7 @@ from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data import DataLoader, Sampler, RandomSampler, SequentialSampler, BatchSampler
 
 from alchemy_cat.data import Prefetcher, DataAuger, Dataset, read_rand_seeds
-from alchemy_cat.py_tools import set_rand_seed_according_torch
-
+from alchemy_cat.py_tools import set_rand_seed_according_torch, indent
 
 kBatchesType = List[List[int]]
 
@@ -433,3 +432,15 @@ class DataManager(object):
 
     def __iter__(self):
         return self.epoch_iter
+
+    def __repr__(self):
+        return f"DataManager <{self.__class__}>: \n" \
+               + indent(f'epoch_batch_num: {len(self)}') + '\n' \
+               + indent(f'batch_size: {self.batch_size}') + '\n' \
+               + indent(f'shuffle: {self.shuffle}') + '\n' \
+               + indent(f'drop_last: {self.drop_last}') + '\n' \
+               + indent(f'num_workers: {self.num_workers}') + '\n' \
+               + indent(f'pin_memory: {self.pin_memory}') + '\n' \
+               + indent(f'is_prefetch: {self.is_prefetch}') + '\n' \
+               + indent(f'dataset: {self.dataset}') + '\n' \
+               + indent(f'data_auger: {self.data_auger}')
