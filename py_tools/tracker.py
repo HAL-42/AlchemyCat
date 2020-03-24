@@ -183,7 +183,7 @@ class Tracker(object):
         return self.__init__(**self.init_dict)
 
     def __repr__(self):
-        return f"Tracker <{self.__class__}: update_count = {self.update_count}"
+        return f"Tracker <{self.__class__}>: update_count = {self.update_count}"
 
     def __str__(self):
         return pformat(self.statistics(), indent=4)
