@@ -112,7 +112,6 @@ class VOCTrainAuger(_VOCBaseAuger):
                             inputs=['img_id', 'CHW_img', 'mirrored_label'], outputs=['VOCTrainAuger_output'])
 
 
-
 class VOCClsTrainAuger(VOCTrainAuger):
     """VOCTrain Auger with class in label
 
