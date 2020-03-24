@@ -14,6 +14,8 @@ import torch
 
 from alchemy_cat.py_tools import Tracker, Statistic
 
+__all__ = ['AverageValueTracker', 'MovingAverageValueTracker']
+
 
 class AverageValueTracker(Tracker):
     def __init__(self):
@@ -54,6 +56,7 @@ class AverageValueTracker(Tracker):
         self._std = np.nan
 
     def update(self, value, n=1):
+        super(AverageValueTracker, self).update(value, n)
         self._add(value, n)
 
     @Statistic
@@ -69,7 +72,7 @@ class MovingAverageValueTracker(Tracker):
     def __init__(self, window_size):
         super(MovingAverageValueTracker, self).__init__()
         self.window_size = window_size
-        self._value_queue = torch.Tensor(window_size)
+        self._value_queue = torch.zeros(window_size)
         self.reset()
 
     def reset(self):
@@ -93,6 +96,7 @@ class MovingAverageValueTracker(Tracker):
         return mean, std
 
     def update(self, value):
+        super(MovingAverageValueTracker, self).update(value)
         self._add(value)
 
     @Statistic
