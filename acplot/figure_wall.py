@@ -8,6 +8,7 @@
 @time: 2020/1/7 22:18
 @desc:
 """
+import os
 import copy
 import numpy as np
 from matplotlib import pyplot as plt
@@ -125,6 +126,8 @@ class FigureWall(object):
             None
         """
         tiled_figs = self.tiled_figs if self.color_channel_order == 'RGB' else BGR2RGB(self.tiled_figs)
+
+        os.makedirs(os.path.split(img_file)[0], exist_ok=True)
 
         plt.imsave(img_file, tiled_figs, **kwargs)
 
@@ -245,19 +248,30 @@ class RectFigureWall(FigureWall):
     """Figures will be tiled to a Rectangle"""
 
     def __init__(self, figs: Union[Iterable[Union[np.ndarray, 'FigureWall']], np.ndarray], is_normalize: bool = False,
-                 space_width: int = 1, row_num: Optional[int]=None, col_num: Optional[int]=None):
+                 space_width: int = 1, row_num: Optional[int]=None, col_num: Optional[int]=None,
+                 img_pad_val: Union[int, float, Iterable] = None,
+                 pad_location: Union[str, int]='right-bottom', color_channel_order: str='RGB'):
         """Figures will be tiled to an Rectangle
 
         Args:
             figs (list, np.ndarray): List[fig] or figs. fig is supposed to be (H, W, C) and RGB mode.
             is_normalize (bool): If true, the figures will be min-max normalized
             space_width (int): Space width between figs
-            row_num (Optional[int]): row num of rectangle figure wall. If None, it will be calculated by ceil(figure's num / col_num)
-            col_num (Optional[int]): cow num of rectangle figure wall. If None, it will be calculated by ceil(figure's num / row_num)
+            row_num (Optional[int]): row num of rectangle figure wall. If None, it will be calculated by
+                ceil(figure's num / col_num)
+            col_num (Optional[int]): cow num of rectangle figure wall. If None, it will be calculated by
+                ceil(figure's num / row_num)
+            img_pad_val: Same to the param of FigureWall
+            pad_location (Union[str, int]): Same to the param of FigureWall
+            color_channel_order (str): Same to the param of FigureWall
+
+        See Also:
+            FigureWall
         """
         self.row_num = row_num
         self.col_num = col_num
-        super(RectFigureWall, self).__init__(figs, is_normalize, space_width)
+        super(RectFigureWall, self).__init__(figs, is_normalize, space_width,
+                                             img_pad_val, pad_location, color_channel_order)
 
     def _tile_figs(self, space_width):
         if self.row_num is None and self.col_num is None:
