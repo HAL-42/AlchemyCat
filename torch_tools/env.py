@@ -101,7 +101,7 @@ def parse_config(config_path: str, experiments_root: str):
         TEST_ID = CONFIG.get('TEST_ID')
         if TEST_ID is not None:
             if TRAIN_ID is not None:
-                TEST_DIR = osp.join(EXP_DIR, TRAIN_DIR, 'tests', str(TEST_ID))
+                TEST_DIR = osp.join(TRAIN_DIR, 'tests', str(TEST_ID))
             else:
                 TEST_DIR = osp.join(EXP_DIR, 'tests', str(TEST_ID))
             os.makedirs(TEST_DIR, exist_ok=True)
