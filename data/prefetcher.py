@@ -50,7 +50,7 @@ class Prefetcher(object):
             def prefetch(batch):
                 if isinstance(batch, torch.Tensor):
                         return batch.cuda(non_blocking=True)
-                elif isinstance(batch, abc.Iterable):
+                elif isinstance(batch, list):
                     return [prefetch(elem) for elem in batch]
                 else:
                     return batch
