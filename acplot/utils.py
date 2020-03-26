@@ -15,7 +15,7 @@ from typing import Union, Iterable
 
 from alchemy_cat.data.plugins.augers import pad_img_label
 
-__all__ = ["HWC2CHW", "CHW2HWC", "BGR2RGB", "RGB2BGR"]
+__all__ = ["HWC2CHW", "CHW2HWC", "BGR2RGB", "RGB2BGR", "c1_to_cn"]
 
 
 def stack_figs(in_list: list, img_pad_val: Union[int, float, Iterable] = (127, 140, 141),
@@ -88,3 +88,19 @@ def BGR2RGB(arr: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndar
         arr with shape (..., C[RGB])
     """
     return arr[..., ::-1]
+
+
+def c1_to_cn(c1_array: np.ndarray, n: int=3):
+    """Convert 1 channel img/imgs to n channel imgs by repeat in last dimension
+
+    Args:
+        c1_array: ndarray img/imgs
+        n: Channel num of converted img
+
+    Returns:
+        Converted img with shape (c1_array.shape, n)
+    """
+    cn_array = np.zeros(c1_array.shape + (n, ), dtype=c1_array.dtype)
+    for i in range(n):
+        cn_array[..., i] = c1_array
+    return cn_array
