@@ -9,9 +9,10 @@
 @desc:
 """
 from typing import Any
+import time
 
 
-__all__ = ['indent']
+__all__ = ['indent', 'get_local_time_str']
 
 
 def indent(lines: Any, spaces: int=2) -> str:
@@ -32,3 +33,9 @@ def indent(lines: Any, spaces: int=2) -> str:
     lines = [indent + line for line in lines]
 
     return '\n'.join(lines)
+
+
+def get_local_time_str():
+    """Return current time str in the format %Y-%m-%d-%H-%M-%S"""
+    cur_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+    return cur_time
