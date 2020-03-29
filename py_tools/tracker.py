@@ -11,7 +11,7 @@
 import json
 import os
 import pickle
-from pprint import pformat
+from pprint import pformat, pprint
 from typing import Any, Callable, DefaultDict, Optional
 from collections import defaultdict, OrderedDict
 import warnings
@@ -175,6 +175,20 @@ class Tracker(object):
         finally:
             with open(os.path.join(save_dir, 'statistics.pkl'), 'wb') as pkl_f:
                 pickle.dump(self.statistics(importance), pkl_f)
+
+    def print_statistics(self, importance: int=0):
+        """Print statistics filtered by importance
+
+        Args:
+            importance: importance filter. Only statistics with statistics.importance > importance will be saved
+
+        Returns:
+            Formatted statistics filtered by importance
+        """
+        _check_importance(importance)
+
+        pprint(self.statistics(importance))
+        return pformat(self.statistics(importance), indent=4)
 
     def reset(self):
         if self.init_dict is None:
