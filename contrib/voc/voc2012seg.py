@@ -37,6 +37,7 @@ class _VOCBase(Dataset):
         self.year = year
         self.split = split
         self.files = []
+        self.image_ids = []
         self._set_files()
 
     def _set_files(self):
@@ -44,6 +45,13 @@ class _VOCBase(Dataset):
 
     def __len__(self):
         return len(self.files)
+
+    def get_by_img_id(self, img_id: str):
+        try:
+            index = self.image_ids.index(img_id)
+        except ValueError:
+            raise RuntimeError(f"Can't find img_id {img_id} in dataset's image_ids list")
+        return self[index]
 
 
 class VOC(_VOCBase):
@@ -64,6 +72,8 @@ class VOC(_VOCBase):
             self.files = file_list
         else:
             raise ValueError("Invalid split name: {}".format(self.split))
+
+        self.image_ids = self.files
 
     def get_item(self, index):
         # Set paths
@@ -101,6 +111,8 @@ class VOCAug(_VOCBase):
             self.files, self.labels = list(zip(*file_list))
         else:
             raise ValueError("Invalid split name: {}".format(self.split))
+
+        self.image_ids = [file.split("/")[-1].split(".")[0] for file in self.files]
 
     def get_item(self, index):
         # Set paths
