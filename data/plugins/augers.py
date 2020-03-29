@@ -12,6 +12,7 @@ from typing import Optional, Union, Iterable, Callable, Tuple
 import numpy as np
 import cv2
 from collections import abc
+from scipy import ndimage as nd
 
 from alchemy_cat.data.data_auger import RandMap, MultiMap
 from alchemy_cat.py_tools import Compose, Lambda
@@ -221,8 +222,8 @@ def _check_img_size_equal_label_size(img, label):
 
 
 def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.ndarray] = None,
-                    aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x) \
-                    -> Union[np.ndarray, Tuple[np.ndarray]]:
+                    aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x,
+                    align_corner: bool=False) -> Union[np.ndarray, Tuple[np.ndarray]]:
     """Scale img and label accroding to scaled factor
 
     Args:
@@ -231,6 +232,8 @@ def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.nda
         label: If not none, label to be scaled
         aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size). If
             Iterable, then first and second aligners separately used to align H and W.
+        align_corner: If true, use ndimage's zoom to resize img and label, which can align corner. Else use cv2's
+            resize to scaled img and label, which will align center. (Default: False)
 
     Returns: Scaled img and label(If exits)
     """
@@ -248,10 +251,17 @@ def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.nda
 
     scaled_h, scaled_w = \
         aligner_h(int(scale_factor * img.shape[0])), aligner_w(int(scale_factor * img.shape[1]))
-    scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
+
+    if not align_corner:
+        scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
+    else:
+        scaled_img = nd.zoom(img, (scaled_h / img.shape[0], scaled_w / img.shape[1], 1.0), order=1)
 
     if label is not None:
-        scaled_label = cv2.resize(label, (scaled_w, scaled_h), interpolation=cv2.INTER_NEAREST)
+        if not align_corner:
+            scaled_label = cv2.resize(label, (scaled_w, scaled_h), interpolation=cv2.INTER_NEAREST)
+        else:
+            scaled_label = nd.zoom(label, (scaled_h / label.shape[0], scaled_w / label.shape[1]), order=0)
         return scaled_img, scaled_label
     else:
         return scaled_img
@@ -260,7 +270,8 @@ def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.nda
 class RandScale(RandMap):
 
     def __init__(self, scale_factors: Iterable,
-                 aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x):
+                 aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x,
+                 align_corner: bool=False):
         """Auger to rand rescale the input img and corresponding label
 
         Args:
@@ -268,6 +279,8 @@ class RandScale(RandMap):
             rand scale with factor 0.5, 1.0 or 1.5
             aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size). If
                 Iterable, then first and second aligners separately used to align H and W.
+            align_corner: If true, use ndimage's zoom to resize img and label, which can align corner. Else use cv2's
+                resize to scaled img and label, which will align center. (Default: False)
         """
         super(RandScale, self).__init__()
 
@@ -279,6 +292,7 @@ class RandScale(RandMap):
             self.rand_seeds.append(factor)
 
         self.aligner = aligner
+        self.align_corner = align_corner
 
     def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
         """Rand Scale img according to rand seed
@@ -291,12 +305,13 @@ class RandScale(RandMap):
         """
         scale_factor = self.rand_seed
 
-        return scale_img_label(scale_factor, img, label, self.aligner)
+        return scale_img_label(scale_factor, img, label, self.aligner, align_corner=self.align_corner)
 
 
 class MultiScale(MultiMap):
     def __init__(self, scale_factors: Iterable,
-                 aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x):
+                 aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x,
+                 align_corner: bool=False):
         """Auger to Multi rescale the input img and corresponding label
 
         Args:
@@ -304,6 +319,8 @@ class MultiScale(MultiMap):
             rand scale with factor 0.5, 1.0 or 1.5
             aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size). If
                 Iterable, then first and second aligners separately used to align H and W.
+            align_corner: If true, use ndimage's zoom to resize img and label, which can align corner. Else use cv2's
+                resize to scaled img and label, which will align center. (Default: False)
         """
         super(MultiScale, self).__init__()
 
@@ -317,6 +334,7 @@ class MultiScale(MultiMap):
         self.output_num = len(self.scale_factors)
 
         self.aligner = aligner
+        self.align_corner = align_corner
 
     def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
         """Rand Scale img according to rand seed
@@ -329,7 +347,7 @@ class MultiScale(MultiMap):
         """
         scale_factor = self.scale_factors[self.output_index]
 
-        return scale_img_label(scale_factor, img, label, self.aligner)
+        return scale_img_label(scale_factor, img, label, self.aligner, align_corner=self.align_corner)
 
 
 def pad_img_label(img: np.ndarray, label: Optional[np.ndarray] = None, pad_img_to: Union[Iterable, int] = 0,

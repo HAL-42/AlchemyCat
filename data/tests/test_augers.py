@@ -907,7 +907,7 @@ def test_multi_scale(voc_dataset):
 
             self.graph.add_node(MultiScale, inputs=['img', 'label'], outputs=['scaled_img', 'scaled_label'],
                                 init={'scale_factors': kScaleFactors,
-                                      'aligner': [lambda x: x + 1, lambda x: x - 1]})
+                                      'aligner': [lambda x: x + 1, lambda x: x - 1], 'align_corner': True})
 
     auger = MultiScaleAuger(voc_dataset, verbosity=0, slim=True)
     multi_node: Node = auger.multi_nodes[0]
