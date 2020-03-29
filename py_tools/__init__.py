@@ -12,7 +12,7 @@ from alchemy_cat.py_tools.const import Const
 from alchemy_cat.py_tools.process_bar import ProcessBar
 from alchemy_cat.py_tools.quick_init import quick_init
 from alchemy_cat.py_tools.type import *
-from alchemy_cat.py_tools.timer import Timer
+from alchemy_cat.py_tools.timer import *
 from alchemy_cat.py_tools.func_tools import *
 from alchemy_cat.py_tools.str_formatters import *
 from alchemy_cat.py_tools.random import *
