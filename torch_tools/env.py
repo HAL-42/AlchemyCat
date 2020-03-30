@@ -11,6 +11,7 @@
 import os
 import os.path as osp
 import sys
+import warnings
 import torch
 from addict import Dict
 from typing import Union, Optional, Tuple
@@ -23,6 +24,17 @@ from yamlinclude import YamlIncludeConstructor
 from alchemy_cat.py_tools import set_rand_seed, Logger
 
 __all__ = ["get_device", "open_config", "init_env"]
+
+
+def _check_emtpy_value(val, memo='base.'):
+    """Recursively detect empty val in dict"""
+    if not val:
+        warnings.warn(f"{memo[:-1]} is a empty val: {val}")
+    elif isinstance(val, dict):
+        for k, v in val.items():
+            _check_emtpy_value(v, memo + k + '.')
+    else:
+        pass
 
 
 def get_device(is_cuda: bool=True, verbosity: bool=True) -> torch.device:
@@ -108,6 +120,8 @@ def parse_config(config_path: str, experiments_root: str):
         else:
             TEST_DIR = EXP_DIR
         CONFIG['TEST_DIR'] = TEST_DIR
+
+        _check_emtpy_value(CONFIG, memo='config.')
 
         return Dict(CONFIG)
 
