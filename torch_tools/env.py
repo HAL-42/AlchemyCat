@@ -23,7 +23,7 @@ from yamlinclude import YamlIncludeConstructor
 
 from alchemy_cat.py_tools import set_rand_seed, Logger
 
-__all__ = ["get_device", "open_config", "init_env"]
+__all__ = ["get_device", "open_config", "init_env", "parse_config"]
 
 
 def _check_emtpy_value(val, memo='base.'):
