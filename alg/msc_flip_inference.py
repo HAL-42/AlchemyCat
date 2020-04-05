@@ -11,7 +11,8 @@
 import torch
 import torch.nn.functional as F
 
-from typing import Union, List, Tuple, Optional, Callable, Iterable
+from typing import Union, Callable, Iterable
+from collections import abc
 
 from alchemy_cat.alg.utils import size2HW
 
@@ -43,21 +44,27 @@ def _pad_labels(labels, size, ignore_label):
 
 
 def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Tensor],
-                       msc_factors: Union[List[int], Tuple[int]], is_flip: bool=True,
-                       pad_imgs_to: Union[None, Iterable, int]=None, pad_aligner: Optional[Callable[[int], int]]=None,
-                       msc_aligner: Optional[Callable[[int], int]]=None) -> torch.Tensor:
+                       msc_factors: Iterable[Union[Iterable[float], float]],
+                       is_flip: bool=True,
+                       pad_imgs_to: Union[None, Iterable, int]=None,
+                       pad_aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]]=lambda x: x,
+                       msc_aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]]=lambda x: x) \
+        -> torch.Tensor:
     """MSC and flip inference
 
     Args:
-        imgs (torch.Tensor): imgs with shape (N, C, H, W)
-        model (Callable): torch models
-        msc_factors (Union[list[int], tuple[int]]): multi scale factors
-        is_flip (bool): If true, the flipped imgs will be used for inference
-        pad_imgs_to (Union[None, Iterable, int]): If not None, the img will be pad to size(int or [int, int]) specified
-        pad_aligner (Callable): If not None, the pad size will be refine to pad_aligner(pad_size)
-        msc_aligner (Callable): If not None, the scale size will be refine to msc_aligner(scale_size)
+        imgs: Imgs with shape (N, C, H, W)
+        model: torch models
+        msc_factors: Multi scale factors. Each factor can be 'factor_for_height_width' or
+            '(height_factor, width_factor)'.
+        is_flip: If true, the flipped imgs will be used for inference
+        pad_imgs_to: If not None, the img will be pad to size(int or [int, int]) specified
+        pad_aligner: The pad_size will be fix by aligner(pad_size). If Iterable, then first and second aligners
+            separately used to align H and W.
+        msc_aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size). If
+            Iterable, then first and second aligners separately used to align H and W.
 
-    Returns: Probs of image predicts
+    Returns: (N, C, H, W) probs of image predicts
     """
     origin_h, origin_w = imgs.shape[-2:]
 
@@ -67,12 +74,27 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
     else:
         padded_imgs = imgs
 
+    # * Process pad aligner
+    if isinstance(pad_aligner, abc.Callable):
+        pad_aligner_h, pad_aligner_w = pad_aligner, pad_aligner
+    elif isinstance(pad_aligner, abc.Iterable):
+        pad_aligner_h, pad_aligner_w = pad_aligner
+    else:
+        raise ValueError(f"pad_aligner {pad_aligner} must be Callable or Iterable[Callable]")
+
     # * pad img to align size
-    if pad_aligner is not None:
-        align_size = (pad_aligner(s) for s in padded_imgs.shape[-2:])
-        padded_imgs = _pad_imgs(padded_imgs, align_size)
+    pad_align_size = (pad_aligner_h(padded_imgs.shape[-2]), pad_aligner_w(padded_imgs.shape[-1]))
+    padded_imgs = _pad_imgs(padded_imgs, pad_align_size)
 
     padded_h, padded_w = padded_imgs.shape[-2:]
+
+    # * Process scale aligner
+    if isinstance(msc_aligner, abc.Callable):
+        msc_aligner_h, msc_aligner_w = msc_aligner, msc_aligner
+    elif isinstance(msc_aligner, abc.Iterable):
+        msc_aligner_h, msc_aligner_w = msc_aligner
+    else:
+        raise ValueError(f"msc_aligner {msc_aligner} must be Callable or Iterable[Callable]")
 
     def flip_imgs(imgs):
         """Flip imgs and cat it N dim"""
@@ -87,9 +109,17 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
     # * Get probs from each scale
     msc_probs = []
     for msc_factor in msc_factors:
-        scaled_h, scaled_w = (int(s * msc_factor) for s in (padded_h, padded_w))
-        if msc_aligner is not None:
-            scaled_h, scaled_w = msc_aligner(scaled_h), msc_aligner(scaled_w)
+        # * Process msc factor
+        if isinstance(msc_factor, float):
+            msc_factor_h, msc_factor_w = msc_factor, msc_factor
+        elif isinstance(msc_factor, abc.Iterable):
+            msc_factor_h, msc_factor_w = msc_factor
+        else:
+            raise ValueError(f"msc_factor {msc_factor} in msc_factors {msc_factors} must be float or Iterable[float]")
+
+        # * Get scaled size
+        scaled_h, scaled_w = int(padded_h * msc_factor_h), int(padded_w * msc_factor_w)
+        scaled_h, scaled_w = msc_aligner_h(scaled_h), msc_aligner_w(scaled_w)
 
         batch_X = F.interpolate(padded_imgs, size=(scaled_h, scaled_w), mode='bilinear', align_corners=True)
         if is_flip:
