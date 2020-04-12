@@ -34,6 +34,7 @@ class Logger(object):
 
     def flush(self):
         self.terminal.flush()
+        self.log.flush()
 
     def __del__(self):
         self.flush()
