@@ -28,7 +28,7 @@ __all__ = ["get_device", "open_config", "init_env", "parse_config"]
 
 def _check_emtpy_value(val, memo='base.'):
     """Recursively detect empty val in dict"""
-    if not val:
+    if (not val) and (val is not False) and (val is not 0):
         warnings.warn(f"{memo[:-1]} is a empty val: {val}")
     elif isinstance(val, dict):
         for k, v in val.items():
