@@ -185,6 +185,12 @@ class ClassificationMetric(Tracker):
     def cls_weight(self):
         return self.condition_positive / self.N
 
+    condition_weight = cls_weight
+
+    @Statistic.getter(1)
+    def prediction_weight(self):
+        return self.prediction_positive / self.N
+
     @Statistic.getter(1)
     def cls_recall(self):
         return self.TP / self.condition_positive
@@ -207,7 +213,7 @@ class ClassificationMetric(Tracker):
 
     @Statistic.getter(1)
     def weighted_avg_precision(self):
-        return np.nansum(self.cls_weight * self.cls_precision)
+        return np.nansum(self.prediction_weight * self.cls_precision)
 
     @Statistic.getter(1)
     def cls_F1_score(self):
