@@ -82,54 +82,62 @@ def open_config(config_path: str, is_yaml: bool=False) -> Union[Dict, dict]:
 
 
 def parse_config(config_path: str, experiments_root: str):
-    # * Read config and set config include
-    if config_path is not None:
-        config_dir, _ = osp.split(config_path)
-        YamlIncludeConstructor.add_to_loader_class(loader_class=yaml.FullLoader, base_dir=config_dir)
-        CONFIG = open_config(config_path, is_yaml=True)
-    else:
-        CONFIG = None
+    """Parse config from config path.
+
+    This function will read yaml config from config path then create EXP_DIR, TRAIN_DIR, TEST_DIR according to config
+    file.
+
+    Args:
+        config_path: Path of yaml config.
+        experiments_root: Root dictionary for experiments.
+
+    Returns:
+        YAML config in Addict format
+    """
+    if not osp.isfile(config_path):
+        raise RuntimeError(f"No config file found at {config_path}")
+
+    # * Read and set config
+    config_dir, _ = osp.split(config_path)
+    YamlIncludeConstructor.add_to_loader_class(loader_class=yaml.FullLoader, base_dir=config_dir)
+
+    config = open_config(config_path, is_yaml=True)
+    if config is None:
+        raise RuntimeError(f"Failed to parse config at {config_path}")
 
     # * Create experiment dirs according to CONFIG
-    if config_path is not None:
-        assert CONFIG is not None
-        assert CONFIG.get('EXP_DIR') is None and CONFIG.get('TRAIN_DIR') is None and CONFIG.get('TEST_DIR') is None
-
-        EXP_ID = CONFIG.get('EXP_ID')
-        if EXP_ID is None:
-            raise ValueError("CONFIG.EXP_ID must be defined")
-        EXP_DIR = osp.join(experiments_root, str(EXP_ID))
-        os.makedirs(EXP_DIR, exist_ok=True)
-        CONFIG['EXP_DIR'] = EXP_DIR
-
-        TRAIN_ID = CONFIG.get('TRAIN_ID')
+    assert config.get('EXP_DIR') is None and config.get('TRAIN_DIR') is None and config.get('TEST_DIR') is None
+    EXP_ID = config.get('EXP_ID')
+    if EXP_ID is None:
+        raise ValueError("CONFIG.EXP_ID must be defined")
+    EXP_DIR = osp.join(experiments_root, str(EXP_ID))
+    os.makedirs(EXP_DIR, exist_ok=True)
+    config['EXP_DIR'] = EXP_DIR
+    TRAIN_ID = config.get('TRAIN_ID')
+    if TRAIN_ID is not None:
+        TRAIN_DIR = osp.join(EXP_DIR, 'trains', str(TRAIN_ID))
+        os.makedirs(TRAIN_DIR, exist_ok=True)
+    else:
+        TRAIN_DIR = EXP_DIR
+    config['TRAIN_DIR'] = TRAIN_DIR
+    TEST_ID = config.get('TEST_ID')
+    if TEST_ID is not None:
         if TRAIN_ID is not None:
-            TRAIN_DIR = osp.join(EXP_DIR, 'trains', str(TRAIN_ID))
-            os.makedirs(TRAIN_DIR, exist_ok=True)
+            TEST_DIR = osp.join(TRAIN_DIR, 'tests', str(TEST_ID))
         else:
-            TRAIN_DIR = EXP_DIR
-        CONFIG['TRAIN_DIR'] = TRAIN_DIR
-
-        TEST_ID = CONFIG.get('TEST_ID')
-        if TEST_ID is not None:
-            if TRAIN_ID is not None:
-                TEST_DIR = osp.join(TRAIN_DIR, 'tests', str(TEST_ID))
-            else:
-                TEST_DIR = osp.join(EXP_DIR, 'tests', str(TEST_ID))
-            os.makedirs(TEST_DIR, exist_ok=True)
-        else:
-            TEST_DIR = EXP_DIR
-        CONFIG['TEST_DIR'] = TEST_DIR
-
-        _check_emtpy_value(CONFIG, memo='config.')
-
-        return Dict(CONFIG)
+            TEST_DIR = osp.join(EXP_DIR, 'tests', str(TEST_ID))
+        os.makedirs(TEST_DIR, exist_ok=True)
+    else:
+        TEST_DIR = EXP_DIR
+    config['TEST_DIR'] = TEST_DIR
+    _check_emtpy_value(config, memo='config.')
+    return Dict(config)
 
 
 def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, config_path: Optional[str]=None,
-             experiments_root: str = "experiment", rand_seed: bool=False,
-             cv2_num_threads: int=0, verbosity: bool=True, log_stdout: bool=False) \
-        -> Union[Tuple[torch.device, Dict], torch.device]:
+             experiments_root: str="experiment", rand_seed: Union[bool, str, int]=False,
+             cv2_num_threads: int=0, verbosity: bool=True, log_stdout: Union[bool, str]=False) \
+        -> Tuple[torch.device, Optional[Dict]]:
     """Init torch training environment
 
     Args:
@@ -138,27 +146,43 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
         is_train (bool): If False, disable grad
         config_path (Optional[str]): The path of yaml config
         experiments_root (str): The path where experiments result are stored
-        rand_seed : If not True, fix random of torch, numpy, python's random module from CONFIG.RAND_SEED
+        rand_seed (Union[bool, str, int]) : If True, fix random of torch, numpy, python's random module from
+            config.RAND_SEED. If False, don't fix random. If rand_seed is int or str, fix random according to
+            rand_seed. (Default: False)
         cv2_num_threads (int): Set cv2 threads num by cv2.setNumThreads(cv2_num_threads)
         verbosity (bool): If True, print detailed info
-        log_stdout (bool): If True, the stdout will be logged to corresponding experiment dir
+        log_stdout (Union[bool, str]): If True, the stdout will be logged to corresponding experiment dir. If False, the
+            stdout will not be logged. If log_stdout is str, it will be recognized as a path and stdout will be logged
+            to that path. (Default: False)
 
-    Returns: Default device if config_path is not given, rather (Default Device, CONFIG)
+    Returns: Default device and config (If config_path is None, config is None)
     """
     # * Read CONFIG
-    CONFIG = parse_config(config_path, experiments_root)
+    config = parse_config(config_path, experiments_root) if config_path is not None else None
+
+    def set_stdout_log_file_from_config():
+        if config is not None:
+            if 'TEST_ID' in config:
+                stdout_log_file = osp.join(config.TEST_DIR, 'stdout.log')
+            elif 'TRAIN_ID' in config:
+                stdout_log_file = osp.join(config.TRAIN_DIR, 'stdout.log')
+            else:
+                stdout_log_file = osp.join(config.EXP_ID, 'stdout.log')
+        else:
+            raise ValueError(f"Can't set stdout log file according to config for config_path is not given.")
+
+        return stdout_log_file
 
     # * Log stdout
-    if log_stdout:
-        if 'TEST_ID' in CONFIG:
-            stdout_log_file = osp.join(CONFIG.TEST_DIR, 'stdout.log')
-        elif 'TRAIN_ID' in CONFIG:
-            stdout_log_file = osp.join(CONFIG.TRAIN_DIR, 'stdout.log')
-        else:
-            stdout_log_file = osp.join(CONFIG.EXP_ID, 'stdout.log')
+    if isinstance(log_stdout, bool):
+        stdout_log_file = set_stdout_log_file_from_config() if log_stdout else None
+    elif isinstance(log_stdout, str):
+        stdout_log_file = log_stdout
+    else:
+        raise ValueError(f"log_stdout: {log_stdout} should be bool or path str")
 
+    if stdout_log_file is not None:
         Logger(stdout_log_file, real_time=True)
-
         if verbosity:
             print(f"Log stdout at {stdout_log_file}")
 
@@ -169,11 +193,11 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
         print(f"Current python environment path is\n{sys.path}")
         print("\n")
 
-    if verbosity:
-            print("\033[32m------------------------------- CONFIG -------------------------------\033[0m")
-            pprint(dict(CONFIG))
-            print("\033[32m----------------------------- CONFIG END -----------------------------\033[0m")
-            print("\n")
+    if verbosity and config is not None:
+        print("\033[32m------------------------------- CONFIG -------------------------------\033[0m")
+        pprint(dict(config))
+        print("\033[32m----------------------------- CONFIG END -----------------------------\033[0m")
+        print("\n")
 
     if verbosity:
         print("\033[32m-------------------------------- INIT --------------------------------\033[0m")
@@ -196,20 +220,28 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
     if verbosity:
         print(f"torch.set_grad_enabled({is_train})")
 
-    # * Set rand seed
-    if rand_seed:
-        if 'RAND_SEED' not in CONFIG:
+    def get_rand_seed_from_config():
+        if 'RAND_SEED' not in config:
             raise ValueError(f"CONFIG did't have key RAND_SEED")
-        set_rand_seed(CONFIG.RAND_SEED)
-        if verbosity:
-            print(f"Set rand seed {CONFIG.RAND_SEED}")
+        return config.RAND_SEED
 
+    # * Set rand seed
+    if isinstance(rand_seed, bool):
+        rand_seed_ = get_rand_seed_from_config() if rand_seed else None
+    elif isinstance(rand_seed, int) or isinstance(rand_seed, str):
+        rand_seed_ = rand_seed
+    else:
+        raise ValueError(f"rand_seed should be bool, int or str.")
+
+    if rand_seed_ is not None:
+        set_rand_seed(rand_seed_)
+        if verbosity:
+            print(f"Set rand seed {rand_seed_}")
+
+    # End of init
     if verbosity:
         print("\033[32m------------------------------ INIT END ------------------------------\033[0m")
         print("\n")
 
     # * Return
-    if config_path is not None:
-        return device, CONFIG
-    else:
-        return device
+    return device, config
