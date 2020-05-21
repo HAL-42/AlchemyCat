@@ -10,16 +10,14 @@
 """
 import numpy as np
 
-
-__all__ = ["VOC_COLOR", "VOC_CLASSES", "color_map2label_map", "label_map2color_map",]
-
+__all__ = ["VOC_COLOR", "VOC_CLASSES", "color_map2label_map", "label_map2color_map", ]
 
 VOC_COLOR = np.array([[0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0],
-                [0, 0, 128], [128, 0, 128], [0, 128, 128], [128, 128, 128],
-                [64, 0, 0], [192, 0, 0], [64, 128, 0], [192, 128, 0],
-                [64, 0, 128], [192, 0, 128], [64, 128, 128], [192, 128, 128],
-                [0, 64, 0], [128, 64, 0], [0, 192, 0], [128, 192, 0],
-                [0, 64, 128]], dtype=np.uint8)
+                      [0, 0, 128], [128, 0, 128], [0, 128, 128], [128, 128, 128],
+                      [64, 0, 0], [192, 0, 0], [64, 128, 0], [192, 128, 0],
+                      [64, 0, 128], [192, 0, 128], [64, 128, 128], [192, 128, 128],
+                      [0, 64, 0], [128, 64, 0], [0, 192, 0], [128, 192, 0],
+                      [0, 64, 128]], dtype=np.uint8)
 
 VOC_CLASSES = ['background', 'aeroplane', 'bicycle', 'bird', 'boat',
                'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
@@ -44,7 +42,7 @@ def color_map2label_map(color_map: np.ndarray) -> np.ndarray:
         Labels with shape (...)
     """
     color_id_map = ((color_map[..., 0] * 256 + color_map[..., 1]) * 256
-           + color_map[..., 2])
+                    + color_map[..., 2])
     return color_id2label[color_id_map]
 
 
