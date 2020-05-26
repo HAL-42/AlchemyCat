@@ -9,7 +9,8 @@
 @desc:
 """
 import sys
-
+import os
+import os.path as osp
 
 class Logger(object):
     """After call Logger(outfile), the stdout will print to both stdout and out_file"""
@@ -22,6 +23,7 @@ class Logger(object):
             real_time: If True, log file will flush after every write() call. (Default: False)
         """
         self.terminal = sys.stdout
+        os.makedirs(osp.dirname(out_file), exist_ok=True)
         self.log = open(out_file, "w")
         sys.stdout = self
         self.real_time = real_time
