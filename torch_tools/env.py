@@ -238,7 +238,7 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
         if verbosity:
             print(f"Set rand seed {rand_seed_}")
 
-    # End of init
+    # * End of init
     if verbosity:
         print("\033[32m------------------------------ INIT END ------------------------------\033[0m")
         print("\n")
