@@ -76,13 +76,20 @@ class VOC(_VOCBase):
         self.image_ids = self.files
 
     def get_item(self, index):
-        # Set paths
         image_id = self.files[index]
+
+        # * Load imgs
         image_path = osp.join(self.image_dir, image_id + ".jpg")
-        label_path = osp.join(self.label_dir, image_id + ".png")
-        # Load an image
         image = cv2.imread(image_path, cv2.IMREAD_COLOR)
-        label = np.asarray(Image.open(label_path), dtype=np.uint8)
+
+        # * Load Labels
+        if self.split != 'test':
+            label_path = osp.join(self.label_dir, image_id + ".png")
+            label = np.asarray(Image.open(label_path), dtype=np.uint8)
+        else:
+            # If no label, then giving a all ignore ground truth
+            label = np.zeros(image.shape[:2], dtype=np.uint8) + self.ignore_label
+
         return image_id, image, label
 
 
@@ -109,19 +116,31 @@ class VOCAug(_VOCBase):
             file_list = tuple(open(file_list, "r"))
             file_list = [id_.rstrip().split(" ") for id_ in file_list]
             self.files, self.labels = list(zip(*file_list))
+        elif self.split == 'test':
+            file_list = osp.join(
+                self.root, "ImageSets", "SegmentationAug", self.split + ".txt"
+            )
+            file_list = tuple(open(file_list, "r"))
+            self.files = [id_.rstrip() for id_ in file_list]
         else:
             raise ValueError("Invalid split name: {}".format(self.split))
 
         self.image_ids = [file.split("/")[-1].split(".")[0] for file in self.files]
 
     def get_item(self, index):
-        # Set paths
+        # * Load image
         image_id = self.files[index].split("/")[-1].split(".")[0]
         image_path = osp.join(self.root, self.files[index][1:])
-        label_path = osp.join(self.root, self.labels[index][1:])
-        # Load an image
         image = cv2.imread(image_path, cv2.IMREAD_COLOR)
-        label = np.asarray(Image.open(label_path), dtype=np.uint8)
+
+        # * Load Label
+        if self.split != 'test':
+            label_path = osp.join(self.root, self.labels[index][1:])
+            label = np.asarray(Image.open(label_path), dtype=np.uint8)
+        else:
+            # If no label, then giving a all ignore ground truth
+            label = np.zeros(image.shape[:2], dtype=np.uint8) + self.ignore_label
+
         return image_id, image, label
 
 
