@@ -17,6 +17,7 @@ from collections import defaultdict, OrderedDict
 import warnings
 
 from alchemy_cat.py_tools import indent
+from alchemy_cat.py_tools.numpy_json_encoder import NumpyArrayEncoder
 
 __all__ = ['Statistic', 'Tracker', 'OneOffTracker']
 
@@ -167,12 +168,11 @@ class Tracker(object):
         # * Save statistics
         try:
             with open(os.path.join(save_dir, 'statistics.json'), 'w') as json_f:
-                json.dump(self.statistics(importance), json_f, indent=4)
-        except:
-            os.remove(os.path.join(save_dir, 'statistics.json'))
+                json.dump(self.statistics(importance), json_f, indent=4, cls=NumpyArrayEncoder)
+        finally:
             with open(os.path.join(save_dir, 'statistics.txt'), 'w') as txt_f:
                 txt_f.write(pformat(self.statistics(importance), indent=4))
-        finally:
+
             with open(os.path.join(save_dir, 'statistics.pkl'), 'wb') as pkl_f:
                 pickle.dump(self.statistics(importance), pkl_f)
 
