@@ -8,7 +8,7 @@
 @time: 2020/1/12 1:48
 @desc:
 """
-from typing import Union
+from typing import Union, Optional
 import numpy as np
 from inspect import signature
 import lmdb
@@ -151,6 +151,9 @@ class DataAuger(Dataset):
             rand_seed_log: lmdb database where rand seeds saved
         """
         self._dataset = dataset
+
+        self._rand_seed_log: Optional[str] = None
+        self.lmdb_env: Optional[lmdb.Environment] = None
         self.rand_seed_log = rand_seed_log
 
         self.graph = Graph(verbosity=verbosity, pool_size=pool_size, slim=slim)
@@ -237,12 +240,33 @@ class DataAuger(Dataset):
         for node in self.rand_nodes:
             node._fct.rand_seed = rand_seeds[node._id]
 
+    @property
+    def rand_seed_log(self):
+        return self._rand_seed_log
+
+    @rand_seed_log.setter
+    def rand_seed_log(self, rand_seed_log):
+        if (not isinstance(rand_seed_log, str)) and (rand_seed_log is not None):
+            raise ValueError(f"rand_seed_log = {rand_seed_log} must be str or None")
+
+        self._rand_seed_log = rand_seed_log
+
+        if self.lmdb_env is not None:
+            self.lmdb_env.close()
+            self.lmdb_env = None
+
+        if rand_seed_log is not None:
+            self.lmdb_env = lmdb.open(rand_seed_log, meminit=False, map_size=2147483648, max_spare_txns=16,
+                                      sync=False, metasync=False, lock=False)
+
+    def __del__(self):
+        self.rand_seed_log = None
+
     def get_item(self, idx):
         example = self._dataset[self.load_indices(idx)]
 
-        if self.rand_seed_log is not None:
-            env = lmdb.open(self.rand_seed_log, meminit=False)
-            with env.begin() as txn:
+        if self.lmdb_env is not None:
+            with self.lmdb_env.begin() as txn:
                 rand_seeds = txn.get(str(idx).encode())
             if rand_seeds is not None:
                 rand_seeds = pickle.loads(rand_seeds)
@@ -250,10 +274,9 @@ class DataAuger(Dataset):
 
         ret = self.graph.calculate(data={'example': example})
 
-        if self.rand_seed_log is not None and rand_seeds is None:
-            with env.begin(write=True) as txn:
+        if self.lmdb_env is not None and rand_seeds is None:
+            with self.lmdb_env.begin(write=True) as txn:
                 txn.put(str(idx).encode(), pickle.dumps(self.rand_seeds))
-            env.close()
 
         return ret
 
