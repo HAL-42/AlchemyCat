@@ -81,7 +81,7 @@ class DataManager(object):
     __initialized: bool = False
 
     def __init__(self, dataset: Union[Dataset, TorchDataset, None]=None, data_auger: Optional[DataAuger]=None,
-                 log_dir: str='.', is_prefetch: bool=False,
+                 log_dir: str='.', is_prefetch: bool=False, log_rand_seeds: bool=True,
                  batch_size: int=1, shuffle: bool=False, sampler: Optional[Sampler]=None,
                  batch_sampler: Optional[Sampler]=None, num_workers: int=0, collate_fn: Optional[Callable]=None,
                  pin_memory: bool=False, drop_last: bool=False, timeout: int=0,
@@ -95,6 +95,7 @@ class DataManager(object):
             log_dir: Dictionary where DataManager save it's log
             is_prefetch: If True, data loader iter will be wrapped by Prefetcher, which can overlap the data transfer
                 and calculating on GPU. Only usable when cuda is available. (Default: False)
+            log_rand_seeds: If True, rand seeds will be recorded. (Default: True)
             batch_size: Same to param for torch.data.DataLoader
             shuffle: Same to param for torch.data.DataLoader
             sampler: Same to param for torch.data.DataLoader
@@ -126,6 +127,7 @@ class DataManager(object):
 
         self.log_dir = log_dir
         self.is_prefetch = is_prefetch
+        self.log_rand_seeds = log_rand_seeds
 
         self.num_workers = num_workers
         self.pin_memory = pin_memory
@@ -373,7 +375,7 @@ class DataManager(object):
             self.save_batches(epoch, batches)
         self.epoch_batches = batches
 
-        self.auger.rand_seed_log = self.rand_seed_log_file(epoch)
+        self.auger.rand_seed_log = self.rand_seed_log_file(epoch) if self.log_rand_seeds else None
 
         epoch_batch_sampler = _EpochBatchSampler(batches, epoch_iteration, self.data_source)
 
