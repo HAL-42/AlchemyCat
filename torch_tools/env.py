@@ -22,6 +22,7 @@ import yaml
 from yamlinclude import YamlIncludeConstructor
 
 from alchemy_cat.py_tools import set_rand_seed, Logger
+from alchemy_cat.py_tools import get_process_info
 
 __all__ = ["get_device", "open_config", "init_env", "parse_config"]
 
@@ -191,6 +192,8 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
         welcome()
         print(f"Current working dir is {os.getcwd()}")
         print(f"Current python environment path is\n{sys.path}")
+        print(f"Current Process Info: ")
+        pprint(get_process_info())
         print("\n")
 
     if verbosity and config is not None:
