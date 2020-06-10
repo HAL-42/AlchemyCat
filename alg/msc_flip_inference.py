@@ -18,7 +18,7 @@ from alchemy_cat.alg.utils import size2HW
 
 
 def _pad_imgs(imgs, size):
-    img_h, img_w =imgs.size(2), imgs.size(3)
+    img_h, img_w = imgs.size(2), imgs.size(3)
     padded_h, padded_w = size2HW(size)
 
     pad_h = padded_h - img_h
@@ -48,7 +48,8 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
                        is_flip: bool=True,
                        pad_imgs_to: Union[None, Iterable, int]=None,
                        pad_aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]]=lambda x: x,
-                       msc_aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]]=lambda x: x) \
+                       msc_aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]]=lambda x: x,
+                       cuda_memory_saving: int=0) \
         -> torch.Tensor:
     """MSC and flip inference
 
@@ -63,10 +64,16 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
             separately used to align H and W.
         msc_aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size). If
             Iterable, then first and second aligners separately used to align H and W.
+        cuda_memory_saving: int before 0-2. The larger the less_cuda_memory, the less gpu memory used by function. May
+            loss some performance. (Default: 0)
 
     Returns: (N, C, H, W) probs of image predicts
     """
     origin_h, origin_w = imgs.shape[-2:]
+
+    # * For saving more gpu memory, move imgs to cpu.
+    if cuda_memory_saving > 1:
+        imgs = imgs.cpu()
 
     # * pad img to pad_img_to size
     if pad_imgs_to is not None:
@@ -125,7 +132,11 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
         if is_flip:
             batch_X = flip_imgs(batch_X)
 
-        scaled_logits = model(batch_X)
+        scaled_logits = model(batch_X.cuda())
+
+        if cuda_memory_saving > 0:
+            scaled_logits = scaled_logits.cpu()
+
         logits = F.interpolate(scaled_logits, size=(padded_h, padded_w), mode='bilinear', align_corners=True)
         probs = F.softmax(logits, dim=1)
         if is_flip:
