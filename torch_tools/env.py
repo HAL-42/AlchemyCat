@@ -137,7 +137,7 @@ def parse_config(config_path: str, experiments_root: str):
 
 def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, config_path: Optional[str]=None,
              experiments_root: str="experiment", rand_seed: Union[bool, str, int]=False,
-             cv2_num_threads: int=0, verbosity: bool=True, log_stdout: Union[bool, str]=False) \
+             cv2_num_threads: int=-1, verbosity: bool=True, log_stdout: Union[bool, str]=False) \
         -> Tuple[torch.device, Optional[Dict]]:
     """Init torch training environment
 
@@ -150,7 +150,8 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
         rand_seed (Union[bool, str, int]) : If True, fix random of torch, numpy, python's random module from
             config.RAND_SEED. If False, don't fix random. If rand_seed is int or str, fix random according to
             rand_seed. (Default: False)
-        cv2_num_threads (int): Set cv2 threads num by cv2.setNumThreads(cv2_num_threads)
+        cv2_num_threads (int): Set cv2 threads num by cv2.setNumThreads(cv2_num_threads). If < 0,
+            don't set. (Default: -1)
         verbosity (bool): If True, print detailed info
         log_stdout (Union[bool, str]): If True, the stdout will be logged to corresponding experiment dir. If False, the
             stdout will not be logged. If log_stdout is str, it will be recognized as a path and stdout will be logged
@@ -214,9 +215,10 @@ def init_env(is_cuda: bool=True, is_benchmark: bool=False, is_train: bool=True, 
         print(f"torch.backends.cudnn.benchmark = {is_benchmark}")
 
     # * Set cv2 threads num
-    cv2.setNumThreads(cv2_num_threads)
-    if verbosity:
-        print(f"cv2.setNumThreads({cv2_num_threads})")
+    if cv2_num_threads >= 0:
+        cv2.setNumThreads(cv2_num_threads)
+        if verbosity:
+            print(f"cv2.setNumThreads({cv2_num_threads})")
 
     # * If test, disable grad
     torch.set_grad_enabled(is_train)
