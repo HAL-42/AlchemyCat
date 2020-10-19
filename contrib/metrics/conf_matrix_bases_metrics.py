@@ -99,7 +99,9 @@ class ClassificationMetric(Tracker):
 
     def _plot_conf_matrix(self, **kwargs) -> plt.Figure:
         df = pd.DataFrame(self.conf_matrix, index=self.class_names, columns=self.class_names)
-        return pretty_plot_confusion_matrix(df, figsize=[self.class_num, self.class_num], pred_val_axis='x', **kwargs)
+
+        kwargs["figsize"] = [self.class_num * 2, self.class_num * 2] if "figsize" not in kwargs else kwargs["figsize"]
+        return pretty_plot_confusion_matrix(df, pred_val_axis='x', **kwargs)
 
     def show_conf_matrix(self, **kwargs) -> plt.Figure:
         """Plot confusion matrix
