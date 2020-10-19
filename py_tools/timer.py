@@ -78,7 +78,7 @@ class Timer(object):
             total = round(self._total, self._precision)
             ret = f"{total}{self._unit}"
 
-        return ret
+        return f"{self.name}: " + ret
 
 
 if __name__ == "__main__":
