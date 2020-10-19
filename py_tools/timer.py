@@ -24,7 +24,8 @@ class Timer(object):
 
         Args:
             unit: Timer's unit. Can be s, ms, us. If not given, then the program will adaptively choose a unit.
-            precision: Timer's output precision. The total time's decimal part will be rounded according to this precision.
+            precision: Timer's output precision. The total time's decimal part will be rounded according to
+                this precision.
             name: Timer's name.
         """
         if unit is not None and unit not in Timer.__unitfactor:
