@@ -256,8 +256,8 @@ class DataAuger(Dataset):
             self.lmdb_env = None
 
         if rand_seed_log is not None:
-            self.lmdb_env = lmdb.open(rand_seed_log, meminit=False, map_size=2147483648, max_spare_txns=16,
-                                      sync=False, metasync=False, lock=False)
+            self.lmdb_env = lmdb.open(rand_seed_log, meminit=False, map_size=2147483648, max_spare_txns=64,
+                                      sync=False, metasync=False, lock=True)
 
     def __del__(self):
         self.rand_seed_log = None
