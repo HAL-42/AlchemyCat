@@ -44,7 +44,7 @@ def test_constant_inputs():
     def f_my_function2(c):
         return c / 10.
 
-    res = graph.calculate(data={'a' :2})
+    res = graph.calculate(data={'a': 2})
     assert res == -1.5
     assert graph.data['e'] == -1.5
 
@@ -70,15 +70,15 @@ def test_slim_graph():
     def f_my_function2(c):
         return c / 10.
 
-    res = graph.calculate(data={'a': np.ones((2,2)) * 2., 'b': np.ones((2,2)) * 3.})
-    assert (res == np.ones((2,2)) * -1.5).all()
-    assert (graph.data['e'] == np.ones((2,2)) * -1.5).all()
+    res = graph.calculate(data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.})
+    assert (res == np.ones((2, 2)) * -1.5).all()
+    assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
     assert id(graph.ordered_nodes[0]._outputs[0].value) == id(graph.ordered_nodes[1]._inputs[0].value)
     assert id(graph.ordered_nodes[1]._outputs[0].value) == id(graph.ordered_nodes[2]._inputs[0].value)
 
-    res = graph.calculate(data={'a': np.ones((2,2)) * 2., 'b': np.ones((2,2)) * 3.})
-    assert (res == np.ones((2,2)) * -1.5).all()
-    assert (graph.data['e'] == np.ones((2,2)) * -1.5).all()
+    res = graph.calculate(data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.})
+    assert (res == np.ones((2, 2)) * -1.5).all()
+    assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
     assert id(graph.ordered_nodes[0]._outputs[0].value) == id(graph.ordered_nodes[1]._inputs[0].value)
     assert id(graph.ordered_nodes[1]._outputs[0].value) == id(graph.ordered_nodes[2]._inputs[0].value)
 
@@ -99,15 +99,15 @@ def test_not_slim_graph():
     def f_my_function2(c):
         return c / 10.
 
-    res = graph.calculate(data={'a': np.ones((2,2)) * 2., 'b': np.ones((2,2)) * 3.})
-    assert (res == np.ones((2,2)) * -1.5).all()
-    assert (graph.data['e'] == np.ones((2,2)) * -1.5).all()
+    res = graph.calculate(data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.})
+    assert (res == np.ones((2, 2)) * -1.5).all()
+    assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
     assert id(graph.ordered_nodes[0]._outputs[0].value) != id(graph.ordered_nodes[1]._inputs[0].value)
     assert id(graph.ordered_nodes[1]._outputs[0].value) != id(graph.ordered_nodes[2]._inputs[0].value)
 
-    res = graph.calculate(data={'a': np.ones((2,2)) * 2., 'b': np.ones((2,2)) * 3.})
-    assert (res == np.ones((2,2)) * -1.5).all()
-    assert (graph.data['e'] == np.ones((2,2)) * -1.5).all()
+    res = graph.calculate(data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.})
+    assert (res == np.ones((2, 2)) * -1.5).all()
+    assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
     assert id(graph.ordered_nodes[0]._outputs[0].value) != id(graph.ordered_nodes[1]._inputs[0].value)
     assert id(graph.ordered_nodes[1]._outputs[0].value) != id(graph.ordered_nodes[2]._inputs[0].value)
 
@@ -128,15 +128,15 @@ def test_node_slim_graph():
     def f_my_function2(c):
         return c / 10.
 
-    res = graph.calculate(data={'a': np.ones((2,2)) * 2., 'b': np.ones((2,2)) * 3.})
-    assert (res == np.ones((2,2)) * -1.5).all()
-    assert (graph.data['e'] == np.ones((2,2)) * -1.5).all()
+    res = graph.calculate(data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.})
+    assert (res == np.ones((2, 2)) * -1.5).all()
+    assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
     assert id(graph.ordered_nodes[0]._outputs[0].value) == id(graph.ordered_nodes[1]._inputs[0].value)
     assert id(graph.ordered_nodes[1]._outputs[0].value) != id(graph.ordered_nodes[2]._inputs[0].value)
 
-    res = graph.calculate(data={'a': np.ones((2,2)) * 2., 'b': np.ones((2,2)) * 3.})
-    assert (res == np.ones((2,2)) * -1.5).all()
-    assert (graph.data['e'] == np.ones((2,2)) * -1.5).all()
+    res = graph.calculate(data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.})
+    assert (res == np.ones((2, 2)) * -1.5).all()
+    assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
     assert id(graph.ordered_nodes[0]._outputs[0].value) == id(graph.ordered_nodes[1]._inputs[0].value)
     assert id(graph.ordered_nodes[1]._outputs[0].value) != id(graph.ordered_nodes[2]._inputs[0].value)
 
@@ -156,7 +156,7 @@ def test_functor():
 
     @graph.register(inputs=['d', 'a'], outputs=['e'], init={'add_or_sub': 'add', 'factor': 2})
     class f_my_function2(object):
-        def __init__(self, add_or_sub = 'add', factor=1):
+        def __init__(self, add_or_sub='add', factor=1):
             if add_or_sub == 'add':
                 self.func = lambda x, y: x + y
             else:
@@ -170,10 +170,9 @@ def test_functor():
         def __call__(self, a1, a2):
             return (self.func(a1, a2) + self.generate_constant()) * self.factor
 
-
     @graph.register(inputs=['c', 'b'], outputs=['d'], init={'add_or_sub': 'sub'})
     class f_my_function1(object):
-        def __init__(self, add_or_sub = 'add', factor=1):
+        def __init__(self, add_or_sub='add', factor=1):
             if add_or_sub == 'add':
                 self.func = lambda x, y: x + y
             else:
@@ -224,15 +223,18 @@ def test_simple_without_decorator():
 
 
 def par_f_my_function(a, b):
-        return a + b
+    return a + b
+
 
 def par_f_my_function3(d, a):
     return d - a
 
+
 def par_f_my_function2(c):
     return c / 10.
 
-def test_simple_parralel():
+
+def test_simple_parallel():
     """ TODO: We could mock and make sure things are called correctly """
 
     graph = Graph(pool_size=2)
@@ -276,7 +278,7 @@ def test_same_output_names():
         @graph.register(inputs=['c'], outputs=['c'])
         def f_my_function2(c):
             return c / 10
-    
+
     assert 'c output already exist' in str(err.value)
 
 
@@ -289,7 +291,7 @@ def test_missing_input():
 
     with pytest.raises(PyungoError) as err:
         graph.calculate(data={'a': 6})
-    
+
     assert "The following inputs are needed: ['b']" in str(err.value)
 
 
@@ -302,7 +304,7 @@ def test_inputs_not_used():
 
     with pytest.raises(PyungoError) as err:
         graph.calculate(data={'a': 6, 'b': 4, 'e': 7})
-    
+
     assert "The following inputs are not used by the model: ['e']" in str(err.value)
 
 
@@ -315,7 +317,7 @@ def test_inputs_collision():
 
     with pytest.raises(PyungoError) as err:
         graph.calculate(data={'a': 6, 'b': 4, 'c': 7})
-    
+
     assert "The following inputs are already used in the model: ['c']" in str(err.value)
 
 
@@ -419,7 +421,6 @@ def test_constant_dict_kwargs():
     assert graph.data['e'] == 20
 
 
-
 def test_diff_input_function_arg_name():
     graph = Graph()
 
@@ -436,6 +437,7 @@ def test_diff_input_function_arg_name():
 
     assert res == 14
     assert graph.data['e_diff'] == 14
+
 
 def test_dag_pretty_print():
     graph = Graph()
@@ -459,7 +461,6 @@ def test_dag_pretty_print():
 
 
 def test_passing_data_to_node_definition():
-
     graph = Graph()
 
     @graph.register(inputs=['a', {'b': 2}], outputs=['c'])
@@ -471,7 +472,6 @@ def test_passing_data_to_node_definition():
 
 
 def test_wrong_input_type():
-
     graph = Graph()
 
     with pytest.raises(PyungoError) as err:
@@ -483,7 +483,6 @@ def test_wrong_input_type():
 
 
 def test_empty_input_dict():
-
     graph = Graph()
 
     with pytest.raises(PyungoError) as err:
@@ -495,7 +494,6 @@ def test_empty_input_dict():
 
 
 def test_multiple_keys_input_dict():
-
     graph = Graph()
 
     with pytest.raises(PyungoError) as err:
@@ -525,12 +523,14 @@ def test_Input_type_input():
 def test_contract_inputs():
     from contracts import ContractNotRespected
     graph = Graph()
+
     @graph.register(
         inputs=[Input(name='a', contract='int,>0'), 'b'],
         outputs=['c']
     )
     def f_my_function(a, b):
         return a + b
+
     res = graph.calculate(data={'a': 2, 'b': 3})
     assert res == 5
     res = graph.calculate(data={'a': 2, 'b': 3})
@@ -544,12 +544,14 @@ def test_contract_inputs():
 def test_contract_outputs():
     from contracts import ContractNotRespected
     graph = Graph()
+
     @graph.register(
         inputs=['a', 'b'],
         outputs=[Output('c', contract='int,>0')]
     )
     def f_my_function(a, b):
         return a + b
+
     res = graph.calculate(data={'a': 2, 'b': 3})
     assert res == 5
     with pytest.raises(ContractNotRespected) as err:
@@ -558,7 +560,6 @@ def test_contract_outputs():
 
 
 def test_provide_inputs_outputs():
-
     inputs = [Input('a'), Input('b')]
     outputs = [Output('c')]
 
@@ -586,7 +587,6 @@ def test_provide_inputs_outputs():
 
 
 def test_provide_args_kwargs():
-
     inputs = [Input('b'), Input('c')]
     outputs = [Output('c')]
 
@@ -616,7 +616,6 @@ def test_provide_args_kwargs():
 
 
 def test_provide_inputs_outputs_already_defined():
-
     inputs = [Input('a'), Input('b')]
     outputs = [Output('c')]
 
@@ -635,7 +634,6 @@ def test_provide_inputs_outputs_already_defined():
 
 
 def test_map():
-
     graph = Graph()
 
     @graph.register(
@@ -651,7 +649,6 @@ def test_map():
 
 
 def test_schema():
-
     from jsonschema import ValidationError
 
     schema = {

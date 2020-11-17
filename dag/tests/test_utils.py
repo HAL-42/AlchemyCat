@@ -29,7 +29,7 @@ def test_get_function_return_names_tuple():
     def a():
         b = 2
         c = 3
-        return (b, c)
+        return b, c
 
     assert get_function_return_names(a) == ['b', 'c']
 

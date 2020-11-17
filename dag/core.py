@@ -23,7 +23,7 @@ def topological_sort(data):
     """ Topological sort algorithm
 
     Args:
-        data (dict): dictionnary representing dependencies
+        data (dict): dictionary representing dependencies
             Example: {'a': ['b', 'c']} node id 'a' depends on
             node id 'b' and 'c'
 
@@ -316,10 +316,10 @@ class Graph:
         Raises:
             PyungoError
         """
-        return (node.id, node.run_with_loaded_inputs())
+        return node.id, node.run_with_loaded_inputs()
 
     def _register(self, f, **kwargs):
-        """ get provided inputs if anmy and create a new node """
+        """ get provided inputs, outputs, args, kwargs, slim_names, init if any and create a new node """
         if not hasattr(f, "__call__"):
             raise PyungoError(f"Registered function {f} should be callable")
 
@@ -361,7 +361,7 @@ class Graph:
         """ explicit method to add a node to the graph
 
         Args:
-            function (function): Python function attached to the node
+            function : Python function attached to the node
             kwargs: Additional setting for Node
 
         Keyword Args:

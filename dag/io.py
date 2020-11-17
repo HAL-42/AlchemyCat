@@ -86,7 +86,7 @@ class Input(_IO):
             is_arg (bool): Whether the Input is constant arg
             is_kwarg (bool): Whether the Input is constant kwarg
         """
-        me = cls(name, meta)
+        me = cls(name, meta=meta)
         me.value = value
         me.is_constant = True
         me.is_arg, me.is_kwarg = is_arg, is_kwarg
@@ -100,7 +100,7 @@ class Input(_IO):
             name (str): The variable name of the input / output
             meta (dict): Not used yet
         """
-        me = cls(name, meta)
+        me = cls(name, meta=meta)
         me.is_arg = True
         return me
 
@@ -112,22 +112,13 @@ class Input(_IO):
             name (str): The variable name of the input / output
             meta (dict): Not used yet
         """
-        me = cls(name, meta)
+        me = cls(name, meta=meta)
         me.is_kwarg = True
         return me
 
 
 class Output(_IO):
-    """ Placeholder of a function's output
-
-    Args:
-        name (str): The variable name of the input / output
-        map (str): Optional mapping name. This is the name referenced
-            in the data inputs / outputs
-        meta (dict): Not used yet
-        contract (str): Optional contract rule used by pycontracts
-    """
-
+    """ Placeholder of a function's output"""
     def __repr__(self):
         return '<{} value={}>'.format(
             self._name, self.value

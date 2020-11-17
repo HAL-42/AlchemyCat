@@ -43,7 +43,7 @@ def test_Output():
 
 
 def test_get_if_exists_do_not_exists():
-    res = get_if_exists([1, 2, 3], [])
+    res = get_if_exists([1, 2, 3], {})
     assert res == [1, 2, 3]
 
 

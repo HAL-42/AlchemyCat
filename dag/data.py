@@ -8,7 +8,7 @@ from alchemy_cat.dag.io import Output
 class Data:
     def __init__(self, inputs):
         self._inputs = deepcopy(inputs)
-        self._outputs= {}
+        self._outputs = {}
 
     @property
     def inputs(self):
@@ -53,4 +53,3 @@ class Data:
         if diff:
             msg = 'The following kwarg inputs value will be provided twice by both data inputs and sim_outputs: {}'
             raise PyungoError(msg.format(list(diff)))
-
