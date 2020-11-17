@@ -563,7 +563,7 @@ def test_provide_inputs_outputs():
     inputs = [Input('a'), Input('b')]
     outputs = [Output('c')]
 
-    graph = Graph(inputs=inputs, outputs=outputs)
+    graph = Graph(input_hooks=inputs, output_hooks=outputs)
 
     @graph.register(
         inputs=['a', 'b'],
@@ -590,7 +590,7 @@ def test_provide_args_kwargs():
     inputs = [Input('b'), Input('c')]
     outputs = [Output('c')]
 
-    graph = Graph(inputs=inputs, outputs=outputs)
+    graph = Graph(input_hooks=inputs, output_hooks=outputs)
 
     @graph.register(
         inputs=['a'],
@@ -619,7 +619,7 @@ def test_provide_inputs_outputs_already_defined():
     inputs = [Input('a'), Input('b')]
     outputs = [Output('c')]
 
-    graph = Graph(inputs=inputs, outputs=outputs)
+    graph = Graph(input_hooks=inputs, output_hooks=outputs)
 
     with pytest.raises(TypeError) as err:
         @graph.register(

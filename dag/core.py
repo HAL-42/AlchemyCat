@@ -226,9 +226,9 @@ class Graph:
     """ Graph object, collection of related nodes
 
     Args:
-        inputs (list): List of optional `Input` if defined separately. New node's input will be replaced by input in
+        input_hooks (list): List of optional `Input` if defined separately. New node's input will be replaced by input in
         this list if they have the same name. So multi nodes can use the same Input object.
-        outputs (list): List of optional `Output` if defined separately. New node's output will be replaced by output in
+        output_hooks (list): List of optional `Output` if defined separately. New node's output will be replaced by output in
         this list if they have the same name. These outputs can be used to track outputs of intermediate node.
         pool_size (int): Size of the pool. 0 means don't use parallel.
         schema (dict): Optional JSON schema to validate inputs data
@@ -240,15 +240,15 @@ class Graph:
             not installed
     """
 
-    def __init__(self, inputs: List[Input]=None, outputs: List[Output]=None, pool_size: int=0,
+    def __init__(self, input_hooks: List[Input]=None, output_hooks: List[Output]=None, pool_size: int=0,
                  schema: dict=None, verbosity: int=0, slim: bool=False):
         self._nodes = {}
         self._data = None
         self._pool_size = pool_size
         self._schema = schema
         # self._sorted_dep = None
-        self._inputs = {i.name: i for i in inputs} if inputs else None
-        self._outputs = {o.name: o for o in outputs} if outputs else None
+        self._input_hooks = {i.name: i for i in input_hooks} if input_hooks else None
+        self._output_hooks = {o.name: o for o in output_hooks} if output_hooks else None
         self.verbosity = verbosity
 
         self._dag = None
@@ -377,8 +377,8 @@ class Graph:
     def _create_node(self, fct, inputs, outputs, args, kwargs, slim_names):
         """ create a save the node to the graph """
         inputs, outputs, args, kwargs = \
-            map(get_if_exists, *zip([inputs, self._inputs], [outputs, self._outputs],
-                                    [args, self._inputs], [kwargs, self._inputs]))
+            map(get_if_exists, *zip([inputs, self._input_hooks], [outputs, self._output_hooks],
+                                    [args, self._input_hooks], [kwargs, self._input_hooks]))
         node = Node(fct, inputs, outputs, args, kwargs, True if self.verbosity > 1 else False, slim_names)
         # assume that we cannot have two nodes with the same output names
         for n in self._nodes.values():
