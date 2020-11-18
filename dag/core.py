@@ -72,6 +72,7 @@ class Node:
         self.verbose = verbose
 
         self._inputs = []
+
         self._process_inputs(inputs)
 
         self._args = args if args else []
@@ -94,12 +95,7 @@ class Node:
         self._slim_names = slim_names if slim_names else []
 
     def __repr__(self):
-        if hasattr(self._fct, '__name__'):
-            fct_name = self._fct.__name__
-        else:
-            fct_name = type(self._fct).__name__
-
-        return 'Node(<{}>, {}, {})'.format(fct_name, self.input_names, self.output_names)
+        return 'Node(<{}>, {}, {})'.format(self.fct_name, self.input_names, self.output_names)
 
     def __call__(self, *args, **kwargs):
         """ run the function attached to the node, and store the result """
@@ -143,7 +139,11 @@ class Node:
     @property
     def fct_name(self):
         """ return the function name """
-        return self._fct.__name__
+        if hasattr(self._fct, '__name__'):
+            fct_name = self._fct.__name__
+        else:
+            fct_name = type(self._fct).__name__  # For fct is functor
+        return fct_name
 
     def _process_inputs(self, inputs, is_arg=False, is_kwarg=False):
         """ converter data passed to Input objects and store them """
