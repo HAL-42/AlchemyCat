@@ -52,8 +52,3 @@ class Data:
         if diff:
             msg = 'The following inputs are not used by the model: {}'
             raise PyungoError(msg.format(list(diff)))
-        # kwarg input can't be provided twice in both data inputs and sim_outputs
-        diff = set(sim_kwargs) & set(sim_outputs) & data_inputs
-        if diff:
-            msg = 'The following kwarg inputs value will be provided twice by both data inputs and sim_outputs: {}'
-            raise PyungoError(msg.format(list(diff)))
