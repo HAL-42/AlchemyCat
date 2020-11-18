@@ -91,7 +91,7 @@ class Node:
 
         self._id = str(self)
 
-        self.slim_names = slim_names if slim_names else []
+        self._slim_names = slim_names if slim_names else []
 
     def __repr__(self):
         if hasattr(self._fct, '__name__'):
@@ -249,10 +249,10 @@ class Graph:
         # self._sorted_dep = None
         self._input_hooks = {i.name: i for i in input_hooks} if input_hooks else None
         self._output_hooks = {o.name: o for o in output_hooks} if output_hooks else None
-        self.verbosity = verbosity
+        self._verbosity = verbosity
 
         self._dag = None
-        self.slim = slim
+        self._slim = slim
 
     @property
     def data(self):
@@ -379,7 +379,7 @@ class Graph:
         inputs, outputs, args, kwargs = \
             map(get_if_exists, *zip([inputs, self._input_hooks], [outputs, self._output_hooks],
                                     [args, self._input_hooks], [kwargs, self._input_hooks]))
-        node = Node(fct, inputs, outputs, args, kwargs, True if self.verbosity > 1 else False, slim_names)
+        node = Node(fct, inputs, outputs, args, kwargs, True if self._verbosity > 1 else False, slim_names)
         # assume that we cannot have two nodes with the same output names
         for n in self._nodes.values():
             for out_name in n.output_names:
@@ -424,15 +424,15 @@ class Graph:
                 raise ImportError(msg)
             jsonschema.validate(instance=data, schema=self._schema)
 
-        if self.verbosity:
+        if self._verbosity:
             timer = Timer().start()
             LOGGER.info('Starting calculation...')
 
-        self._data = Data(data)
+        self._data = Data(data, self._slim)
         self._data.check_inputs(self.sim_inputs, self.sim_outputs, self.sim_kwargs)
 
         def set_node_input_value(node, input, value):
-            if not self.slim and input.name not in node.slim_names:
+            if not self._slim and input.name not in node._slim_names:
                 input.value = copy.deepcopy(value)
             else:
                 input.value = value
@@ -471,7 +471,7 @@ class Graph:
                 for output in node._outputs:
                     self._data[output.map] = output.value
 
-        if self.verbosity:
+        if self._verbosity:
             timer.close()
             LOGGER.info(f'Calculation finished in {timer}')
 
@@ -481,5 +481,11 @@ class Graph:
         else:
             return tuple(output.value for output in last_node_outputs)
 
+    def __call__(self, *args, **kwargs):
+        if args:
+            raise PyungoError("Graph only receive keyword args which will be recognized as input name and value.")
+
+        return self.calculate(**kwargs)
+
     def __repr__(self):
-        return f"Graph with {len(self._nodes)} nodes in " + "slim mode" if self.slim is True else "none-slim mode"
+        return f"Graph with {len(self._nodes)} nodes in " + "slim mode" if self._slim is True else "none-slim mode"

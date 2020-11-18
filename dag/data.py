@@ -6,8 +6,14 @@ from alchemy_cat.dag.io import Output
 
 
 class Data:
-    def __init__(self, inputs):
-        self._inputs = deepcopy(inputs)
+    def __init__(self, inputs, slim=False):
+        self._slim = slim
+
+        if self._slim:
+            self._inputs = inputs
+        else:
+            self._inputs = deepcopy(inputs)
+
         self._outputs = {}
 
     @property

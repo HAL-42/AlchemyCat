@@ -70,17 +70,15 @@ def test_slim_graph():
     def f_my_function2(c):
         return c / 10.
 
-    res = graph.calculate(data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.})
-    assert (res == np.ones((2, 2)) * -1.5).all()
-    assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
-    assert id(graph.ordered_nodes[0]._outputs[0].value) == id(graph.ordered_nodes[1]._inputs[0].value)
-    assert id(graph.ordered_nodes[1]._outputs[0].value) == id(graph.ordered_nodes[2]._inputs[0].value)
-
-    res = graph.calculate(data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.})
-    assert (res == np.ones((2, 2)) * -1.5).all()
-    assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
-    assert id(graph.ordered_nodes[0]._outputs[0].value) == id(graph.ordered_nodes[1]._inputs[0].value)
-    assert id(graph.ordered_nodes[1]._outputs[0].value) == id(graph.ordered_nodes[2]._inputs[0].value)
+    for _ in range(2):
+        data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.}
+        res = graph.calculate(data)
+        assert (res == np.ones((2, 2)) * -1.5).all()
+        assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
+        assert id(graph.ordered_nodes[0]._outputs[0].value) == id(graph.ordered_nodes[1]._inputs[0].value)
+        assert id(graph.ordered_nodes[1]._outputs[0].value) == id(graph.ordered_nodes[2]._inputs[0].value)
+        assert id(data['a']) == id(graph.ordered_nodes[0]._inputs[0].value)
+        assert id(data['b']) == id(graph.ordered_nodes[0]._inputs[1].value)
 
 
 def test_not_slim_graph():
@@ -99,17 +97,15 @@ def test_not_slim_graph():
     def f_my_function2(c):
         return c / 10.
 
-    res = graph.calculate(data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.})
-    assert (res == np.ones((2, 2)) * -1.5).all()
-    assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
-    assert id(graph.ordered_nodes[0]._outputs[0].value) != id(graph.ordered_nodes[1]._inputs[0].value)
-    assert id(graph.ordered_nodes[1]._outputs[0].value) != id(graph.ordered_nodes[2]._inputs[0].value)
-
-    res = graph.calculate(data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.})
-    assert (res == np.ones((2, 2)) * -1.5).all()
-    assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
-    assert id(graph.ordered_nodes[0]._outputs[0].value) != id(graph.ordered_nodes[1]._inputs[0].value)
-    assert id(graph.ordered_nodes[1]._outputs[0].value) != id(graph.ordered_nodes[2]._inputs[0].value)
+    for _ in range(2):
+        data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.}
+        res = graph.calculate(data)
+        assert (res == np.ones((2, 2)) * -1.5).all()
+        assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
+        assert id(graph.ordered_nodes[0]._outputs[0].value) != id(graph.ordered_nodes[1]._inputs[0].value)
+        assert id(graph.ordered_nodes[1]._outputs[0].value) != id(graph.ordered_nodes[2]._inputs[0].value)
+        assert id(data['a']) != id(graph.ordered_nodes[0]._inputs[0].value)
+        assert id(data['b']) != id(graph.ordered_nodes[0]._inputs[1].value)
 
 
 def test_node_slim_graph():
