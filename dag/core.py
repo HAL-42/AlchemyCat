@@ -469,7 +469,7 @@ class Graph:
             # save results
             for node in nodes:
                 for output in node._outputs:
-                    self._data[output.map] = output
+                    self._data[output.map] = output.value
 
         if self.verbosity:
             timer.close()

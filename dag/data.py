@@ -22,12 +22,10 @@ class Data:
         try:
             return self._inputs[key]
         except KeyError:
-            return self._outputs[key].value
+            return self._outputs[key]
 
-    def __setitem__(self, map: str, output: Output):
-        if map != output.map:
-            raise PyungoError(f"Key {map} should be equal to Output's map {output.map}")
-        self._outputs[map] = output
+    def __setitem__(self, map, output_value):
+        self._outputs[map] = output_value
 
     def check_inputs(self, sim_inputs, sim_outputs, sim_kwargs):
         """ make sure data inputs provided are good enough """
