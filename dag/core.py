@@ -99,9 +99,11 @@ class Node:
 
     def __call__(self, *args, **kwargs):
         """ run the function attached to the node, and store the result """
-        with Timer() as timer:
-            res = self._fct(*args, **kwargs)
         if self.verbose:
+            timer = Timer().start()
+        res = self._fct(*args, **kwargs)
+        if self.verbose:
+            timer.close()
             LOGGER.info('Ran {} in {}'.format(self, timer))
         return res
 
