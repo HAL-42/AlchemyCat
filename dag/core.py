@@ -482,10 +482,11 @@ class Graph:
             return tuple(output.value for output in last_node_outputs)
 
     def __call__(self, *args, **kwargs):
+        "Equal to graph.calculate(kwargs)"
         if args:
             raise PyungoError("Graph only receive keyword args which will be recognized as input name and value.")
 
-        return self.calculate(**kwargs)
+        return self.calculate(kwargs)
 
     def __repr__(self):
         return f"Graph with {len(self._nodes)} nodes in " + "slim mode" if self._slim is True else "none-slim mode"

@@ -29,6 +29,31 @@ def test_simple():
     assert graph.data['e'] == -1.5
 
 
+def test_call():
+    graph = Graph()
+
+    @graph.register(inputs=['a', 'b'], outputs=['c'])
+    def f_my_function(a, b):
+        return a + b
+
+    @graph.register(inputs=['d', 'a'], outputs=['e'])
+    def f_my_function3(d, a):
+        return d - a
+
+    @graph.register(inputs=['c'], outputs=['d'])
+    def f_my_function2(c):
+        return c / 10.
+
+    for _ in range(2):
+        res = graph(a=2, b=3)
+        assert res == -1.5
+        assert graph.data['e'] == -1.5
+
+    with pytest.raises(PyungoError, match="Graph only receive keyword args which will be "
+                                          "recognized as input name and value."):
+        graph(2, 3)
+
+
 def test_constant_inputs():
     graph = Graph()
 
