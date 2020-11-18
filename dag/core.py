@@ -298,10 +298,8 @@ class Graph:
     @property
     def ordered_nodes(self):
         """Same to the dag except returned nodes is 1-Dimension"""
-        dag = self.dag
-
         ordered_nodes = []
-        for nodes in dag:
+        for nodes in self.dag:
             ordered_nodes.extend(nodes)
         return ordered_nodes
 
