@@ -54,7 +54,57 @@ def test_call():
         graph(2, 3)
 
 
-def test_constant_inputs():
+def test_inputs_args_equivalent():
+    graph = Graph()
+
+    @graph.register(args=['a', 'b'], outputs=['c'])
+    def f_my_function(a, b):
+        return a + b
+
+    @graph.register(args=['d', 'a'], outputs=['e'])
+    def f_my_function3(d, a):
+        return d - a
+
+    @graph.register(args=['c'], outputs=['d'])
+    def f_my_function2(c):
+        return c / 10.
+
+    res = graph.calculate(data={'a': 2, 'b': 3})
+    assert res == -1.5
+    assert graph.data['e'] == -1.5
+
+    # make sure it is independent
+    res = graph.calculate(data={'a': 2, 'b': 3})
+    assert res == -1.5
+    assert graph.data['e'] == -1.5
+
+
+def test_inputs_args_blend():
+    graph = Graph()
+
+    @graph.register(inputs=['a'], args=['b'], outputs=['c'])
+    def f_my_function(a, b):
+        return a + b
+
+    @graph.register(inputs=['d'], args=['a'], outputs=['e'])
+    def f_my_function3(d, a):
+        return d - a
+
+    @graph.register(args=['c'], outputs=['d'])
+    def f_my_function2(c):
+        return c / 10.
+
+    res = graph.calculate(data={'a': 2, 'b': 3})
+    assert res == -1.5
+    assert graph.data['e'] == -1.5
+
+    # make sure it is independent
+    res = graph.calculate(data={'a': 2, 'b': 3})
+    assert res == -1.5
+    assert graph.data['e'] == -1.5
+
+
+def test_simple_constant_inputs():
     graph = Graph()
 
     @graph.register(inputs=[{'a': 2}, {'b': 3}], outputs=['c'])
@@ -77,6 +127,74 @@ def test_constant_inputs():
     res = graph.calculate(data={'a': 2})
     assert res == -1.5
     assert graph.data['e'] == -1.5
+
+
+def test_constant_args_kwargs():
+    graph = Graph()
+
+    @graph.register(
+        inputs=['a', 'b'],
+        args=['c', {'cc': 6}],
+        kwargs=['d', {'dc': 7}],
+        outputs=['e']
+    )
+    def f_my_function(a, b, *args, **kwargs):
+        return a + b + args[0] + args[1] + kwargs['d'] + kwargs['dc']
+
+    res = graph.calculate(data={'a': 2, 'b': 3, 'c': 4, 'd': 5})
+
+    assert res == 27
+    assert graph.data['e'] == 27
+
+
+def test_constant_dict_kwargs():
+    graph = Graph()
+
+    @graph.register(
+        inputs=['a', 'b'],
+        args=['c'],
+        kwargs={'d': 5, 'dc': 6},
+        outputs=['e']
+    )
+    def f_my_function(a, b, *args, **kwargs):
+        return a + b + args[0] + kwargs['d'] + kwargs['dc']
+
+    res = graph.calculate(data={'a': 2, 'b': 3, 'c': 4})
+
+    assert res == 20
+    assert graph.data['e'] == 20
+
+
+def test_complex_constant_inputs():
+    """Test complex constant inputs.
+        * Test {k:v, k:v, ...} constant
+        * Test Input(name, value=*) constant
+        * Test kwargs constant
+    """
+    graph = Graph()
+
+    # f1 = -1
+    @graph.register(inputs={'inp_1_1': 2, 'inp_1_2': 3}, kwargs={'inp_1_3': 6}, outputs=['f1'])
+    def f_my_function1(inp_1_1, inp_1_2=2, inp_1_3=3):
+        return inp_1_1 + inp_1_2 - inp_1_3
+
+    # f2 = (2, -5)
+    @graph.register(args=['f1', Input('i_2_2', value=-1), {'i_2_3_1': 1}, {'i_2_3_2': -2}],
+                    kwargs=[Input('inp_2_4', value=3)], outputs=['f2'])
+    def f_my_function2(inp_2_1=4, inp_2_2=5, *inp_2_3, **inp_2_4):
+        return inp_2_1 * inp_2_2 + inp_2_3[0], inp_2_3[1] - list(inp_2_4.values())[0]
+
+    # f3 = -33
+    @graph.register(inputs=['f1', 'f2', 'inp_3_3'], outputs=['f3'])
+    def f_my_function3(inp_3_1, inp_3_2, inp_3_3=4):
+        return (inp_3_1 - inp_3_2[0] * inp_3_2[1]) * inp_3_3
+
+    for _ in range(2):
+        res = graph.calculate(data={'inp_3_3': 3})
+        assert res == 27
+        assert graph.data['f3'] == res
+        assert graph.data['f1'] == -1
+        assert graph.data['f2'] == (2, -5)
 
 
 def test_slim_graph():
@@ -165,7 +283,7 @@ def test_node_slim_graph():
 def test_functor():
     graph = Graph()
 
-    @graph.register(inputs=['a', 'b'], outputs=['c'])
+    @graph.register(inputs=['a', 'b'], outputs=['c'], init={})
     class f_my_function(object):
         factor = 1
 
@@ -300,7 +418,7 @@ def test_same_output_names():
         def f_my_function2(c):
             return c / 10
 
-    assert 'c output already exist' in str(err.value)
+    assert "Node Node(<f_my_function2>, ['c'], ['c']) have repeated output names: ['c']" in str(err.value)
 
 
 def test_missing_input():
@@ -309,6 +427,40 @@ def test_missing_input():
     @graph.register(inputs=['a', 'b'], outputs=['c'])
     def f_my_function(a, b):
         return a + b
+
+    with pytest.raises(PyungoError) as err:
+        graph.calculate(data={'a': 6})
+
+    assert "The following inputs are needed: ['b']" in str(err.value)
+
+
+def test_missing_kwargs():
+    graph = Graph()
+
+    @graph.register(inputs=['a'], kwargs=['b'],outputs=['c'])
+    def f_my_function(a, b):
+        return a + b
+
+    with pytest.raises(PyungoError) as err:
+        graph.calculate(data={'a': 6})
+
+    assert "The following inputs are needed: ['b']" in str(err.value)
+
+
+def test_missing_input_both_nec_opt():
+    graph = Graph()
+
+    @graph.register(inputs=['a', 'b'], outputs=['c'])
+    def f_my_function(a, b=2):
+        return a + b
+
+    @graph.register(kwargs=['a', 'b'], outputs=['e'])
+    def f_my_function3(a, b):
+        return a - b
+
+    @graph.register(inputs=['c', 'e'], outputs=['f'])
+    def f_my_function2(c, e):
+        return c + e / 10.
 
     with pytest.raises(PyungoError) as err:
         graph.calculate(data={'a': 6})
@@ -329,6 +481,30 @@ def test_inputs_not_used():
     assert "The following inputs are not used by the model: ['e']" in str(err.value)
 
 
+def test_inputs_not_used_with_constant():
+    graph = Graph()
+
+    @graph.register(inputs=[{'a': 1}, 'b'], outputs=['c'])
+    def f_my_function(a, b):
+        return a + b
+
+    with pytest.raises(PyungoError) as err:
+        graph.calculate(data={'a': 6, 'b': 4})
+
+    assert "The following inputs are not used by the model: ['a']" in str(err.value)
+
+
+def test_opt_inputs_wont_cause_redundant_input():
+    graph = Graph()
+
+    @graph.register(inputs=['a', 'b'], outputs=['c'])
+    def f_my_function(a, b=2):
+        return a + b
+
+    res = graph.calculate(data={'a': 6})
+    assert res == 8
+
+
 def test_inputs_collision():
     graph = Graph()
 
@@ -340,6 +516,22 @@ def test_inputs_collision():
         graph.calculate(data={'a': 6, 'b': 4, 'c': 7})
 
     assert "The following inputs are already used in the model: ['c']" in str(err.value)
+
+
+def test_self_dependence():
+    graph = Graph()
+
+    @graph.register(inputs=['a', 'b'], outputs=['c'])
+    def f_my_function(a, b):
+        return a + b
+
+    with pytest.raises(PyungoError) as err:
+        @graph.register(inputs=['c', 'd', 'e', {'f': 1}], outputs=['d', 'e', 'f'])
+        def f_my_function2(c, d, e):
+            return c, d, e
+
+    assert "Node Node(<f_my_function2>, ['c', 'd', 'e', 'f'], ['d', 'e', 'f']) have self dependence caused " \
+           "by the following inputs: ['d', 'e']" in str(err.value)
 
 
 def test_circular_dependency():
@@ -406,42 +598,6 @@ def test_args_kwargs():
     assert graph.data['e'] == 14
 
 
-def test_constant_args_kwargs():
-    graph = Graph()
-
-    @graph.register(
-        inputs=['a', 'b'],
-        args=['c', {'cc': 6}],
-        kwargs=['d', {'dc': 7}],
-        outputs=['e']
-    )
-    def f_my_function(a, b, *args, **kwargs):
-        return a + b + args[0] + args[1] + kwargs['d'] + kwargs['dc']
-
-    res = graph.calculate(data={'a': 2, 'b': 3, 'c': 4, 'd': 5})
-
-    assert res == 27
-    assert graph.data['e'] == 27
-
-
-def test_constant_dict_kwargs():
-    graph = Graph()
-
-    @graph.register(
-        inputs=['a', 'b'],
-        args=['c'],
-        kwargs={'d': 5, 'dc': 6},
-        outputs=['e']
-    )
-    def f_my_function(a, b, *args, **kwargs):
-        return a + b + args[0] + kwargs['d'] + kwargs['dc']
-
-    res = graph.calculate(data={'a': 2, 'b': 3, 'c': 4})
-
-    assert res == 20
-    assert graph.data['e'] == 20
-
-
 def test_diff_input_function_arg_name():
     graph = Graph()
 
@@ -492,6 +648,35 @@ def test_passing_data_to_node_definition():
     assert res == 7
 
 
+def test_Input_type_input():
+    graph = Graph()
+
+    @graph.register(
+        inputs=[Input(name='a'), Input(name='inp_1_1', map='b')],
+        outputs=['c']
+    )
+    def f_my_function(a, b):
+        return a + b
+
+    res = graph.calculate(data={'a': 2, 'b': 3})
+
+    assert res == 5
+
+
+def test_input_type_tuple():
+    graph = Graph()
+
+    @graph.register(
+        inputs=[('inp_1', 'a'), ('b', 'b')],
+        outputs=['c']
+    )
+    def f_my_function(a, b):
+        return a + b
+
+    res = graph.calculate(data={'a': 2, 'b': 3})
+
+    assert res == 5
+
 def test_wrong_input_type():
     graph = Graph()
 
@@ -500,7 +685,18 @@ def test_wrong_input_type():
         def f_my_function(a, b):
             return a + b
 
-    assert "inputs need to be of type Input, str or dict" in str(err.value)
+    assert "inputs need to be of type tuple, Input, str or dict" in str(err.value)
+
+
+def test_input_tuple_too_long():
+    graph = Graph()
+
+    with pytest.raises(PyungoError) as err:
+        @graph.register(inputs=[('a', 'input', 'too_long'), 'b'], outputs=['c'])
+        def f_my_function(a, b):
+            return a + b
+
+    assert "Tuple input should like (name, map). However, get ('a', 'input', 'too_long')" in str(err.value)
 
 
 def test_empty_input_dict():
@@ -525,19 +721,26 @@ def test_multiple_keys_input_dict():
     assert "dict inputs should have only one key and cannot be empty" in str(err.value)
 
 
-def test_Input_type_input():
+def test_not_str_name():
     graph = Graph()
 
-    @graph.register(
-        inputs=[Input(name='a'), 'b'],
-        outputs=['c']
-    )
-    def f_my_function(a, b):
-        return a + b
+    with pytest.raises(PyungoError) as err:
+        @graph.register(inputs=[(23, 'a')], outputs=['c'])
+        def f_my_function(a, b):
+            return a + b
 
-    res = graph.calculate(data={'a': 2, 'b': 3})
+    assert "IO name must be str, however get name = 23 with type <class 'int'>" in str(err.value)
 
-    assert res == 5
+
+def test_not_str_map():
+    graph = Graph()
+
+    with pytest.raises(PyungoError) as err:
+        @graph.register(inputs=[Input('a', map=23)], outputs=['c'])
+        def f_my_function(a, b):
+            return a + b
+
+    assert "IO map must be str, however get map = 23 with type <class 'int'>" in str(err.value)
 
 
 @pytest.mark.skip("Don't Support Contract Now")
@@ -580,80 +783,6 @@ def test_contract_outputs():
     assert "Condition -1 > 0 not respected" in str(err.value)
 
 
-def test_provide_inputs_outputs():
-    inputs = [Input('a'), Input('b')]
-    outputs = [Output('c')]
-
-    graph = Graph(input_hooks=inputs, output_hooks=outputs)
-
-    @graph.register(
-        inputs=['a', 'b'],
-        outputs=['c']
-    )
-    def f_my_function(a, b):
-        return a + b
-
-    @graph.register(
-        inputs=['a', 'c'],
-        outputs=['d']
-    )
-    def f_my_function1(a, c):
-        return a - c
-
-    res = graph.calculate(data={'a': 2, 'b': 3})
-    assert res == -3
-    assert inputs[0].value == 2
-    assert inputs[1].value == 3
-    assert outputs[0].value == 5
-
-
-def test_provide_args_kwargs():
-    inputs = [Input('b'), Input('c')]
-    outputs = [Output('c')]
-
-    graph = Graph(input_hooks=inputs, output_hooks=outputs)
-
-    @graph.register(
-        inputs=['a'],
-        args=['b'],
-        outputs=['c']
-    )
-    def f_my_function(a, *b):
-        return a + b[0]
-
-    @graph.register(
-        inputs=['a'],
-        kwargs=['c'],
-        outputs=['d']
-    )
-    def f_my_function1(a, c=100):
-        return a - c
-
-    res = graph.calculate(data={'a': 2, 'b': 3})
-    assert res == -3
-    assert inputs[0].value == 3
-    assert inputs[1].value == 5
-    assert outputs[0].value == 5
-
-
-def test_provide_inputs_outputs_already_defined():
-    inputs = [Input('a'), Input('b')]
-    outputs = [Output('c')]
-
-    graph = Graph(input_hooks=inputs, output_hooks=outputs)
-
-    with pytest.raises(TypeError) as err:
-        @graph.register(
-            inputs=['a', 'b'],
-            outputs=[Output('c')]
-        )
-        def f_my_function(a, b):
-            return a + b
-
-    msg = "You cannot use Input / Output in a Node if already defined"
-    assert msg in str(err.value)
-
-
 def test_map():
     graph = Graph()
 
@@ -667,6 +796,31 @@ def test_map():
     res = graph.calculate(data={'q': 2, 'w': 3})
     assert res == 5
     assert graph.data['e'] == 5
+
+
+def test_build_with_map_feed_with_name():
+    graph = Graph()
+
+    @graph.register(inputs=[('foo', 'a')], kwargs=[('inp1_2', 'b')],outputs=['c'])
+    def f_my_function1(inp1_1, inp1_2):
+        return inp1_1 + inp1_2
+
+    @graph.register(args=[Input(name='foo', map='d')], kwargs=[Input(name='inp3_2', map='a')], outputs=['e'])
+    def f_my_function3(inp3_1, inp3_2):
+        return inp3_1 - inp3_2
+
+    @graph.register(inputs=[('foo', 'c')], outputs=['d'])
+    def f_my_function2(inp2_1):
+        return inp2_1 / 10.
+
+    res = graph.calculate(data={'a': 2, 'b': 3})
+    assert res == -1.5
+    assert graph.data['e'] == -1.5
+
+    # make sure it is independent
+    res = graph.calculate(data={'a': 2, 'b': 3})
+    assert res == -1.5
+    assert graph.data['e'] == -1.5
 
 
 def test_schema():
@@ -699,47 +853,66 @@ def test_schema():
     assert res == 3
 
 
-def test_optional_kwargs_without_feed():
+def test_find_default_by_name_not_map():
     graph = Graph()
 
-    @graph.register(inputs=['a'], kwargs=['b'], outputs=['c'])
-    def f(a, b=2):
-        return a + b
+    @graph.register(inputs=['a', ('inp2', 'b')], kwargs=[('inp3', 'c')], outputs=['d'])
+    def f(inp1, inp2=2, inp3=3):
+        return inp1 + inp2 + inp3
 
     res = graph.calculate(data={'a': 1})
 
-    assert res == 3
-    assert graph.data['c'] == 3
+    assert res == 6
+    assert graph.data['d'] == 6
 
 
-def test_optional_kwargs_feed_by_input():
+def test_optional_inputs_without_feed():
     graph = Graph()
 
-    @graph.register(inputs=['a'], kwargs=['b'], outputs=['c'])
-    def f(a, b=2):
-        return a + b
+    @graph.register(inputs=['a', 'b'], kwargs=['c'], outputs=['d'])
+    def f(a, b=2, c=3):
+        return a + b + c
 
-    res = graph.calculate(data={'a': 1, 'b': 3})
+    res = graph.calculate(data={'a': 1})
 
-    assert res == 4
-    assert graph.data['c'] == 4
+    assert res == 6
+    assert graph.data['d'] == 6
 
 
-def test_optional_kwargs_feed_by_output():
+def test_optional_inputs_feed_by_input():
+    graph = Graph()
+
+    @graph.register(inputs=['a', 'b'], kwargs=['c'], outputs=['d'])
+    def f(a, b=2, c=3):
+        return a + b + c
+
+    res = graph.calculate(data={'a': 1, 'b': -1, 'c': -2})
+
+    assert res == -2
+    assert graph.data['d'] == -2
+
+
+def test_optional_inputs_feed_by_output():
     graph = Graph()
 
     @graph.register(inputs=['a'], kwargs=['b'], outputs=['c'])
     def f(a, b):
         return a + b
 
-    @graph.register(inputs=['c'], kwargs=['c'], outputs=['d'])
-    def f1(a, c=5):
-        return a + c
+    @graph.register(inputs=['a'], kwargs=['b'], outputs=['d'])
+    def f2(a, b):
+        return a - b
+
+    @graph.register(inputs=['c'], kwargs=[Input(map='d', name='inp2')], outputs=['e'])
+    def f1(inp1=0, inp2=0):
+        return inp1 + inp2
 
     res = graph.calculate(data={'a': 1, 'b': 3})
 
-    assert res == 8
+    assert res == 2
+    assert graph.data['e'] == res
     assert graph.data['c'] == 4
+    assert graph.data['d'] == -2
 
 
 def test_no_explicit_inputs_outputs_simple():
@@ -783,3 +956,6 @@ def test_no_explicit_inputs_outputs_bad_return():
     expected = ('Variable name or Tuple of variable '
                 'names are expected, got BinOp')
     assert str(err.value) == expected
+
+##
+

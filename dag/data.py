@@ -24,31 +24,37 @@ class Data:
     def outputs(self):
         return self._outputs
 
-    def __getitem__(self, key):
+    def __getitem__(self, map):
         try:
-            return self._inputs[key]
+            return self._inputs[map]
         except KeyError:
-            return self._outputs[key]
+            return self._outputs[map]
 
     def __setitem__(self, map, output_value):
         self._outputs[map] = output_value
 
-    def check_inputs(self, sim_inputs, sim_outputs, sim_kwargs):
-        """ make sure data inputs provided are good enough """
+    def __contains__(self, map):
+        return (map in self._inputs) or (map in self._outputs)
+
+    def check_inputs(self, dag_nec_input_maps: set, dag_opt_input_maps: set, dag_output_names: set):
+        """ Check input is legal. """
         # inputs in data can't have the same name of any the output
-        data_inputs = set(self.inputs.keys())
-        diff = data_inputs - (data_inputs - set(sim_outputs))
+        data_input_maps = set(self.inputs.keys())
+        dag_nec_input_maps = dag_nec_input_maps
+        dag_opt_input_maps = dag_opt_input_maps
+        dag_output_names = dag_output_names
+
+        diff = data_input_maps & dag_output_names
         if diff:
             msg = 'The following inputs are already used in the model: {}'
-            raise PyungoError(msg.format(list(diff)))
+            raise PyungoError(msg.format(sorted(list(diff))))
         # inputs in data should able to provide inputs needed for calculate
-        inputs_to_provide = set(sim_inputs) - set(sim_outputs)
-        diff = inputs_to_provide - data_inputs
+        diff = dag_nec_input_maps - dag_output_names - data_input_maps
         if diff:
-            msg = 'The following inputs are needed: {}'.format(list(diff))
+            msg = 'The following inputs are needed: {}'.format(sorted(list(diff)))
             raise PyungoError(msg)
         # All inputs should be used in the calculation
-        diff = data_inputs - inputs_to_provide - set(sim_kwargs)
+        diff = data_input_maps - dag_nec_input_maps - dag_opt_input_maps
         if diff:
             msg = 'The following inputs are not used by the model: {}'
-            raise PyungoError(msg.format(list(diff)))
+            raise PyungoError(msg.format(sorted(list(diff))))

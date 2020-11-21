@@ -6,9 +6,9 @@ import inspect
 import copy
 from multiprocessing.pool import Pool
 
-from typing import List
+from typing import Optional, Union, List, Callable, Dict, Tuple, Any
 
-from alchemy_cat.dag.io import Input, Output, get_if_exists
+from alchemy_cat.dag.io import Input, Output
 from alchemy_cat.dag.errors import PyungoError
 from alchemy_cat.dag.utils import get_function_return_names, run_node
 from alchemy_cat.dag.data import Data
@@ -67,42 +67,48 @@ class Node:
         PyungoError: In case inputs have the wrong type
     """
 
-    def __init__(self, fct, inputs, outputs, args=None, kwargs=None, verbose=False, slim_names=None):
+    def __init__(self, fct, outputs=None, args=None, kwargs=None, verbose=False, slim_names=None):
         self._fct = fct
-        self.verbose = verbose
+        self._verbose = verbose
+        self._slim_names = slim_names if slim_names else []
 
         self._inputs = []
-
-        self._process_inputs(inputs)
+        self._outputs = []
+        self._fct_defaults = {}
 
         self._args = args if args else []
-        self._process_inputs(self._args, is_arg=True)
-
-        if isinstance(kwargs, dict):
-            kwargs = [{key: value} for key, value in kwargs.items()]
         self._kwargs = kwargs if kwargs else []
+
+        # if inputs are None, we inspect the function signature
+        if (not self._args) and (not self._kwargs):
+            self._args = list(inspect.signature(self._fct).parameters.keys())
+            if not self._args:
+                raise PyungoError(f"Node's func {self._fct} must have input params")
+
+        self._output_names = outputs if outputs else []
+
+        # if inputs are None, we inspect the function code
+        if not self._output_names:
+            self._output_names = get_function_return_names(self._fct)
+
+        self._process_inputs(self._args)
         self._process_inputs(self._kwargs, is_kwarg=True)
 
-        # If node's some kwargs don't have corresponding output value in Graph, use it's default value.
-        self._kwargs_default = {}
-        self._process_kwargs(self._kwargs)
+        self._process_fct_defaults()
 
-        self._outputs = []
-        self._process_outputs(outputs)
+        self._process_outputs(self._output_names)
 
         self._id = str(self)
-
-        self._slim_names = slim_names if slim_names else []
 
     def __repr__(self):
         return 'Node(<{}>, {}, {})'.format(self.fct_name, self.input_names, self.output_names)
 
     def __call__(self, *args, **kwargs):
         """ run the function attached to the node, and store the result """
-        if self.verbose:
+        if self._verbose:
             timer = Timer().start()
         res = self._fct(*args, **kwargs)
-        if self.verbose:
+        if self._verbose:
             timer.close()
             LOGGER.info('Ran {} in {}'.format(self, timer))
         return res
@@ -113,10 +119,21 @@ class Node:
         return self._id
 
     @property
+    def inputs(self):
+        " return inputs"
+        return self._inputs
+
+    @property
     def input_names(self):
         """ return a list of all input names """
         input_names = [i.name for i in self._inputs]
         return input_names
+
+    @property
+    def input_maps(self):
+        """ return a list of all input maps """
+        input_maps = [i.map for i in self._inputs]
+        return input_maps
 
     @property
     def inputs_without_constants(self):
@@ -139,6 +156,16 @@ class Node:
         return [o.name for o in self._outputs]
 
     @property
+    def nec_input_maps(self):
+        """ return necessary input names """
+        return [i.map for i in self._inputs if (not i.is_constant) and (i.name not in self._fct_defaults)]
+
+    @property
+    def opt_input_maps(self):
+        """ return optional input names """
+        return [i.map for i in self._inputs if (not i.is_constant) and (i.name in self._fct_defaults)]
+
+    @property
     def fct_name(self):
         """ return the function name """
         if hasattr(self._fct, '__name__'):
@@ -147,57 +174,41 @@ class Node:
             fct_name = type(self._fct).__name__  # For fct is functor
         return fct_name
 
-    def _process_inputs(self, inputs, is_arg=False, is_kwarg=False):
+    def _process_inputs(self, inputs, is_kwarg=False):
         """ converter data passed to Input objects and store them """
-        # if inputs are None, we inspect the function signature
-        if inputs is None:
-            inputs = list(inspect.signature(self._fct).parameters.keys())
+        if isinstance(inputs, dict):
+            inputs = [{k: v} for k, v in inputs.items()]
 
-        for input_ in inputs:
-            if isinstance(input_, Input):
-                new_input = input_
-                new_input.is_arg = is_arg
+        for inp in inputs:
+            if isinstance(inp, tuple):
+                if len(inp) != 2:
+                    raise PyungoError(f"Tuple input should like (name, map). However, get {inp}")
+                new_input = Input(name=inp[0], map=inp[1], is_kwarg=is_kwarg)
+            elif isinstance(inp, Input):
+                new_input = inp
                 new_input.is_kwarg = is_kwarg
-            elif isinstance(input_, str):
-                if is_arg:
-                    new_input = Input.arg(input_)
-                elif is_kwarg:
-                    new_input = Input.kwarg(input_)
-                else:
-                    new_input = Input(input_)
-            elif isinstance(input_, dict):
-                if len(input_) != 1:
+            elif isinstance(inp, str):
+                new_input = Input(name=inp, is_kwarg=is_kwarg)
+            elif isinstance(inp, dict):
+                if len(inp) != 1:
                     msg = ('dict inputs should have only one key '
                            'and cannot be empty')
                     raise PyungoError(msg)
-                key = next(iter(input_))
-                value = input_[key]
-                new_input = Input.constant(key, value, is_arg=is_arg, is_kwarg=is_kwarg)
+                key = next(iter(inp))
+                value = inp[key]
+                new_input = Input(name=key, value=value, is_kwarg=is_kwarg)
             else:
-                msg = 'inputs need to be of type Input, str or dict'
+                msg = 'inputs need to be of type tuple, Input, str or dict'
                 raise PyungoError(msg)
             self._inputs.append(new_input)
 
-    def _process_kwargs(self, kwargs):
-        """ read and store kwargs default values
-        If the Node has kwarg placeholder, then record the default value of fun's parameter.
-        When calculate, if some kwarg placeholders have no value, then the program will try to
-        find their default value(if exits) to feed it.
-        """
-        # kwarg_values = inspect.getargspec(self._fct).defaults
-        # if kwargs and kwarg_values:
-        #     kwarg_names = (inspect.getargspec(self._fct)
-        #                    .args[-len(kwarg_values):])
-        #     self._kwargs_default = {k: v for k, v in
-        #                             zip(kwarg_names, kwarg_values)}
-        if kwargs:
-            self._kwargs_default = {k: v.default for k, v in inspect.signature(self._fct).parameters.items()
-                                    if v.default is not inspect.Parameter.empty}
+    def _process_fct_defaults(self):
+        """ read and store kwargs default values"""
+        self._fct_defaults = {k: v.default for k, v in inspect.signature(self._fct).parameters.items()
+                              if v.default is not inspect.Parameter.empty}
 
     def _process_outputs(self, outputs):
         """ converter data passed to Output objects and store them """
-        if outputs is None:
-            outputs = get_function_return_names(self._fct)
         for output in outputs:
             if isinstance(output, Output):
                 new_output = output
@@ -210,9 +221,7 @@ class Node:
 
     def run_with_loaded_inputs(self):
         """ Run the node with the attached function and loaded input values """
-        args = [i.value for i in self._inputs
-                if not i.is_arg and not i.is_kwarg]
-        args.extend([i.value for i in self._inputs if i.is_arg])
+        args = [i.value for i in self._inputs if not i.is_kwarg]
         kwargs = {i.name: i.value for i in self._inputs if i.is_kwarg}
         rslts = self(*args, **kwargs)
         # Save outputs
@@ -228,10 +237,6 @@ class Graph:
     """ Graph object, collection of related nodes
 
     Args:
-        input_hooks (list): List of optional `Input` if defined separately. New node's input will be replaced by input in
-        this list if they have the same name. So multi nodes can use the same Input object.
-        output_hooks (list): List of optional `Output` if defined separately. New node's output will be replaced by output in
-        this list if they have the same name. These outputs can be used to track outputs of intermediate node.
         pool_size (int): Size of the pool. 0 means don't use parallel.
         schema (dict): Optional JSON schema to validate inputs data
         verbosity (int): 0: No log output; 1: Only give graph level log; >1: Give graph and node level log.
@@ -242,19 +247,19 @@ class Graph:
             not installed
     """
 
-    def __init__(self, input_hooks: List[Input]=None, output_hooks: List[Output]=None, pool_size: int=0,
-                 schema: dict=None, verbosity: int=0, slim: bool=False):
+    def __init__(self, pool_size: int = 0, schema: dict = None, verbosity: int = 0, slim: bool = False):
         self._nodes = {}
         self._data = None
         self._pool_size = pool_size
         self._schema = schema
-        # self._sorted_dep = None
-        self._input_hooks = {i.name: i for i in input_hooks} if input_hooks else None
-        self._output_hooks = {o.name: o for o in output_hooks} if output_hooks else None
         self._verbosity = verbosity
 
         self._dag = None
         self._slim = slim
+
+        self._dag_output_names = set()
+        self._dag_nec_input_maps = set()
+        self._dag_opt_input_maps = set()
 
     @property
     def data(self):
@@ -283,6 +288,22 @@ class Graph:
         for node in self._nodes.values():
             outputs.extend([o.map for o in node.outputs])
         return outputs
+
+    def _dependencies(self):
+        """ return dependencies among the nodes """
+        dep = {}
+        for node in self._nodes.values():
+            d = dep.setdefault(node.id, [])
+            for inp in node.input_maps:
+                for node2 in self._nodes.values():
+                    if inp in node2.output_names:
+                        d.append(node2.id)
+        return dep
+
+    @property
+    def dependencies(self):
+        """Return dependencies of each node"""
+        return self._dependencies()
 
     @property
     def dag(self):
@@ -318,31 +339,67 @@ class Graph:
         """
         return node.id, node.run_with_loaded_inputs()
 
-    def _register(self, f, **kwargs):
+    def _register(self,
+                  f: Union[Callable, type],
+                  inputs: Optional[
+                      Union[List[Union[str, Tuple[str, str], Input, Dict[str, Any]]], Dict[str, Any]]] = None,
+                  outputs: Optional[List[Union[str, Output]]] = None,
+                  args: Optional[
+                      Union[List[Union[str, Tuple[str, str], Input, Dict[str, Any]]], Dict[str, Any]]] = None,
+                  kwargs: Optional[
+                      Union[List[Union[str, Tuple[str, str], Input, Dict[str, Any]]], Dict[str, Any]]] = None,
+                  slim_names: Optional[List[str]] = None,
+                  init: Optional[Dict[str, Any]] = None):
         """ get provided inputs, outputs, args, kwargs, slim_names, init if any and create a new node """
         if not hasattr(f, "__call__"):
             raise PyungoError(f"Registered function {f} should be callable")
 
-        node_inputs = kwargs.get('inputs')
-        node_outputs = kwargs.get('outputs')
-        node_args = kwargs.get('args')
-        node_kwargs = kwargs.get('kwargs')
-        node_slim_names = kwargs.get('slim_names')
+        if (inputs is not None) and (args is not None):
+            args = inputs + args
+        elif inputs is not None:
+            args = inputs
 
         # Instantiate f if f is functor
         if inspect.isclass(f):
-            f = f(**(kwargs.get('init', {})))
-        elif kwargs.get('init'):
+            if init is None:
+                raise PyungoError(f"Get functor class {f.__name__} without 'init'")
+            f = f(**init)
+        elif init is not None:
             raise PyungoError("Only functor can be initialized with 'init'")
 
-        self._create_node(
-            f, node_inputs, node_outputs, node_args, node_kwargs, node_slim_names
-        )
+        # create and save the node to the graph
+        node = Node(f, outputs, args, kwargs, True if self._verbosity > 1 else False, slim_names)
+        # assume that we cannot have two nodes with the same output names
+        diff = set(node.output_names) & self._dag_output_names
+        if diff:
+            raise PyungoError(f"Node {node} have repeated output names: {sorted(list(diff))}")
 
-    def register(self, **kwargs):
+        # assume no self dependencies
+        diff = set([inp.map for inp in node.inputs_without_constants]) & set(node.output_names)
+        if diff:
+            raise PyungoError(f"Node {node} have self dependence caused by the following inputs: {sorted(list(diff))}")
+
+        self._dag_output_names |= set(node.output_names)
+        self._dag_nec_input_maps |= set(node.nec_input_maps)
+        self._dag_opt_input_maps |= set(node.opt_input_maps)
+        self._dag_opt_input_maps -= self._dag_nec_input_maps
+
+        self._nodes[node.id] = node
+        self._dag = None
+
+    def register(self,
+                 inputs: Optional[
+                     Union[List[Union[str, Tuple[str, str], Input, Dict[str, Any]]], Dict[str, Any]]] = None,
+                 outputs: Optional[List[Union[str, Output]]] = None,
+                 args: Optional[Union[List[Union[str, Tuple[str, str], Input, Dict[str, Any]]], Dict[str, Any]]] = None,
+                 kwargs: Optional[
+                     Union[List[Union[str, Tuple[str, str], Input, Dict[str, Any]]], Dict[str, Any]]] = None,
+                 slim_names: Optional[List[str]] = None,
+                 init: Optional[Dict[str, Any]] = None):
         """ register decorator
 
-            Keyword Args:
+            Args:
+                function : Python function attached to the node
                 inputs (list): List of inputs (Input, str, or dict)
                 outputs (list): List of outputs (Output or str)
                 args (list): List of optional args
@@ -352,19 +409,25 @@ class Graph:
         """
 
         def decorator(f):
-            self._register(f, **kwargs)
+            self._register(f, inputs, outputs, args, kwargs, slim_names, init)
             return f
 
         return decorator
 
-    def add_node(self, function, **kwargs):
+    def add_node(self,
+                 function: Union[Callable, type],
+                 inputs: Optional[
+                     Union[List[Union[str, Tuple[str, str], Input, Dict[str, Any]]], Dict[str, Any]]] = None,
+                 outputs: Optional[List[Union[str, Output]]] = None,
+                 args: Optional[Union[List[Union[str, Tuple[str, str], Input, Dict[str, Any]]], Dict[str, Any]]] = None,
+                 kwargs: Optional[
+                     Union[List[Union[str, Tuple[str, str], Input, Dict[str, Any]]], Dict[str, Any]]] = None,
+                 slim_names: Optional[List[str]] = None,
+                 init: Optional[Dict[str, Any]] = None):
         """ explicit method to add a node to the graph
 
         Args:
             function : Python function attached to the node
-            kwargs: Additional setting for Node
-
-        Keyword Args:
             inputs (list): List of inputs (Input, str, or dict)
             outputs (list): List of outputs (Output or str)
             args (list): List of optional args
@@ -372,38 +435,7 @@ class Graph:
             slim_names (list): List of args which should use copy rather than deepcopy
             init (dict): init dict for functor
         """
-        self._register(function, **kwargs)
-
-    def _create_node(self, fct, inputs, outputs, args, kwargs, slim_names):
-        """ create a save the node to the graph """
-        inputs, outputs, args, kwargs = \
-            map(get_if_exists, *zip([inputs, self._input_hooks], [outputs, self._output_hooks],
-                                    [args, self._input_hooks], [kwargs, self._input_hooks]))
-        node = Node(fct, inputs, outputs, args, kwargs, True if self._verbosity > 1 else False, slim_names)
-        # assume that we cannot have two nodes with the same output names
-        for n in self._nodes.values():
-            for out_name in n.output_names:
-                if out_name in node.output_names:
-                    msg = '{} output already exist'.format(out_name)
-                    raise PyungoError(msg)
-        self._nodes[node.id] = node
-        self._dag = None
-
-    def _dependencies(self):
-        """ return dependencies among the nodes """
-        dep = {}
-        for node in self._nodes.values():
-            d = dep.setdefault(node.id, [])
-            for inp in node.input_names:
-                for node2 in self._nodes.values():
-                    if inp in node2.output_names:
-                        d.append(node2.id)
-        return dep
-
-    @property
-    def dependencies(self):
-        """Return dependencies of each node"""
-        return self._dependencies()
+        self._register(function, inputs, outputs, args, kwargs, slim_names, init)
 
     def _get_node(self, id_):
         """ get a node from its id """
@@ -429,10 +461,10 @@ class Graph:
             LOGGER.info('Starting calculation...')
 
         self._data = Data(data, self._slim)
-        self._data.check_inputs(self.sim_inputs, self.sim_outputs, self.sim_kwargs)
+        self._data.check_inputs(self._dag_nec_input_maps, self._dag_opt_input_maps, self._dag_output_names)
 
         def set_node_input_value(node, input, value):
-            if not self._slim and input.name not in node._slim_names:
+            if (not self._slim) and (input.name not in node._slim_names):
                 input.value = copy.deepcopy(value)
             else:
                 input.value = value
@@ -440,14 +472,11 @@ class Graph:
         for nodes in self.dag:
             # loading node with inputs
             for node in nodes:
-                inputs = [i for i in node.inputs_without_constants]
-                for inp in inputs:
-                    if (not inp.is_kwarg or
-                            (inp.is_kwarg and (inp.map in self._data._inputs
-                                               or inp.map in self._data._outputs))):
+                for inp in node.inputs_without_constants:
+                    if inp.map in self._data:
                         set_node_input_value(node, inp, self._data[inp.map])
                     else:
-                        set_node_input_value(node, inp, node._kwargs_default[inp.name])
+                        set_node_input_value(node, inp, node._fct_defaults[inp.name])
 
             # running nodes
             if self._pool_size:
