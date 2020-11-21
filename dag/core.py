@@ -361,8 +361,7 @@ class Graph:
 
         # Instantiate f if f is functor
         if inspect.isclass(f):
-            if init is None:
-                raise PyungoError(f"Get functor class {f.__name__} without 'init'")
+            init = init if init is not None else dict()
             f = f(**init)
         elif init is not None:
             raise PyungoError("Only functor can be initialized with 'init'")
