@@ -250,12 +250,13 @@ class Graph:
     def __init__(self, pool_size: int = 0, schema: dict = None, verbosity: int = 0, slim: bool = False):
         self._nodes = {}
         self._data = None
-        self._pool_size = pool_size
         self._schema = schema
-        self._verbosity = verbosity
+
+        self.pool_size = pool_size
+        self.verbosity = verbosity
+        self.slim = slim
 
         self._dag = None
-        self._slim = slim
 
         self._dag_output_names = set()
         self._dag_nec_input_maps = set()
@@ -367,7 +368,7 @@ class Graph:
             raise PyungoError("Only functor can be initialized with 'init'")
 
         # create and save the node to the graph
-        node = Node(f, outputs, args, kwargs, True if self._verbosity > 1 else False, slim_names)
+        node = Node(f, outputs, args, kwargs, True if self.verbosity > 1 else False, slim_names)
         # assume that we cannot have two nodes with the same output names
         diff = set(node.output_names) & self._dag_output_names
         if diff:
@@ -455,15 +456,15 @@ class Graph:
                 raise ImportError(msg)
             jsonschema.validate(instance=data, schema=self._schema)
 
-        if self._verbosity:
+        if self.verbosity:
             timer = Timer().start()
             LOGGER.info('Starting calculation...')
 
-        self._data = Data(data, self._slim)
+        self._data = Data(data, self.slim)
         self._data.check_inputs(self._dag_nec_input_maps, self._dag_opt_input_maps, self._dag_output_names)
 
         def set_node_input_value(node, input, value):
-            if (not self._slim) and (input.name not in node._slim_names):
+            if (not self.slim) and (input.name not in node._slim_names):
                 input.value = copy.deepcopy(value)
             else:
                 input.value = value
@@ -478,8 +479,8 @@ class Graph:
                         set_node_input_value(node, inp, node._fct_defaults[inp.name])
 
             # running nodes
-            if self._pool_size:
-                pool = Pool(self._pool_size)
+            if self.pool_size:
+                pool = Pool(self.pool_size)
                 rslts = pool.map(run_node, nodes)  # ! The output of node's won't be copied back
                 pool.close()
                 pool.join()
@@ -499,7 +500,7 @@ class Graph:
                 for output in node._outputs:
                     self._data[output.map] = output.value
 
-        if self._verbosity:
+        if self.verbosity:
             timer.close()
             LOGGER.info(f'Calculation finished in {timer}')
 
@@ -517,4 +518,4 @@ class Graph:
         return self.calculate(kwargs)
 
     def __repr__(self):
-        return f"Graph with {len(self._nodes)} nodes in " + "slim mode" if self._slim is True else "none-slim mode"
+        return f"Graph with {len(self._nodes)} nodes in " + "slim mode" if self.slim is True else "none-slim mode"
