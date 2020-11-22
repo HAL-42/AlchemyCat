@@ -57,8 +57,7 @@ class Node:
     """ Node object (aka vertex in graph theory)
 
     Args:
-        fct (function): The Python function attached to the node
-        inputs (list): List of inputs (which can be `Input`, `str` or `dict`)
+        fct (Callable): The Python function attached to the node
         outputs (list): List of outputs (`Output` or `str`)
         args (list): Optional list of args
         kwargs (list): Optional list of kwargs
@@ -67,7 +66,7 @@ class Node:
         PyungoError: In case inputs have the wrong type
     """
 
-    def __init__(self, fct, outputs=None, args=None, kwargs=None, verbose=False, slim_names=None):
+    def __init__(self, fct: Callable, outputs=None, args=None, kwargs=None, verbose=False, slim_names=None):
         self._fct = fct
         self._verbose = verbose
         self._slim_names = slim_names if slim_names else []
@@ -312,18 +311,38 @@ class Graph:
         if self._dag is None:
             dag = []
             for node_ids in topological_sort(self._dependencies()):
-                nodes = [self._get_node(node_id) for node_id in node_ids]
+                nodes = [self.get_node(node_id) for node_id in node_ids]
                 dag.append(nodes)
             self._dag = dag
         return self._dag
 
     @property
-    def ordered_nodes(self):
+    def ordered_nodes(self) -> List[Node]:
         """Same to the dag except returned nodes is 1-Dimension"""
         ordered_nodes = []
         for nodes in self.dag:
             ordered_nodes.extend(nodes)
         return ordered_nodes
+
+    @property
+    def deep_ordered_nodes(self):
+        """Return all nodes in graph (include sub-graph's nodes) according to their running start order"""
+        deep_ordered_nodes = []
+        for node in self.ordered_nodes:
+            deep_ordered_nodes.append(node)
+            if isinstance(node._fct, Graph):
+                deep_ordered_nodes.extend(node._fct.deep_ordered_nodes)
+        return deep_ordered_nodes
+
+    def deep_prefix_id_ordered_nodes(self, prefix: str= ''):
+        """Return all (prefix_id, nodes) in graph (include sub-graph's nodes) according to their running start order"""
+        ret = []
+        for node in self.ordered_nodes:
+            prefix_id = prefix + '.' + node.id if prefix else node.id
+            ret.append((prefix_id, node))
+            if isinstance(node._fct, Graph):
+                ret.extend(node._fct.deep_prefix_id_ordered_nodes(prefix=prefix_id))
+        return ret
 
     @staticmethod
     def run_node(node):
@@ -366,6 +385,10 @@ class Graph:
             f = f(**init)
         elif init is not None:
             raise PyungoError("Only functor can be initialized with 'init'")
+
+        if isinstance(f, Graph):
+            if args is not None:
+                raise PyungoError(f"Node with Graph can only accept kwargs input. However, get args = {args}")
 
         # create and save the node to the graph
         node = Node(f, outputs, args, kwargs, True if self.verbosity > 1 else False, slim_names)
@@ -437,13 +460,20 @@ class Graph:
         """
         self._register(function, inputs, outputs, args, kwargs, slim_names, init)
 
-    def _get_node(self, id_):
+    def get_node(self, id_: str) -> Node:
         """ get a node from its id """
         return self._nodes[id_]
 
-    # def _topological_sort(self):
-    #     """ run topological sort algorithm """
-    #     self._sorted_dep = list(topological_sort(self._dependencies()))
+    def deep_get_node(self, prefix_id: str):
+        """ get a node by it's prefix_id"""
+        graph = self
+        ids = prefix_id.split('.')
+        for id in ids[:-1]:
+            graph = graph.get_node(id)._fct
+            if not isinstance(graph, Graph):
+                raise PyungoError(f"For node id = {id} in prefix_id = {prefix_id}, "
+                                  f"it's fct has type {type(graph)} rather than Graph")
+        return graph.get_node(ids[-1])
 
     def calculate(self, data):
         """ run graph calculations """
@@ -518,4 +548,14 @@ class Graph:
         return self.calculate(kwargs)
 
     def __repr__(self):
-        return f"Graph with {len(self._nodes)} nodes in " + "slim mode" if self.slim is True else "none-slim mode"
+        return f"Graph with {len(self._nodes)} nodes in " + \
+               ("slim mode" if self.slim is True else "non-slim mode") + \
+               '.'
+
+    def __str__(self):
+        ret = repr(self) + "\n"
+        for prefix_id, node in self.deep_prefix_id_ordered_nodes():
+            ret += f"{prefix_id}\n"
+            if isinstance(node._fct, Graph):
+                ret += "--> " + repr(node._fct) + "\n"
+        return ret

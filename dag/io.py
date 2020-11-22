@@ -19,13 +19,19 @@ class _IO(object):
     def __init__(self, name, map=None, meta=None, contract=None):
         if not isinstance(name, str):
             raise PyungoError(f"IO name must be str, however get name = {name} with type {type(name)}")
+        if '.' in name:
+            raise PyungoError(f"IO can't have '.' in name, however get name = {name}")
         self._name = name
+
         self._meta = meta if meta is not None else {}
         self._value = None
         self._contract = None
 
-        if map is not None and (not isinstance(map, str)):
-            raise PyungoError(f"IO map must be str, however get map = {map} with type {type(map)}")
+        if map is not None:
+            if not isinstance(map, str):
+                raise PyungoError(f"IO map must be str, however get map = {map} with type {type(map)}")
+            if '.' in map:
+                raise PyungoError(f"IO can't have '.' in map, however get map = {map}")
         self._map = map if map is not None else self._name
 
         if contract:

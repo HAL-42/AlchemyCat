@@ -214,7 +214,7 @@ def test_slim_graph():
         return c / 10.
 
     for _ in range(2):
-        data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.}
+        data = {'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.}
         res = graph.calculate(data)
         assert (res == np.ones((2, 2)) * -1.5).all()
         assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
@@ -241,7 +241,7 @@ def test_not_slim_graph():
         return c / 10.
 
     for _ in range(2):
-        data={'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.}
+        data = {'a': np.ones((2, 2)) * 2., 'b': np.ones((2, 2)) * 3.}
         res = graph.calculate(data)
         assert (res == np.ones((2, 2)) * -1.5).all()
         assert (graph.data['e'] == np.ones((2, 2)) * -1.5).all()
@@ -437,7 +437,7 @@ def test_missing_input():
 def test_missing_kwargs():
     graph = Graph()
 
-    @graph.register(inputs=['a'], kwargs=['b'],outputs=['c'])
+    @graph.register(inputs=['a'], kwargs=['b'], outputs=['c'])
     def f_my_function(a, b):
         return a + b
 
@@ -677,6 +677,7 @@ def test_input_type_tuple():
 
     assert res == 5
 
+
 def test_wrong_input_type():
     graph = Graph()
 
@@ -801,7 +802,7 @@ def test_map():
 def test_build_with_map_feed_with_name():
     graph = Graph()
 
-    @graph.register(inputs=[('foo', 'a')], kwargs=[('inp1_2', 'b')],outputs=['c'])
+    @graph.register(inputs=[('foo', 'a')], kwargs=[('inp1_2', 'b')], outputs=['c'])
     def f_my_function1(inp1_1, inp1_2):
         return inp1_1 + inp1_2
 
@@ -957,5 +958,174 @@ def test_no_explicit_inputs_outputs_bad_return():
                 'names are expected, got BinOp')
     assert str(err.value) == expected
 
-##
 
+def test_sub_graph():
+    def f_my_function1(inp1_1, inp1_2):
+        return inp1_1 + inp1_2
+
+    def f_my_function2(inp2_1):
+        return inp2_1 / 10.
+
+    def f_my_function3(inp3_1, inp3_2):
+        return inp3_1 - inp3_2
+
+    graph0 = Graph()
+    graph0_0 = Graph()
+    graph0_1 = Graph()
+    graph0_1_0 = Graph()
+
+    # inp2_1 = 1.5, inp3_2 = 0.15, out=0.1785
+    graph0.add_node(graph0_0, kwargs=['inp1_1', 'inp1_2'], outputs=['inp2_1'])
+    graph0.add_node(f_my_function2, inputs=['inp2_1'], outputs=['inp3_2'])
+    graph0.add_node(graph0_1, kwargs=[('inp1', 'inp1_1'), ('inp2', 'inp3_2')], outputs=['out'])
+
+    graph0_0.add_node(f_my_function1, inputs=['inp1_1', 'inp1_2'], outputs=['inp2_1'])
+    graph0_0.add_node(f_my_function2, inputs=['inp2_1'], outputs=['inp3_2'])
+    graph0_0.add_node(f_my_function3, inputs=[('inp3_1', 'inp1_1'), 'inp3_2'], outputs=['out'])
+
+    # inp2_1 = 0.215, inp3_2 = 0.0215, out = 0.1785
+    graph0_1_0.add_node(f_my_function1, inputs=['inp1_1', 'inp1_2'], outputs=['inp2_1'])
+    graph0_1_0.add_node(f_my_function2, inputs=['inp2_1'], outputs=['inp3_2'])
+    graph0_1_0.add_node(f_my_function3, inputs=[('inp3_1', 'inp1_1'), 'inp3_2'], outputs=['out'])
+
+    # out1 = 0.2, out2 = 0.015, out=0.1785
+    graph0_1.add_node(f_my_function2, inputs=['inp1'], outputs=['out1'])
+    graph0_1.add_node(f_my_function2, inputs=['inp2'], outputs=['out2'])
+    graph0_1.add_node(graph0_1_0, kwargs=[('inp1_1', 'out1'), ('inp1_2', 'out2')], outputs=['out3'])
+
+    for _ in range(2):
+        res = graph0(inp1_1=2, inp1_2=3)
+        assert 0.1785 == pytest.approx(res)
+        assert graph0.data['out'] == res
+        assert graph0_0.data['out'] == 1.5
+        assert graph0_1.data['out3'] == pytest.approx(0.1785)
+        assert graph0_1_0.data['out'] == pytest.approx(0.1785)
+
+
+def test_sub_graph_with_arg_input():
+    graph0 = Graph()
+    graph0_0 = Graph()
+
+    with pytest.raises(PyungoError) as err:
+        graph0.add_node(graph0_0, args=['inp1_1', 'inp1_2'], outputs=['inp2_1'])
+
+    assert "Node with Graph can only accept kwargs input. However, get args = ['inp1_1', 'inp1_2']" in str(err.value)
+
+
+def test_deep_ordered_nodes():
+    def f_my_function1(inp1_1, inp1_2):
+        return inp1_1 + inp1_2
+
+    def f_my_function2(inp2_1):
+        return inp2_1 / 10.
+
+    def f_my_function3(inp3_1, inp3_2):
+        return inp3_1 - inp3_2
+
+    graph0 = Graph()
+    graph0_0 = Graph()
+    graph0_1 = Graph()
+    graph0_1_0 = Graph()
+
+    # inp2_1 = 1.5, inp3_2 = 0.15, out=0.1785
+    graph0.add_node(graph0_0, kwargs=['inp1_1', 'inp1_2'], outputs=['inp2_1'])
+    graph0.add_node(f_my_function2, inputs=['inp2_1'], outputs=['inp3_2'])
+    graph0.add_node(graph0_1, kwargs=[('inp1', 'inp1_1'), ('inp2', 'inp3_2')], outputs=['out'])
+
+    graph0_0.add_node(f_my_function1, inputs=['inp1_1', 'inp1_2'], outputs=['inp2_1'])
+    graph0_0.add_node(f_my_function2, inputs=['inp2_1'], outputs=['inp3_2'])
+    graph0_0.add_node(f_my_function3, inputs=[('inp3_1', 'inp1_1'), 'inp3_2'], outputs=['out'])
+
+    # inp2_1 = 0.215, inp3_2 = 0.0215, out = 0.1785
+    graph0_1_0.add_node(f_my_function1, inputs=['inp1_1', 'inp1_2'], outputs=['inp2_1'])
+    graph0_1_0.add_node(f_my_function2, inputs=['inp2_1'], outputs=['inp3_2'])
+    graph0_1_0.add_node(f_my_function3, inputs=[('inp3_1', 'inp1_1'), 'inp3_2'], outputs=['out'])
+
+    # out1 = 0.2, out2 = 0.015, out=0.1785
+    graph0_1.add_node(f_my_function2, inputs=['inp1'], outputs=['out1'])
+    graph0_1.add_node(f_my_function2, inputs=['inp2'], outputs=['out2'])
+    graph0_1.add_node(graph0_1_0, kwargs=[('inp1_1', 'out1'), ('inp1_2', 'out2')], outputs=['out3'])
+
+    deep_ordered_nodes = graph0.deep_ordered_nodes
+    graph0_nodes = graph0.ordered_nodes
+    graph0_0_nodes = graph0_0.ordered_nodes
+    graph0_1_nodes = graph0_1.ordered_nodes
+    graph0_1_0_nodes = graph0_1_0.ordered_nodes
+
+    assert deep_ordered_nodes[0] is graph0_nodes[0]
+    for n1, n2 in zip(deep_ordered_nodes[1:4], graph0_0_nodes):
+        assert n1 is n2
+    assert deep_ordered_nodes[4] is graph0_nodes[1]
+    assert deep_ordered_nodes[5] is graph0_nodes[2]
+    for n1, n2 in zip(deep_ordered_nodes[6:9], graph0_1_nodes):
+        assert n1 is n2
+    for n1, n2 in zip(deep_ordered_nodes[9:], graph0_1_0_nodes):
+        assert n1 is n2
+
+
+def test_deep_prefix_id_ordered_nodes():
+    def f_my_function1(inp1_1, inp1_2):
+        return inp1_1 + inp1_2
+
+    def f_my_function2(inp2_1):
+        return inp2_1 / 10.
+
+    def f_my_function3(inp3_1, inp3_2):
+        return inp3_1 - inp3_2
+
+    graph0 = Graph()
+    graph0_0 = Graph()
+    graph0_1 = Graph()
+    graph0_1_0 = Graph()
+
+    # inp2_1 = 1.5, inp3_2 = 0.15, out=0.1785
+    graph0.add_node(graph0_0, kwargs=['inp1_1', 'inp1_2'], outputs=['inp2_1'])
+    graph0.add_node(f_my_function2, inputs=['inp2_1'], outputs=['inp3_2'])
+    graph0.add_node(graph0_1, kwargs=[('inp1', 'inp1_1'), ('inp2', 'inp3_2')], outputs=['out'])
+
+    graph0_0.add_node(f_my_function1, inputs=['inp1_1', 'inp1_2'], outputs=['inp2_1'])
+    graph0_0.add_node(f_my_function2, inputs=['inp2_1'], outputs=['inp3_2'])
+    graph0_0.add_node(f_my_function3, inputs=[('inp3_1', 'inp1_1'), 'inp3_2'], outputs=['out'])
+
+    # inp2_1 = 0.215, inp3_2 = 0.0215, out = 0.1785
+    graph0_1_0.add_node(f_my_function1, inputs=['inp1_1', 'inp1_2'], outputs=['inp2_1'])
+    graph0_1_0.add_node(f_my_function2, inputs=['inp2_1'], outputs=['inp3_2'])
+    graph0_1_0.add_node(f_my_function3, inputs=[('inp3_1', 'inp1_1'), 'inp3_2'], outputs=['out'])
+
+    # out1 = 0.2, out2 = 0.015, out=0.1785
+    graph0_1.add_node(f_my_function2, inputs=['inp1'], outputs=['out1'])
+    graph0_1.add_node(f_my_function2, inputs=['inp2'], outputs=['out2'])
+    graph0_1.add_node(graph0_1_0, kwargs=[('inp1_1', 'out1'), ('inp1_2', 'out2')], outputs=['out3'])
+
+    prefix_ids, deep_ordered_nodes = zip(*graph0.deep_prefix_id_ordered_nodes())
+
+    graph0_nodes = graph0.ordered_nodes
+    graph0_0_nodes = graph0_0.ordered_nodes
+    graph0_1_nodes = graph0_1.ordered_nodes
+    graph0_1_0_nodes = graph0_1_0.ordered_nodes
+
+    graph0_prefix_ids = [n.id for n in graph0.ordered_nodes]
+    graph0_0_prefix_ids = [graph0_nodes[0].id + '.' + n.id for n in graph0_0.ordered_nodes]
+    graph0_1_prefix_ids = [graph0_nodes[2].id + '.' + n.id for n in graph0_1.ordered_nodes]
+    graph0_1_0_prefix_ids = [graph0_nodes[2].id + '.' + graph0_1_nodes[2].id + '.' + n.id
+                             for n in graph0_1_0.ordered_nodes]
+
+    assert deep_ordered_nodes[0] is graph0_nodes[0]
+    for n1, n2 in zip(deep_ordered_nodes[1:4], graph0_0_nodes):
+        assert n1 is n2
+    assert deep_ordered_nodes[4] is graph0_nodes[1]
+    assert deep_ordered_nodes[5] is graph0_nodes[2]
+    for n1, n2 in zip(deep_ordered_nodes[6:9], graph0_1_nodes):
+        assert n1 is n2
+    for n1, n2 in zip(deep_ordered_nodes[9:], graph0_1_0_nodes):
+        assert n1 is n2
+
+    assert prefix_ids[0] == graph0_prefix_ids[0]
+    for pi1, pi2 in zip(prefix_ids[1:4], graph0_0_prefix_ids):
+        assert pi1 == pi2
+    assert prefix_ids[4] == graph0_prefix_ids[1]
+    assert prefix_ids[5] == graph0_prefix_ids[2]
+    for pi1, pi2 in zip(prefix_ids[6:9], graph0_1_prefix_ids):
+        assert pi1 == pi2
+    for pi1, pi2 in zip(prefix_ids[9:], graph0_1_0_prefix_ids):
+        assert pi1 == pi2

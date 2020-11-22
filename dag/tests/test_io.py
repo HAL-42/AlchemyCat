@@ -1,4 +1,6 @@
 from alchemy_cat.dag.io import Input, Output
+import pytest
+from alchemy_cat.dag.errors import PyungoError
 
 
 def test_Input():
@@ -47,3 +49,15 @@ def test_io_maps():
         assert io.map == 'a'
         io = Class(name='a', map='b')
         assert io.map == 'b'
+
+def test_dot_in_name():
+    with pytest.raises(PyungoError) as err:
+        inp = Input(name='a.b')
+
+    assert "IO can't have '.' in name, however get name = a.b" in str(err.value)
+
+def test_dot_in_map():
+    with pytest.raises(PyungoError) as err:
+        inp = Input(name='a', map='a.b')
+
+    assert "IO can't have '.' in map, however get map = a.b" in str(err.value)
