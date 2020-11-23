@@ -159,9 +159,17 @@ class DataAuger(Dataset):
         self.graph = Graph(verbosity=verbosity, pool_size=pool_size, slim=slim)
         self.build_graph()
 
-        self.ordered_nodes = self.graph.ordered_nodes
-        self.multi_nodes = [node for node in self.ordered_nodes if isinstance(node._fct, MultiMap)]
-        self.rand_nodes = [node for node in self.ordered_nodes if isinstance(node._fct, RandMap)]
+        self.deep_prefix_id_ordered_nodes = self.graph.deep_prefix_id_ordered_nodes()
+
+        multi_prefix_id_nodes = [(prefix_id_node) for prefix_id_node in self.deep_prefix_id_ordered_nodes
+                                 if isinstance(prefix_id_node[1]._fct, MultiMap)]
+        self.multi_nodes_prefix_id, self.multi_nodes = zip(*multi_prefix_id_nodes) if multi_prefix_id_nodes \
+            else ([], [])
+
+        rand_prefix_id_nodes = [(prefix_id_node) for prefix_id_node in self.deep_prefix_id_ordered_nodes
+                                if isinstance(prefix_id_node[1]._fct, RandMap)]
+        self.rand_nodes_prefix_id, self.rand_nodes = zip(*rand_prefix_id_nodes) if rand_prefix_id_nodes else \
+            ([], [])
 
         self.multi_factors = self._get_multi_factors()
         self.divide_factors = self._get_divide_factors()
@@ -220,8 +228,8 @@ class DataAuger(Dataset):
         idx %= self.divide_factors[0]
 
         node_indices = {}
-        for multi_node, divide_factor in zip(self.multi_nodes, self.divide_factors[1:]):
-            node_indices[multi_node._id] = idx // divide_factor
+        for prefix_id, divide_factor in zip(self.multi_nodes_prefix_id, self.divide_factors[1:]):
+            node_indices[prefix_id] = idx // divide_factor
             idx %= divide_factor
 
         return dataset_idx, node_indices
@@ -231,14 +239,14 @@ class DataAuger(Dataset):
         """Return rand seed of every rand node"""
         rand_seeds = {}
 
-        for node in self.rand_nodes:
-            rand_seeds[node._id] = node._fct.rand_seed
+        for prefix_id, node in zip(self.rand_nodes_prefix_id ,self.rand_nodes):
+            rand_seeds[prefix_id] = node._fct.rand_seed
         return rand_seeds
 
     def load_rand_seeds(self, rand_seeds):
         """Load rand seed from rand_seeds"""
-        for node in self.rand_nodes:
-            node._fct.rand_seed = rand_seeds[node._id]
+        for prefix_id, node in zip(self.rand_nodes_prefix_id ,self.rand_nodes):
+            node._fct.rand_seed = rand_seeds[prefix_id]
 
     @property
     def rand_seed_log(self):
