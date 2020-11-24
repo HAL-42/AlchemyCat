@@ -24,7 +24,7 @@ def get_process_info(pid: Optional[int]=None, verbosity=0) -> dict:
     Returns:
         Dict with process info
     """
-    process_info = dict()
+    process_info = {}
 
     p = psutil.Process(pid)
     all_info = p.as_dict()
