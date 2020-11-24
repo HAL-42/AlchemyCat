@@ -342,7 +342,7 @@ class DataManager(object):
 
         self.auger.load_rand_seeds(rand_seeds)
 
-        ret = dict()
+        ret = {}
         ret['data_auger_idx'] = auger_idx
         ret['dataset_idx'], ret['node_indices'] = self.auger.calculate_indices(auger_idx)
         ret['rand_seeds'] = rand_seeds
