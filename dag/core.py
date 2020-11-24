@@ -371,7 +371,7 @@ class Graph:
                   slim_names: Optional[List[str]] = None,
                   init: Optional[Dict[str, Any]] = None):
         """ get provided inputs, outputs, args, kwargs, slim_names, init if any and create a new node """
-        if not hasattr(f, "__call__"):
+        if not callable(f):
             raise PyungoError(f"Registered function {f} should be callable")
 
         if (inputs is not None) and (args is not None):
