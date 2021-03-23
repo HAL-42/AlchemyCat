@@ -160,14 +160,16 @@ def _process_yaml_config(config: Dict, experiments_root: str):
         TEST_DIR = EXP_DIR
     config['TEST_DIR'] = TEST_DIR
     config.rslt_dir = rslt_dir
-
+    if 'RAND_SEED' in config:
+        config.rand_seed = config.RAND_SEED
     return config
 
 
 def _process_py_config(config: Dict, experiments_root: str):
     if not config.rslt_dir:
         raise RuntimeError(f"config should indicate result save dir at config.rslt_dir = {config.rslt_dir}")
-    os.makedirs(osp.join(experiments_root, config.rslt_dir), exist_ok=True)
+    config.rslt_dir = osp.join(experiments_root, config.rslt_dir)
+    os.makedirs(config.rslt_dir, exist_ok=True)
 
     return config
 
@@ -342,9 +344,9 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
         print(f"torch.set_grad_enabled({is_train})")
 
     def get_rand_seed_from_config():
-        if 'RAND_SEED' not in config:
-            raise ValueError(f"CONFIG did't have key RAND_SEED")
-        return config.RAND_SEED
+        if 'rand_seed' not in config:
+            raise ValueError(f"CONFIG did't have key rand_seed")
+        return config.rand_seed
 
     # * Set rand seed
     if isinstance(rand_seed, bool):
