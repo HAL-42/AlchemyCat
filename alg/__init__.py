@@ -11,5 +11,5 @@
 from alchemy_cat.alg.cnn_align import *
 from alchemy_cat.alg.utils import *
 from alchemy_cat.alg.msc_flip_inference import msc_flip_inference
-from alchemy_cat.acplot.utils import *
-
+from alchemy_cat.alg.clamp_softmax import *
+from alchemy_cat.alg.dense_crf import *
