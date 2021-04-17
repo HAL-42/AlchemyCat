@@ -14,3 +14,4 @@ from alchemy_cat.alg.msc_flip_inference import msc_flip_inference
 from alchemy_cat.alg.clamp_softmax import *
 from alchemy_cat.alg.dense_crf import *
 from alchemy_cat.alg.normalize_tensor import *
+from alchemy_cat.alg.complement_entropy_confidence import *
