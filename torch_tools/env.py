@@ -270,7 +270,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
             prefix = '.' if dist.get_rank() > 0 else ''
             file_name = prefix + '-'.join(['stdout', f"rank{dist.get_rank()}", get_local_time_str()]) + '.log'
         else:
-            file_name = '-'.join(['stdout', get_local_time_str()]) + '.log'
+            file_name = '-'.join(['stdout', get_local_time_str(for_file_name=True)]) + '.log'
         return osp.join(stdout_log_dir, file_name)
 
     # * Log stdout

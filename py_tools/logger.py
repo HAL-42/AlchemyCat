@@ -27,7 +27,7 @@ class Logger(object):
         sys.stdout = self
 
         os.makedirs(osp.dirname(out_file), exist_ok=True)
-        self.log = open(out_file, "w")
+        self.log = open(out_file, "w", encoding="utf-8")
 
         self.real_time = real_time
         self.silence = silence
