@@ -49,7 +49,8 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
                        pad_imgs_to: Union[None, Iterable, int]=None,
                        pad_aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]]=lambda x: x,
                        msc_aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]]=lambda x: x,
-                       cuda_memory_saving: int=0) \
+                       cuda_memory_saving: int=0,
+                       softmax_norm: bool=True) \
         -> torch.Tensor:
     """MSC and flip inference
 
@@ -66,6 +67,8 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
             Iterable, then first and second aligners separately used to align H and W.
         cuda_memory_saving: int before 0-2. The larger the less_cuda_memory, the less gpu memory used by function. May
             loss some performance. (Default: 0)
+        softmax_norm: If Ture, the output logit will be normalized by softmax then fusion between different scales. Else
+            the output logit will be implemented as prob and directly fusion and output.
 
     Returns: (N, C, H, W) probs of image predicts
     """
@@ -138,7 +141,7 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
             scaled_logits = scaled_logits.cpu()
 
         logits = F.interpolate(scaled_logits, size=(padded_h, padded_w), mode='bilinear', align_corners=True)
-        probs = F.softmax(logits, dim=1)
+        probs = F.softmax(logits, dim=1) if softmax_norm else logits
         if is_flip:
             probs = merge_flipped_probs(probs)
 
