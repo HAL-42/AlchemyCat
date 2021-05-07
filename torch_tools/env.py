@@ -8,26 +8,24 @@
 @time: 2020/1/16 4:46
 @desc:
 """
+import json
 import os
 import os.path as osp
+import pickle
 import sys
 import warnings
+from importlib.util import spec_from_file_location, module_from_spec
+from pprint import pprint
+from typing import Union, Optional, Tuple
 
+import cv2
 import torch
 import torch.distributed as dist
-from addict import Dict
-from typing import Union, Optional, Tuple
-import cv2
-from pprint import pprint
-from importlib import import_module
-from importlib.util import spec_from_file_location, module_from_spec
-import ntpath
-
 import yaml
-from yamlinclude import YamlIncludeConstructor
-
-from alchemy_cat.py_tools import set_rand_seed, Logger
+from addict import Dict
 from alchemy_cat.py_tools import get_process_info, get_local_time_str
+from alchemy_cat.py_tools import set_rand_seed, Logger
+from yamlinclude import YamlIncludeConstructor
 
 __all__ = ["get_device", "open_config", "init_env", "parse_config"]
 
@@ -124,8 +122,16 @@ def open_config(config_path: str, is_yaml: bool = False) -> Tuple[Union[Dict, di
         spec.loader.exec_module(module)
         config: Dict = module.config
         # config: Dict = import_module(get_import_name(name)).config
+    elif ext == '.json':
+        is_py = True
+        with open(config_path, 'r') as json_f:
+            config = Dict(json.load(json_f))
+    elif ext == ".pkl":
+        is_py = True
+        with open(config_path, 'rb') as pkl_f:
+            config = Dict(pickle.load(pkl_f))
     else:
-        raise ValueError(f"config_path = {config_path} must be python, yml or yaml file.")
+        raise ValueError(f"config_path = {config_path} must be python, json, pkl, yml or yaml file.")
     return config, is_py
 
 
