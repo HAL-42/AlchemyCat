@@ -31,7 +31,8 @@ def eval_preds(class_num: int, class_names: Optional[Iterable[str]],
                pred_preprocess: Callable[[np.ndarray], np.ndarray]=lambda x: x,
                gt_preprocess: Callable[[np.ndarray], np.ndarray]=lambda x: x,
                importance: int=2,
-               eval_individually: bool=True, take_pred_ignore_as_a_cls: bool=False) \
+               eval_individually: bool=True, take_pred_ignore_as_a_cls: bool=False,
+               metric_cls: type=SegmentationMetric) \
         -> Union[Tuple[SegmentationMetric, OrderedDict], SegmentationMetric]:
 
     """Evaluate predictions of semantic segmentation
@@ -49,6 +50,7 @@ def eval_preds(class_num: int, class_names: Optional[Iterable[str]],
         importance: Segmentation Metric's importance filter. (Default: 2)
         eval_individually: If True, evaluate each sample. (Default: True)
         take_pred_ignore_as_a_cls: If True, the ignore label in preds will be seemed as a class. (Default: False)
+        metric_cls: Use metric_cls(class_num, class_names) to eval preds. (Default: SegmentationMetric)
 
     Returns:
         Segmentation Metric and metric result for each sample (If eval_individually is True)
@@ -60,7 +62,7 @@ def eval_preds(class_num: int, class_names: Optional[Iterable[str]],
         class_num += 1
         class_names += ['pred_ignore']
 
-    metric = SegmentationMetric(class_num, class_names)
+    metric = metric_cls(class_num, class_names)
     if eval_individually:
         sample_metrics = OrderedDict()
 
