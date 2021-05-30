@@ -351,7 +351,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
 
     def get_rand_seed_from_config():
         if 'rand_seed' not in config:
-            raise ValueError(f"CONFIG did't have key rand_seed")
+            raise ValueError(f"CONFIG didn't have key rand_seed")
         return config.rand_seed
 
     # * Set rand seed
