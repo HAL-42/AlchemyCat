@@ -146,6 +146,8 @@ class Cfg2Tune(Dict):
                 cfg_file = osp.join(cfg_save_dir, 'cfg.json')
                 with open(cfg_file, 'w') as json_f:
                     json.dump(cfg.to_dict(), json_f)
+            except Exception:
+                pass
             finally:
                 cfg_file = osp.join(cfg_save_dir, 'cfg.pkl')
                 with open(cfg_file, 'wb') as pkl_f:
