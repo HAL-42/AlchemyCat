@@ -96,15 +96,16 @@ def eval_preds(class_num: int, class_names: Optional[Iterable[str]],
         # Evaluate
         metric.update(pred, gt)
         if eval_individually:
-            with OneOffTracker(lambda: SegmentationMetric(class_num, class_names)) as individual_metric:
+            with OneOffTracker(lambda: metric_cls(class_num, class_names)) as individual_metric:
                 individual_metric.update(pred, gt)
             sample_metrics[id] = individual_metric.statistics(importance)
 
     # Saving
     if result_dir is not None:
         metric.save_metric(result_dir, importance, dpi=400)
-        with open(osp.join(result_dir, 'sample_statistics.pkl'), 'wb') as f:
-            pickle.dump(sample_metrics, f)
+        if eval_individually:
+            with open(osp.join(result_dir, 'sample_statistics.pkl'), 'wb') as f:
+                pickle.dump(sample_metrics, f)
 
     print("\n================================ Eval End ================================")
 
