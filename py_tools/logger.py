@@ -12,6 +12,40 @@ import sys
 import os
 import os.path as osp
 
+__all__ = ['Logger']
+
+
+class _StreamLogger(object):
+
+    def __init__(self, stream_name: str, log, real_time: bool=False, silence: bool=False):
+        if stream_name == 'stdout':
+            self.stream = sys.stdout
+            sys.stdout = self
+        elif stream_name == 'stderr':
+            self.stream = sys.stderr
+            sys.stderr = self
+        else:
+            raise ValueError(f"stream_name = {stream_name} should be 'stdout' or 'stderr'.")
+
+        self.log = log
+
+        self.real_time = real_time
+        self.silence = silence
+
+    def write(self, message):
+        if not self.silence:
+            self.stream.write(message)
+
+        self.log.write(message)
+
+        if self.real_time:
+            self.log.flush()
+
+    def flush(self):
+        self.stream.flush()
+        self.log.flush()
+
+
 class Logger(object):
     """After call Logger(outfile), the stdout will print to both stdout and out_file"""
 
@@ -23,8 +57,7 @@ class Logger(object):
             real_time: If True, log file will flush after every write() call. (Default: False)
             silence: If True, output to terminal will be suppressed. (Default: False)
         """
-        self.terminal = sys.stdout
-        sys.stdout = self
+        sys.alchemy_cat_logger = self  # Make Logger won't be deleted.
 
         os.makedirs(osp.dirname(out_file), exist_ok=True)
         self.log = open(out_file, "w", encoding="utf-8")
@@ -32,19 +65,10 @@ class Logger(object):
         self.real_time = real_time
         self.silence = silence
 
-    def write(self, message):
-        if not self.silence:
-            self.terminal.write(message)
-
-        self.log.write(message)
-
-        if self.real_time:
-            self.log.flush()
-
-    def flush(self):
-        self.terminal.flush()
-        self.log.flush()
+        self.stdout_logger = _StreamLogger('stdout', self.log, self.real_time, self.silence)
+        self.stderr_logger = _StreamLogger('stderr', self.log, self.real_time, self.silence)
 
     def __del__(self):
-        self.flush()
+        self.stdout_logger.flush()
+        self.stderr_logger.flush()
         self.log.close()
