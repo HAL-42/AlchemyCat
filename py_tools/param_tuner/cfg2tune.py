@@ -21,7 +21,7 @@ from addict import Dict
 
 from .utils import param_val2str
 
-__all__ = ["Param2Tune", "Cfg2Tune"]
+__all__ = ["Param2Tune", "ParamLazy", "Cfg2Tune"]
 
 
 class Param2Tune(object):
@@ -56,6 +56,29 @@ class Param2Tune(object):
 
     def __repr__(self):
         return f"{self.__class__} with optional_val = {list(self.optional_val)}"
+
+
+class ParamLazy(object):
+
+    def __init__(self, func: Callable[[Dict], Any]):
+        """Cfg2Tune's ParamLazy value will be computed after Cfg2Tune is transferred to cfg_tuned."""
+        self.func = func
+
+    def __call__(self, cfg: Dict) -> Any:
+        return self.func(cfg)
+
+    @staticmethod
+    def compute_param_lazy(cfg_tuned: Dict) -> Dict:
+        def compute(cfg: Dict):
+            for k, v in cfg.items():
+                if isinstance(v, Dict):
+                    compute(v)
+                elif isinstance(v, ParamLazy):
+                    cfg[k] = v(cfg_tuned)
+                else:
+                    pass
+        compute(cfg_tuned)
+        return cfg_tuned
 
 
 class Cfg2Tune(Dict):
@@ -109,13 +132,12 @@ class Cfg2Tune(Dict):
                 yield from Cfg2Tune.dfs_params2tune(params2tune[1:])
                 reset_later_params(params2tune)
 
-    @property
-    def cfg_tuned(self) -> Dict:
+    def _cfg_tuned(self) -> Dict:
         other = Dict()
 
         for k, v in self.items():
             if isinstance(v, type(self)):
-                other[k] = v.cfg_tuned
+                other[k] = v._cfg_tuned()
             elif isinstance(v, Param2Tune):
                 other[k] = v.cur_val
             else:
@@ -129,6 +151,10 @@ class Cfg2Tune(Dict):
             other.rslt_dir = osp.join(self.rslt_dir, rslt_dir_suffix)
 
         return other
+
+    @property
+    def cfg_tuned(self) -> Dict:
+        return ParamLazy.compute_param_lazy(self._cfg_tuned())
 
     def get_cfgs(self):
         params2tune = object.__getattribute__(self, "_params2tune")
