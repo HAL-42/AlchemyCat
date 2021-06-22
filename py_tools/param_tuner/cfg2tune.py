@@ -19,6 +19,8 @@ import os.path as osp
 
 from addict import Dict
 
+from .utils import param_val2str
+
 __all__ = ["Param2Tune", "Cfg2Tune"]
 
 
@@ -121,7 +123,8 @@ class Cfg2Tune(Dict):
 
         if object.__getattribute__(self, "_root") is self:
             assert 'rslt_dir' in self
-            rslt_dir_suffix = ",".join([f"{name}=" + str(param.cur_val).splitlines()[0][:10]
+
+            rslt_dir_suffix = ",".join([f"{name}=" + param_val2str(param.cur_val)
                                         for name, param in object.__getattribute__(self, "_params2tune").items()])
             other.rslt_dir = osp.join(self.rslt_dir, rslt_dir_suffix)
 
