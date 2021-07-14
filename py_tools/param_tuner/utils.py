@@ -14,7 +14,7 @@ from alchemy_cat.py_tools import is_int, is_float
 
 __all__ = ["param_val2str", "param_vals2pd_idx"]
 
-kLongestParamStr = 40
+kLongestParamStr = 75
 
 
 def param_val2str(param_val: Any, longest_param_length: int = kLongestParamStr) -> str:
