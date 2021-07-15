@@ -142,7 +142,7 @@ def find_match_miss(model: nn.Module, pretrain_dict: kParamDictType) \
 
 def sub_module_name_of_named_params(named_params: kParamDictType, module_name_sub_dict: Dict[str, str]) \
     -> Union[Dict[str, nn.Parameter], Dict[str, torch.Tensor]]:
-    """Sub named_parameters keys's module name part with module_name_sub_dict.
+    """Sub named_parameters key's module name part with module_name_sub_dict.
 
     Args:
         named_params: Key-value pair of param name and param value.
