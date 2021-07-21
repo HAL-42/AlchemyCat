@@ -56,6 +56,7 @@ class IntermediateValueGetter(object):
 
     @module.setter
     def module(self, module):
+        self.remove_hooks()
         self._set_hooks(module)
         self._module = module
 
