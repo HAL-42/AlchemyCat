@@ -25,6 +25,7 @@ class _VOCBase(Dataset):
     PASCAL VOC and VOC Aug Segmentation base dataset
     """
     mean_bgr = [104.008, 116.669, 122.675]
+    std_bgr = [57.375, 57.12, 58.395]
     ignore_label = 255
 
     def __init__(self, root: str="./contrib/datasets", year="2012", split: str="train"):
