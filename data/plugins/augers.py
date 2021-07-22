@@ -439,17 +439,21 @@ def pad_img_label(img: np.ndarray, label: Optional[np.ndarray] = None, pad_img_t
         return img
 
 
-def int_img2float32_img(img: np.ndarray) -> np.ndarray:
+def int_img2float32_img(img: np.ndarray, scale: bool=False) -> np.ndarray:
     """Convert int img to float32 img
 
     Args:
         img (np.ndarray): int numpy img
+        scale (bool): If True, img will be scale to range [0.0, 1.0]. (Default: False)
 
     Returns: float32 img
     """
     if not is_intarr(img):
         raise ValueError(f"img {img} is supposed to be an int arr")
-    return img.astype(np.float32)
+    img = img.astype(np.float32)  # Return copy
+    if scale:
+        img /= 255  # Can be inplace
+    return img
 
 
 def centralize(img: np.ndarray, mean: Union[int, float, Iterable], std: Union[int, float, Iterable, None] = None):
