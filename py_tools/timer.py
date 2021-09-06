@@ -36,6 +36,11 @@ class Timer(object):
         self._unit = unit
         self._precision = precision
         self.name = name
+    
+    @property
+    def total(self):
+        assert self._total is not None
+        return self._total
 
     def start(self):
         self._start = default_timer()
@@ -75,7 +80,7 @@ class Timer(object):
                 ret = f"{round(total * factor, self._precision)}{unit}"
         else:
             total *= Timer.__unitfactor[self._unit]
-            total = round(self._total, self._precision)
+            total = round(total, self._precision)
             ret = f"{total}{self._unit}"
 
         return f"{self.name}: " + ret
