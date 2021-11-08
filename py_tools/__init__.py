@@ -21,3 +21,6 @@ from alchemy_cat.py_tools.numpy_json_encoder import *
 from alchemy_cat.py_tools.logger import Logger
 from alchemy_cat.py_tools.get_process_info import *
 from alchemy_cat.py_tools.param_tuner import *
+from alchemy_cat.py_tools.find_files import *
+from alchemy_cat.py_tools.color_print import *
+from alchemy_cat.py_tools.decorators import *

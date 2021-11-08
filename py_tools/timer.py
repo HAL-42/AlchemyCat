@@ -13,6 +13,8 @@ from timeit import default_timer
 
 from typing import Optional
 
+__all__ = ['Timer']
+
 
 class Timer(object):
     __unitfactor = {'s': 1,
