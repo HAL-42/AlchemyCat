@@ -24,3 +24,4 @@ from alchemy_cat.py_tools.param_tuner import *
 from alchemy_cat.py_tools.find_files import *
 from alchemy_cat.py_tools.color_print import *
 from alchemy_cat.py_tools.decorators import *
+from alchemy_cat.py_tools.check_img_exits import *

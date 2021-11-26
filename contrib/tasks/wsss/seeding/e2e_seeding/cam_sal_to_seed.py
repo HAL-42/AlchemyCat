@@ -9,7 +9,7 @@
 @desc:
 """
 import numpy as np
-from alchemy_cat.contrib.tasks.wsss.seeding.resolve_loc_cue_conflict import resolve_loc_cue_conflict_by_area_order
+from contrib.tasks.wsss.seeding.e2e_seeding.resolve_loc_cue_conflict import resolve_loc_cue_conflict_by_area_order
 
 __all__ = ["cam_sal_to_seed"]
 

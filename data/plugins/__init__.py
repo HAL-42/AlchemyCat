@@ -8,3 +8,6 @@
 @time: 2020/1/7 17:12
 @desc:
 """
+from alchemy_cat.data.plugins.augers import *
+from alchemy_cat.data.plugins.file_id_dt import *
+from alchemy_cat.data.plugins.sub_augers import *

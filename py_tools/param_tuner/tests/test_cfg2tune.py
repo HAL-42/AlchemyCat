@@ -13,6 +13,8 @@ import pickle
 import pytest
 import os.path as osp
 import shutil
+import sys
+import os
 
 from alchemy_cat.py_tools import Cfg2Tune
 
@@ -27,6 +29,17 @@ def cfg_dir():
 @pytest.fixture(scope='function')
 def easy_config():
     return Cfg2Tune.load_cfg2tune(osp.join('configs', 'easy_config', 'cfg.py'))
+
+
+@pytest.fixture(scope='function')
+def imported_outside_config():
+    return Cfg2Tune.load_cfg2tune(osp.join('configs', 'imported_outside_config', 'cfg.py'))
+
+
+@pytest.fixture(scope='function')
+def def_inside_config():
+    sys.path.insert(0, os.getcwd())
+    return Cfg2Tune.load_cfg2tune(osp.join('configs', 'def_inside_config', 'cfg.py'))
 
 
 @pytest.fixture(scope='function')
@@ -83,6 +96,32 @@ def test_root_child_params2tune(easy_config):
 def test_dump_reload(easy_config, cfg_dir):
     cfgs = [cfg.to_dict() for cfg in easy_config.get_cfgs()]
     cfg_pkls = easy_config.dump_cfgs(cfg_dir)
+
+    load_cfgs = []
+    for cfg_pkl in cfg_pkls:
+        with open(cfg_pkl, "rb") as pkl_f:
+            load_cfgs.append(pickle.load(pkl_f))
+
+    assert cfgs == load_cfgs
+
+
+def test_dump_reload_cfg2tune_with_function_imported_outside(imported_outside_config, cfg_dir):
+    """测试生成的cfg_tuned中含有函数的情况。函数从外部库导入，或者在本项目中定义。"""
+    cfgs = [cfg.to_dict() for cfg in imported_outside_config.get_cfgs()]
+    cfg_pkls = imported_outside_config.dump_cfgs(cfg_dir)
+
+    load_cfgs = []
+    for cfg_pkl in cfg_pkls:
+        with open(cfg_pkl, "rb") as pkl_f:
+            load_cfgs.append(pickle.load(pkl_f))
+
+    assert cfgs == load_cfgs
+
+
+def test_dump_reload_with_function_define_inside(def_inside_config, cfg_dir):
+    """测试生成的cfg_tuned中含有函数的情况。函数在Cfg2Tune所在py文件内定义。"""
+    cfgs = [cfg.to_dict() for cfg in def_inside_config.get_cfgs()]
+    cfg_pkls = def_inside_config.dump_cfgs(cfg_dir)
 
     load_cfgs = []
     for cfg_pkl in cfg_pkls:

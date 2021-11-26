@@ -9,3 +9,5 @@
 @desc:
 """
 from alchemy_cat.contrib.metrics.conf_matrix_bases_metrics import *
+from alchemy_cat.contrib.metrics.superpixel_metrics import *
+from alchemy_cat.contrib.metrics.seg_mask_metric import *

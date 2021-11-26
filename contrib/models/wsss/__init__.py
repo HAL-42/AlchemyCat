@@ -12,3 +12,4 @@ from alchemy_cat.contrib.models.wsss.e2e import *
 from alchemy_cat.contrib.models.wsss.pam import *
 from alchemy_cat.contrib.models.wsss.vgg_ASPP import *
 from alchemy_cat.contrib.models.wsss.vgg_feature import *
+from alchemy_cat.contrib.models.wsss.deeplab_v3 import *

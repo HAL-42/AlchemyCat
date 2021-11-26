@@ -12,7 +12,7 @@ import numpy as np
 import torch
 
 from alchemy_cat.alg.normalize_tensor import channel_min_max_norm
-from alchemy_cat.contrib.tasks.wsss.seeding.cam_sal_to_seed import cam_sal_to_seed
+from contrib.tasks.wsss.seeding.e2e_seeding.cam_sal_to_seed import cam_sal_to_seed
 
 __all__ = ['get_online_seed_from_cam_sal_seg']
 

@@ -11,3 +11,4 @@
 from alchemy_cat.acplot.figure_wall import *
 from alchemy_cat.acplot.utils import *
 from alchemy_cat.acplot.plot_conf_matrix import pretty_plot_confusion_matrix
+from alchemy_cat.acplot.subplots_row_col import *

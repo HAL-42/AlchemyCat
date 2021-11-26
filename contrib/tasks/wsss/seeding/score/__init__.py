@@ -3,10 +3,11 @@
 """
 @Author  : Xiaobo Yang
 @Contact : hal_42@zju.edu.cn
-@Time    : 2021/5/20 22:57
+@Time    : 2021/6/24 16:36
 @File    : __init__.py.py
 @Software: PyCharm
 @Desc    : 
 """
-from .pred import *
-from .score import *
+from .pixel_score import *
+from .seg_score import *
+from .utils import *
