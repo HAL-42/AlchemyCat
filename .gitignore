@@ -11,8 +11,17 @@ __pycache__/
 # Ignore Data
 #**/data/**
 #!**/data/.gitkeep
-**/datasets/**
-!**/datasets/.gitkeep
+**/datasets
+!**/datasets/**/.gitkeep
+
+**/dataset
+!**/dataset/**/.gitkeep
+
+**/pretrain
+!**/pretrain/**/.gitkeep
+
+**/pretrains
+!**/pretrains/**/.gitkeep
 
 # Ignore Snapshots/models/checkpoints
 *.caffemodel
