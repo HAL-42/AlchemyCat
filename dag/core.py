@@ -294,9 +294,9 @@ class Graph:
         dep = {}
         for node in self._nodes.values():
             d = dep.setdefault(node.id, [])
-            for inp in node.input_maps:
+            for inp in node.inputs_without_constants:
                 for node2 in self._nodes.values():
-                    if inp in node2.output_names:
+                    if inp.map in node2.output_names:
                         d.append(node2.id)
         return dep
 
