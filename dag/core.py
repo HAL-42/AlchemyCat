@@ -117,10 +117,10 @@ class Node:
         """ return the unique id of the node """
         return self._id
 
-    @property
-    def inputs(self):
-        " return inputs"
-        return self._inputs
+    # @property
+    # def inputs(self):
+    #     " return inputs"
+    #     return self._inputs
 
     @property
     def input_names(self):
@@ -128,11 +128,11 @@ class Node:
         input_names = [i.name for i in self._inputs]
         return input_names
 
-    @property
-    def input_maps(self):
-        """ return a list of all input maps """
-        input_maps = [i.map for i in self._inputs]
-        return input_maps
+    # @property
+    # def input_maps(self):
+    #     """ return a list of all input maps """
+    #     input_maps = [i.map for i in self._inputs]
+    #     return input_maps
 
     @property
     def inputs_without_constants(self):
@@ -140,14 +140,14 @@ class Node:
         inputs = [i for i in self._inputs if not i.is_constant]
         return inputs
 
-    @property
-    def kwargs_name(self):
-        """ return the list of kwargs """
-        return [i.name for i in self._inputs if i.is_kwarg]
+    # @property
+    # def kwargs_name(self):
+    #     """ return the list of kwargs """
+    #     return [i.name for i in self._inputs if i.is_kwarg]
 
-    @property
-    def outputs(self):
-        return self._outputs
+    # @property
+    # def outputs(self):
+    #     return self._outputs
 
     @property
     def output_names(self):
@@ -266,28 +266,28 @@ class Graph:
         """ return the data of the graph (inputs + outputs) """
         return self._data
 
-    @property
-    def sim_inputs(self):
-        """ return input names (mapped) of every nodes need feeding from Data """
-        inputs = []
-        for node in self._nodes.values():
-            inputs.extend([i.map for i in node.inputs_without_constants
-                           if not i.is_kwarg])
-        return inputs
-
-    @property
-    def sim_kwargs(self):
-        """ return kwarg names (mapped) of every nodes """
-        kwargs = [k for node in self._nodes.values() for k in node.kwargs_name]
-        return kwargs
-
-    @property
-    def sim_outputs(self):
-        """ return output names (mapped) of every nodes """
-        outputs = []
-        for node in self._nodes.values():
-            outputs.extend([o.map for o in node.outputs])
-        return outputs
+    # @property
+    # def sim_inputs(self):
+    #     """ return input names (mapped) of every nodes need feeding from Data """
+    #     inputs = []
+    #     for node in self._nodes.values():
+    #         inputs.extend([i.map for i in node.inputs_without_constants
+    #                        if not i.is_kwarg])
+    #     return inputs
+    #
+    # @property
+    # def sim_kwargs(self):
+    #     """ return kwarg names (mapped) of every nodes """
+    #     kwargs = [k for node in self._nodes.values() for k in node.kwargs_name]
+    #     return kwargs
+    #
+    # @property
+    # def sim_outputs(self):
+    #     """ return output names (mapped) of every nodes """
+    #     outputs = []
+    #     for node in self._nodes.values():
+    #         outputs.extend([o.map for o in node.outputs])
+    #     return outputs
 
     def _dependencies(self):
         """ return dependencies among the nodes """
