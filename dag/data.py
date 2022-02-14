@@ -48,7 +48,7 @@ class Data:
         if diff:
             msg = 'The following inputs are already used in the model: {}'
             raise PyungoError(msg.format(sorted(list(diff))))
-        # inputs in data should able to provide inputs needed for calculate
+        # inputs in data should be able to provide inputs needed for calculate
         diff = dag_nec_input_maps - dag_output_names - data_input_maps
         if diff:
             msg = 'The following inputs are needed: {}'.format(sorted(list(diff)))
