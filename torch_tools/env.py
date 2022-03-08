@@ -27,7 +27,7 @@ from alchemy_cat.py_tools import get_process_info, get_local_time_str
 from alchemy_cat.py_tools import set_rand_seed, Logger
 from yamlinclude import YamlIncludeConstructor
 
-__all__ = ["get_device", "open_config", "init_env", "parse_config"]
+__all__ = ['get_device', 'open_config', 'init_env', 'parse_config', 'auto_rslt_dir']
 
 
 def _check_emtpy_value(val, memo='base.'):
@@ -77,6 +77,19 @@ def get_device(is_cuda: bool = True, cuda_id: int = 0, verbosity: bool = True) -
 
 def welcome():
     print("\033[32m###############o(*≧▽≦)ツ Alchemy Cat is Awesome φ(≧ω≦*)♪###############\033[0m")
+
+
+def auto_rslt_dir(file: str, config_dir: str='./configs') -> str:
+    """根据配置文件的__file__属性，自动返回配置文件的rslt_dir。
+
+    Args:
+        file: 配置文件的__file__属性。
+        config_dir: 相对工作目录，路径之于配置目录者。
+
+    Returns:
+        配置文件的rslt_dir，默认是__file__去掉配置目录和配置文件后的路径。
+    """
+    return osp.dirname(osp.relpath(file, config_dir))
 
 
 def open_config(config_path: str, is_yaml: bool = False) -> Tuple[Union[Dict, dict], bool]:
@@ -171,9 +184,13 @@ def _process_yaml_config(config: Dict, experiments_root: str):
     return config
 
 
-def _process_py_config(config: Dict, experiments_root: str):
+def _process_py_config(config: Dict, config_path: str, experiments_root: str,):
     if not config.rslt_dir:
         raise RuntimeError(f"config should indicate result save dir at config.rslt_dir = {config.rslt_dir}")
+
+    if config.rslt_dir is ...:
+        config.rslt_dir = auto_rslt_dir(config_path)
+
     config.rslt_dir = osp.join(experiments_root, config.rslt_dir)
     os.makedirs(config.rslt_dir, exist_ok=True)
 
@@ -201,7 +218,7 @@ def parse_config(config_path: str, experiments_root: str) -> Dict:
     if not is_py:
         config = _process_yaml_config(config, experiments_root)
     else:
-        config = _process_py_config(config, experiments_root)
+        config = _process_py_config(config, config_path, experiments_root)
 
     # * Check empty value and return
     _check_emtpy_value(config, memo='config.')
@@ -233,9 +250,9 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
             stdout will not be logged. If log_stdout is str, it will be recognized as a path and stdout will be logged
             to that path. (Default: False)
         local_rank (Optional[int]): If not None, init distributed parallel env with rank = local_rank with
-            init_method = "env://".  Default device will also bu set as "cuda:local_rank" .Make sure environment
+            init_method = "env://".  Default device will also be set as "cuda:local_rank" .Make sure environment
             is pre-set.
-        silence_non_master_rank (bool): If True, non master rank's (rank > 0) print will be silenced. (Default: False)
+        silence_non_master_rank (bool): If True, non-master rank's (rank > 0) print will be silenced. (Default: False)
 
     Returns: Default device and config (If config_path is None, config is None)
     """
