@@ -395,7 +395,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
         set_rand_seed(rand_seed_final)
         if verbosity:
             print(f"Set rand seed {rand_seed_final}" +
-                  f" = {rand_seed_ori} + {rand_seed_bias}" if rand_seed_bias is not None else '')
+                  (f" = {rand_seed_ori} + {rand_seed_bias}" if rand_seed_bias is not None else ''))
 
     # * Set reproducibility
     if reproducibility:
