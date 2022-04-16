@@ -375,17 +375,27 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
         return config.rand_seed
 
     # * Set rand seed
+    # ** 若rand_seed不是False，则解析得到rand_seed_ori，反之rand_seed_ori为None。
     if isinstance(rand_seed, bool):
-        rand_seed_ = get_rand_seed_from_config() if rand_seed else None
+        rand_seed_ori = get_rand_seed_from_config() if rand_seed else None
     elif isinstance(rand_seed, int) or isinstance(rand_seed, str):
-        rand_seed_ = rand_seed
+        rand_seed_ori = rand_seed
     else:
         raise ValueError(f"rand_seed should be bool, int or str.")
 
-    if rand_seed_ is not None:
-        set_rand_seed(rand_seed_)
+    # ** 若rand_seed_ori不是None（需要设置随机种子点），且分布式训练，则给每个rank设置不同随机种子偏置。反之偏置为None。
+    if rand_seed_ori is not None and local_rank is not None:
+        rand_seed_bias = local_rank if isinstance(rand_seed_ori, int) else str(local_rank)
+    else:
+        rand_seed_bias = None
+
+    # ** 若rand_seed_ori不为None，则设置随机种子点。若rand_seed_bias不为None，则要给种子点加上偏置。
+    if rand_seed_ori is not None:
+        rand_seed_final = rand_seed_ori if rand_seed_bias is None else rand_seed_ori + rand_seed_bias
+        set_rand_seed(rand_seed_final)
         if verbosity:
-            print(f"Set rand seed {rand_seed_}")
+            print(f"Set rand seed {rand_seed_final}" +
+                  f" = {rand_seed_ori} + {rand_seed_bias}" if rand_seed_bias is not None else '')
 
     # * Set reproducibility
     if reproducibility:
