@@ -216,7 +216,7 @@ class Cfg2Tune(Dict):
         - 若函数在config中定义，则保证：
             1）cfg2tune_py按照下面cfg2tune_import_path被import。
             2）load是也能import cfg2tune_import_path。
-        注意，subject_to函数、ParamLazy函数不会被pickle，二者只在生成Addict是被执行。
+        注意，subject_to函数、ParamLazy函数不会被pickle，二者只在生成Addict时被执行。
         '''
         try:
             cfg2tune_import_path = '.'.join(osp.normpath(osp.splitext(cfg2tune_py)[0]).lstrip(osp.sep).split(osp.sep))
