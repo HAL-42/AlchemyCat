@@ -405,9 +405,15 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
         # ** 检查是否设置了benchmark。若设置，则与复现要求冲突，报错。
         if is_benchmark:
             raise ValueError(f"is_benchmark must be False if reproducibility required. ")
-        # ** 设置pytorch总是使用确定性算法。
-        torch.use_deterministic_algorithms(True)
+        # ** 针对不同版本pytorch，设置其尽量使用确定性算法。
+        if hasattr(torch, 'set_deterministic'):
+            torch.set_deterministic(True)
+        if hasattr(torch, 'use_deterministic_algorithms'):
+            torch.use_deterministic_algorithms(True)
         torch.backends.cudnn.deterministic = True
+        if verbosity:
+            print("Set torch.backends.cudnn.deterministic = True. torch.set_deterministic(True) or "
+                  "torch.use_deterministic_algorithms(True) is called for reproducibility")
 
     # * End of init
     if verbosity:
