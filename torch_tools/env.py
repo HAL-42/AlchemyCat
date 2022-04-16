@@ -254,6 +254,8 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
             init_method = "env://".  Default device will also be set as "cuda:local_rank" .Make sure environment
             is pre-set.
         silence_non_master_rank (bool): If True, non-master rank's (rank > 0) print will be silenced. (Default: False)
+        reproducibility (bool): If True, do everything possible to make the pytorch program reproducible.
+            (Default: False)
 
     Returns: Default device and config (If config_path is None, config is None)
     """
@@ -269,7 +271,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
         # ** Set cuda device id
         if is_cuda is False:
             raise ValueError(f"When set local rank, cuda is needed. However, is_cuda = {is_cuda}")
-        if isinstance(is_cuda, int) and (is_cuda != local_rank):
+        if (isinstance(is_cuda, int) and not isinstance(is_cuda, bool)) and (is_cuda != local_rank):  # bool是int的子类。
             raise ValueError(f"local_rank = {local_rank} must equal to is_cuda = {is_cuda}")
         is_cuda = local_rank
 
