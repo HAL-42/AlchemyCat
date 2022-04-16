@@ -32,7 +32,7 @@ __all__ = ['get_device', 'open_config', 'init_env', 'parse_config', 'auto_rslt_d
 
 def _check_emtpy_value(val, memo='base.'):
     """Recursively detect empty val in dict"""
-    if (not val) and (val is not False) and (val is not 0):
+    if (not val) and not isinstance(val, (int, bool)):  # 若val被判否，且不是布尔（False）或int（0）类型，则是一个空Value。
         warnings.warn(f"{memo[:-1]} is a empty val: {val}")
     elif isinstance(val, dict):
         for k, v in val.items():
