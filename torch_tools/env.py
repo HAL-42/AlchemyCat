@@ -18,7 +18,7 @@ from importlib.util import spec_from_file_location, module_from_spec
 from pprint import pprint
 from typing import Union, Optional, Tuple
 
-import cv2
+from cv2 import cv2
 import torch
 import torch.distributed as dist
 import yaml
@@ -229,7 +229,8 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
              config_path: Optional[str] = None,
              experiments_root: str = "experiment", rand_seed: Union[bool, str, int] = False,
              cv2_num_threads: int = -1, verbosity: bool = True, log_stdout: Union[bool, str] = False,
-             local_rank: Optional[int] = None, silence_non_master_rank: Optional[bool] = False) \
+             local_rank: Optional[int] = None, silence_non_master_rank: Optional[bool] = False,
+             reproducibility: Optional[bool] = False) \
         -> Tuple[torch.device, Optional[Dict]]:
     """Init torch training environment
 
@@ -383,6 +384,18 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
         set_rand_seed(rand_seed_)
         if verbosity:
             print(f"Set rand seed {rand_seed_}")
+
+    # * Set reproducibility
+    if reproducibility:
+        # ** 检查是否设置了随机种子点。若没有设置（rand_seed为False，报错）。
+        if isinstance(rand_seed, bool) and not rand_seed:
+            raise ValueError(f"rand_seed must be set if reproducibility required. ")
+        # ** 检查是否设置了benchmark。若设置，则与复现要求冲突，报错。
+        if is_benchmark:
+            raise ValueError(f"is_benchmark must be False if reproducibility required. ")
+        # ** 设置pytorch总是使用确定性算法。
+        torch.use_deterministic_algorithms(True)
+        torch.backends.cudnn.deterministic = True
 
     # * End of init
     if verbosity:
