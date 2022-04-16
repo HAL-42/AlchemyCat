@@ -46,7 +46,6 @@ def set_torch_rand_seed(seed: Union[int, str]):
     torch.manual_seed(int(seed))
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(int(seed))
-    torch.backends.cudnn.deterministic = True
 
 
 def set_py_rand_seed(seed: Union[int, str]):
