@@ -385,7 +385,8 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
 
     # ** 若rand_seed_ori不是None（需要设置随机种子点），且分布式训练，则给每个rank设置不同随机种子偏置。反之偏置为None。
     if rand_seed_ori is not None and local_rank is not None:
-        rand_seed_bias = local_rank if isinstance(rand_seed_ori, int) else str(local_rank)
+        # 偏置乘以1000，使不同rank的种子点，即使向后递延（如Dataloader的worker，种子点为s、s+1、···，也不会发生冲突。
+        rand_seed_bias = local_rank * 1000 if isinstance(rand_seed_ori, int) else str(local_rank * 1000)
     else:
         rand_seed_bias = None
 
