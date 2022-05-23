@@ -18,19 +18,20 @@ __all__ = ['set_numpy_rand_seed', 'set_py_rand_seed', 'set_torch_rand_seed', 'se
            'set_rand_seed_according_torch']
 
 
-def set_numpy_rand_seed(seed: Union[int, str]):
+def set_numpy_rand_seed(seed: Union[int, str, np.ndarray]):
     """Set rand seed for numpy
 
     Args:
-        seed (Union[int, str]): int seed or str, which will be hashed to get int seed
+        seed (Union[int, str, np.ndarray]): int, str or np.ndarray seed, which will be hashed to get int seed
     """
     if isinstance(seed, str):
-        seed = hash(seed)
-    elif not isinstance(int(seed), int):
-        raise ValueError(f"seed={seed} should be str or int")
+        seed = hash(seed) % (2 ** 32)
+    elif isinstance(seed, int):
+        seed = seed % (2 ** 32)
+    elif not isinstance(seed, np.ndarray):
+        raise ValueError(f"seed={seed} should be str, int or np.ndarray")
 
-    seed = seed % (2**32)
-    np.random.seed(int(seed))
+    np.random.seed(seed)
 
 
 def set_torch_rand_seed(seed: Union[int, str]):

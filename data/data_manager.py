@@ -14,12 +14,16 @@ import os
 import os.path as osp
 import shutil
 import pickle
+import random
 
+import numpy as np
+import torch
+import torch.distributed as dist
 from torch.utils.data import Dataset as TorchDataset
-from torch.utils.data import DataLoader, Sampler, RandomSampler, SequentialSampler, BatchSampler
+from torch.utils.data import DataLoader, Sampler, RandomSampler, SequentialSampler, BatchSampler, DistributedSampler
 
 from alchemy_cat.data import Prefetcher, DataAuger, Dataset, read_rand_seeds
-from alchemy_cat.py_tools import set_rand_seed_according_torch, indent
+from alchemy_cat.py_tools import indent
 
 kBatchesType = List[List[int]]
 
@@ -46,6 +50,60 @@ class _EpochBatchSampler(Sampler):
 
     def __len__(self):
         return len(self.batches)
+
+
+# 拷贝自https://github.com/pytorch/pytorch/blob/master/torch/utils/data/_utils/worker.py，可以使得到的numpy seed与random的
+# seed错开。
+def _generate_state(base_seed, worker_id):
+    INIT_A = 0x43b0d7e5
+    MULT_A = 0x931e8875
+    INIT_B = 0x8b51f9dd
+    MULT_B = 0x58f38ded
+    MIX_MULT_L = 0xca01f9dd
+    MIX_MULT_R = 0x4973f715
+    XSHIFT = 4 * 8 // 2
+    MASK32 = 0xFFFFFFFF
+
+    entropy = [worker_id, base_seed & MASK32, base_seed >> 32, 0]
+    pool = [0] * 4
+
+    hash_const_A = INIT_A
+
+    def hash(value):
+        nonlocal hash_const_A
+        value = (value ^ hash_const_A) & MASK32
+        hash_const_A = (hash_const_A * MULT_A) & MASK32
+        value = (value * hash_const_A) & MASK32
+        value = (value ^ (value >> XSHIFT)) & MASK32
+        return value
+
+    def mix(x, y):
+        result_x = (MIX_MULT_L * x) & MASK32
+        result_y = (MIX_MULT_R * y) & MASK32
+        result = (result_x - result_y) & MASK32
+        result = (result ^ (result >> XSHIFT)) & MASK32
+        return result
+
+    # Add in the entropy to the pool.
+    for i in range(len(pool)):
+        pool[i] = hash(entropy[i])
+
+    # Mix all bits together so late bits can affect earlier bits.
+    for i_src in range(len(pool)):
+        for i_dst in range(len(pool)):
+            if i_src != i_dst:
+                pool[i_dst] = mix(pool[i_dst], hash(pool[i_src]))
+
+    hash_const_B = INIT_B
+    state = []
+    for i_dst in range(4):
+        data_val = pool[i_dst]
+        data_val = (data_val ^ hash_const_B) & MASK32
+        hash_const_B = (hash_const_B * MULT_B) & MASK32
+        data_val = (data_val * hash_const_B) & MASK32
+        data_val = (data_val ^ (data_val >> XSHIFT)) & MASK32
+        state.append(data_val)
+    return state
 
 
 def _check_sampler(sampler):
@@ -91,8 +149,8 @@ class DataManager(object):
 
         Args:
             dataset: Dataset to be loaded. Can be gotten from data_auger
-            data_auger: DataAuger to be loaded. If None, will create a identity mapping auger with dataset.
-            log_dir: Dictionary where DataManager save it's log
+            data_auger: DataAuger to be loaded. If None, will create an identity mapping auger with dataset.
+            log_dir: Dictionary where DataManager save its log
             is_prefetch: If True, data loader iter will be wrapped by Prefetcher, which can overlap the data transfer
                 and calculating on GPU. Only usable when cuda is available. (Default: False)
             log_rand_seeds: If True, rand seeds will be recorded. (Default: True)
@@ -169,9 +227,12 @@ class DataManager(object):
         self.epoch_iter: Optional[Iterable] = None
 
         def worker_init_fn_(worker_id):
+            seed = torch.initial_seed()
+            random.seed(seed)
+            np_seed = _generate_state(seed - worker_id, worker_id)
+            np.random.seed(np_seed)
             if worker_init_fn is not None:
                 worker_init_fn(worker_id)
-            set_rand_seed_according_torch()
 
         self.worker_init_fn = worker_init_fn_
 
@@ -195,7 +256,11 @@ class DataManager(object):
 
     @property
     def log_parent_dir(self):
-        return osp.join(self.log_dir, '.data_manager_log')
+        if dist.is_initialized():
+            log_parent_dir = osp.join(self.log_dir, '.data_manager_log', f'rank{dist.get_rank()}')
+        else:
+            log_parent_dir = osp.join(self.log_dir, '.data_manager_log')
+        return log_parent_dir
 
     def epoch_log_dir(self, epoch):
         return osp.join(self.log_parent_dir, f"epoch-{epoch}")
@@ -281,8 +346,8 @@ class DataManager(object):
             iteration: The total iteration where the sample at
             epoch: The epoch where the sample at
             epoch_iteration: The epoch iteration where the sample at
-            epoch_loc: Number of sample in it's epoch's indices
-            iteration_loc: Number of sample in it's iteration's indices
+            epoch_loc: Number of sample in its epoch's indices
+            iteration_loc: Number of sample in its iteration's indices
 
         Returns:
             A dict 'ret' with keys and values:
@@ -361,7 +426,10 @@ class DataManager(object):
             epoch_iteration: epoch iteration moved to
             recreate: If True, the origin record of epoch moved to will be recreated.
         """
+        if isinstance(self.sampler, DistributedSampler):
+            self.sampler.set_epoch(epoch)
         self._epoch = epoch
+
         if recreate and osp.isdir(self.epoch_log_dir(epoch)):
             shutil.rmtree(self.epoch_log_dir(epoch))
 
@@ -382,14 +450,14 @@ class DataManager(object):
         if self.collect_fn is None:
             # The default value of collate_fn changing with torch version
             self.epoch_loader = DataLoader(self.data_source, batch_sampler=epoch_batch_sampler,
-                                       pin_memory=self.pin_memory,
-                                       num_workers=self.num_workers, timeout=self.timeout,
-                                       worker_init_fn=self.worker_init_fn)
+                                           pin_memory=self.pin_memory,
+                                           num_workers=self.num_workers, timeout=self.timeout,
+                                           worker_init_fn=self.worker_init_fn)
         else:
             self.epoch_loader = DataLoader(self.data_source, batch_sampler=epoch_batch_sampler,
-                                       pin_memory=self.pin_memory, collate_fn=self.collect_fn,
-                                       num_workers=self.num_workers, timeout=self.timeout,
-                                       worker_init_fn=self.worker_init_fn)
+                                           pin_memory=self.pin_memory, collate_fn=self.collect_fn,
+                                           num_workers=self.num_workers, timeout=self.timeout,
+                                           worker_init_fn=self.worker_init_fn)
 
         self.epoch_iter = iter(self.epoch_loader) if not self.is_prefetch else Prefetcher(iter(self.epoch_loader))
 
