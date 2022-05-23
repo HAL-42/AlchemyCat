@@ -325,7 +325,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
         print(f"Current working dir is {os.getcwd()}")
         print(f"Current python environment path is\n{sys.path}")
         print(f"Current Process Info: ")
-        pprint(get_process_info())
+        pprint(get_process_info(), sort_dicts=False)
         print("\n")
 
     # * Print distributed delaying verbosity
@@ -338,7 +338,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
     # * Print config's delaying verbosity
     if verbosity and config is not None:
         print("\033[32m------------------------------- CONFIG -------------------------------\033[0m")
-        pprint(dict(config))
+        pprint(dict(config), sort_dicts=False)
         print("\033[32m----------------------------- CONFIG END -----------------------------\033[0m")
         print("\n")
 

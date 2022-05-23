@@ -136,7 +136,7 @@ class Cfg2TuneRunner(object):
             print(Fore.GREEN + "-----------------Setting Params-----------------" + Style.RESET_ALL)
             self.set_params()
             print("Param Combines: ")
-            pprint(self.param_combs)
+            pprint(self.param_combs, sort_dicts=False)
 
         print(Fore.GREEN + "-----------------Running Configs-----------------" + Style.RESET_ALL)
         self.run_cfgs()
