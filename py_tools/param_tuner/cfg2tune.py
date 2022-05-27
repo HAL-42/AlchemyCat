@@ -8,20 +8,17 @@
 @Software: PyCharm
 @Desc    : 
 """
+from typing import Iterable, Callable, Any, List, Union, Generator
+
 import json
 import os
 import pickle
-import warnings
 from collections import OrderedDict
-from importlib import import_module
-from importlib.util import spec_from_file_location, module_from_spec
-from typing import Iterable, Callable, Any, List
 import os.path as osp
-import traceback
-
-from addict import Dict
 
 from .utils import param_val2str
+from ..load_module import load_module_from_py
+from ..config import Config, is_subtree
 
 __all__ = ["Param2Tune", "ParamLazy", "Cfg2Tune"]
 
@@ -62,18 +59,18 @@ class Param2Tune(object):
 
 class ParamLazy(object):
 
-    def __init__(self, func: Callable[[Dict], Any]):
+    def __init__(self, func: Callable[[Config], Any]):
         """Cfg2Tune's ParamLazy value will be computed after Cfg2Tune is transferred to cfg_tuned."""
         self.func = func
 
-    def __call__(self, cfg: Dict) -> Any:
+    def __call__(self, cfg: Config) -> Any:
         return self.func(cfg)
 
     @staticmethod
-    def compute_param_lazy(cfg_tuned: Dict) -> Dict:
-        def compute(cfg: Dict):
+    def compute_param_lazy(cfg_tuned: Config) -> Config:
+        def compute(cfg: Config):
             for k, v in cfg.items():
-                if isinstance(v, Dict):
+                if is_subtree(v, cfg):
                     compute(v)
                 elif isinstance(v, ParamLazy):
                     cfg[k] = v(cfg_tuned)
@@ -83,18 +80,23 @@ class ParamLazy(object):
         return cfg_tuned
 
 
-class Cfg2Tune(Dict):
+class Cfg2Tune(Config):
     """Config to be tuned with parameters to be tuned."""
 
-    def __init__(self, **kwargs):
-        super(Cfg2Tune, self).__init__(**kwargs)
+    def __init__(self, *cfgs: List[Union[str, dict]], **kwargs):
+        """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
+
+        Args:
+            *cfgs: List[配置树所在模块|配置树]
+            **kwargs: 传递给Dict，不应该使用。
+        """
         object.__setattr__(self, '_params2tune', OrderedDict())
         object.__setattr__(self, '_root', None)
+        super(Cfg2Tune, self).__init__(*cfgs, **kwargs)
 
-    def update(self, *args, **kwargs):
-        """Cfg2Tune只允许从{}开始生成，而应当避免update。"""
-        warnings.warn(f"{self.__class__} can't recursively track Param2Tune in the dict updated.")
-        super(Cfg2Tune, self).update(*args, **kwargs)
+        for leaf in self.leaves:
+            if isinstance(leaf, Param2Tune):
+                raise RuntimeError(f"Cfg2Tune can't init by leaf with type = f{type(leaf)}")
 
     def __setitem__(self, name, value):
         """重载Addict的__setitem__"""
@@ -104,14 +106,22 @@ class Cfg2Tune(Dict):
         2. 刚刚用__missing__方法生成。此时__parent，__key存在，_root为None。此时需要设置root，并将自身加入到父Cfg2Tune中。
         3. 用户刚用Cfg2Tune()生成，但已经（1）过。此时__parent，__key为None，但_root为self。
         4. 用__missing__方法生成，但已经（2）过。此时__parent，__key，_root均存在。
+        
+        若被设置的value为Cfg2Tune，则value有三种状态：
+        1. value由__missing__生成的子节点，已经找到了正确的root，且内容为空。此时只要正常setitem即可。我们不考虑该value被
+           再次挂载。
+        2. value是由Cfg2Tune()生成的根节点，根节点root为自己或None（若为空配置树）。
+        3. value是update时，从原配置树上摘下来的子树，该子树的root和parent均不在新树上。
+        4. self的子树，重新用新的名字绑定。
+        2、3共性是value的root、parent、key不匹配，4则key不匹配。子树内部都是自洽的（P2T在根节点上，parent，key正确）。
+        对2、3、4，需要调整子树再挂载，即重设value的root、根节点的parent，合并P2T，确保新树自洽。
         '''
+        if self.is_frozen():  # 调用addict setitem前，检查frozen，若是，则完全禁止setitem。
+            raise RuntimeError(f"{self.__class__} is frozen. ")
+
         parent = object.__getattribute__(self, '__parent')
         key = object.__getattribute__(self, '__key')
-        root = object.__getattribute__(self, "_root")
-
-        # * 若Cfg2Tune刚刚由__missing__得到，则将其加入到父Cfg2Tune中。
-        if parent is not None and root is None:
-            parent[key] = self
+        root = root_ = object.__getattribute__(self, "_root")
 
         # * 若还没有设置root，则找到root。
         if root is None:
@@ -121,13 +131,37 @@ class Cfg2Tune(Dict):
                 root = object.__getattribute__(root, '__parent')
             object.__setattr__(self, '_root', root)
 
-        # 若为待调参数，则将待调参数注册到root的_params2tune有序字典里。
+        # * 若Cfg2Tune刚刚由__missing__得到，则将其加入到父Cfg2Tune中。
+        if parent is not None and root_ is None:
+            parent[key] = self
+
+        # * 若值为待调参数，则将待调参数注册到root的_params2tune有序字典里。
         if isinstance(value, Param2Tune):
-            params2tune = object.__getattribute__(root, "_params2tune")
-            if name in params2tune:
+            root_params2tune = object.__getattribute__(root, "_params2tune")
+            if name in root_params2tune:
                 raise RuntimeError(f"name = {name} for param2tune repeated.")
 
-            params2tune[name] = value
+            root_params2tune[name] = value
+
+        # * 若值不是__missing__生成的子节点，则将该待调配置树的所有节点设置正确的root，根节点设置正确的parent、key，
+        # * 并合并其params2tune。
+        if isinstance(value, Cfg2Tune) and \
+                (object.__getattribute__(value, "_root") is not root or
+                 object.__getattribute__(value, "__parent") is not self or
+                 object.__getattribute__(value, "__key") != name):
+            for b in value.branches:
+                object.__setattr__(b, '_root', root)
+
+            object.__setattr__(value, '__parent', self)
+            object.__setattr__(value, '__key', name)
+
+            root_params2tune = object.__getattribute__(root, "_params2tune")
+            value_params2tune = object.__getattribute__(value, "_params2tune")
+            for value_param_name, value_param in value_params2tune.items():
+                if value_param_name in root_params2tune:
+                    raise RuntimeError(f"value_param_name = {value_param_name} for param2tune repeated.")
+                root_params2tune[value_param_name] = value_param
+            value_params2tune.clear()
 
         dict.__setitem__(self, name, value)
 
@@ -151,11 +185,11 @@ class Cfg2Tune(Dict):
                 # 剩余参数遍历过所有组合后，重置为初始状态。
                 reset_later_params(params2tune)
 
-    def _cfg_tuned(self) -> Dict:
-        other = Dict()
+    def _cfg_tuned(self) -> Config:
+        other = Config()
 
         for k, v in self.items():
-            if isinstance(v, type(self)):
+            if is_subtree(v, self):
                 other[k] = v._cfg_tuned()
             elif isinstance(v, Param2Tune):
                 other[k] = v.cur_val
@@ -172,11 +206,11 @@ class Cfg2Tune(Dict):
         return other
 
     @property
-    def cfg_tuned(self) -> Dict:
+    def cfg_tuned(self) -> Config:
         """根据当前待调参数的值，返回一个Addict配置。"""
         return ParamLazy.compute_param_lazy(self._cfg_tuned())
 
-    def get_cfgs(self):
+    def get_cfgs(self) -> Generator[Config, None, None]:
         """遍历待调参数的所有可能组合，对每个组合，返回其对应的配置。"""
         params2tune = object.__getattribute__(self, "_params2tune")
 
@@ -202,7 +236,7 @@ class Cfg2Tune(Dict):
             finally:
                 cfg_file = osp.join(cfg_save_dir, 'cfg.pkl')
                 with open(cfg_file, 'wb') as pkl_f:
-                    pickle.dump(cfg.to_dict(), pkl_f)
+                    pickle.dump(cfg, pkl_f)
             cfg_files.append(cfg_file)
 
         return cfg_files
@@ -218,13 +252,10 @@ class Cfg2Tune(Dict):
             2）load是也能import cfg2tune_import_path。
         注意，subject_to函数、ParamLazy函数不会被pickle，二者只在生成Addict时被执行。
         '''
-        try:
-            cfg2tune_import_path = '.'.join(osp.normpath(osp.splitext(cfg2tune_py)[0]).lstrip(osp.sep).split(osp.sep))
-            module = import_module(cfg2tune_import_path)
-        except Exception:
-            print(traceback.format_exc())
-            print(f"未能用import_module导入{cfg2tune_py},尝试直接执行文件。")
-            spec = spec_from_file_location("foo", cfg2tune_py)
-            module = module_from_spec(spec)
-            spec.loader.exec_module(module)
-        return module.config
+        return load_module_from_py(cfg2tune_py).config
+
+    def __getstate__(self):
+        # TODO 令Cfg2Tune支持pickle：当前Cfg2Tune不支持pickle——在“恢复高祖数据”时，__setitem__会在没有__init__的情况下
+        #      被调用。__setitem__会尝试获取root、parent、key等不存在的属性（其实之后就会恢复），并报错。
+        #      解决办法：setitem时判断是否在unpickle（没有init过），若时，则执行dict的setitem。
+        raise NotImplementedError(f"{self.__class__} currently not support pickle. ")

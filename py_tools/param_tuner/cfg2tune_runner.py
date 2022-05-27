@@ -20,9 +20,10 @@ import pandas as pd
 from tqdm import tqdm
 from colorama import Style, Fore
 
-from alchemy_cat.py_tools import Logger, get_local_time_str
-from alchemy_cat.py_tools.param_tuner.cfg2tune import Cfg2Tune
-from alchemy_cat.py_tools.param_tuner.utils import param_vals2pd_idx
+from ..logger import Logger
+from ..str_formatters import get_local_time_str
+from .cfg2tune import Cfg2Tune
+from .utils import param_vals2pd_idx
 
 __all__ = ["Cfg2TuneRunner"]
 

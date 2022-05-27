@@ -23,7 +23,7 @@ cfg.foo0.foo1.a = Param2Tune([sum, min, max])
 # * 当前项目中函数。
 cfg.foo0.foo1.b = Param2Tune([func_a, func_b, func_c, func_d])
 # * Param on diff Cfg2Tune
-cfg.foo0.fix = Param2Tune(['0'])
+cfg.foo0.fix = Param2Tune(['foo.bar'])
 # * Param on root Cfg2Tune
 cfg.c = Param2Tune([False, True])
 # * 静态值，等于外部库函数或项目中函数。

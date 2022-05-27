@@ -8,6 +8,8 @@
 @Software: PyCharm
 @Desc    : 
 """
+from typing import Optional
+
 import pickle
 
 import pytest
@@ -15,15 +17,16 @@ import os.path as osp
 import shutil
 import sys
 import os
+from addict import Dict
 
-from alchemy_cat.py_tools import Cfg2Tune
+from alchemy_cat.py_tools import Cfg2Tune, open_config, ItemLazy, Config, is_subtree
 
 
 @pytest.fixture(scope="function")
 def cfg_dir():
     cfg_dir = osp.join('..', '..', '..', 'Temp', 'param_tuner_test_cache')
     yield cfg_dir
-    shutil.rmtree(cfg_dir)
+    shutil.rmtree(cfg_dir, ignore_errors=True)
 
 
 @pytest.fixture(scope='function')
@@ -77,8 +80,28 @@ def wrong_sequence_config():
     return Cfg2Tune.load_cfg2tune(osp.join('configs', 'wrong_sequence_config', 'cfg.py'))
 
 
+@pytest.fixture(scope='function')
+def itemlazy_config():
+    return Cfg2Tune.load_cfg2tune(osp.join('configs', 'itemlazy_config', 'cfg.py'))
+
+
+@pytest.fixture(scope='function')
+def init_with_config_config():
+    return Cfg2Tune.load_cfg2tune(osp.join('configs', 'init_with_config', 'cfg.py'))
+
+
+@pytest.fixture(scope='function')
+def init_with_cfg2tune_config():
+    return Cfg2Tune.load_cfg2tune(osp.join('configs', 'init_with_cfg2tune', 'cfg.py'))
+
+
+@pytest.fixture(scope='function')
+def init_with_update_config():
+    return Cfg2Tune.load_cfg2tune(osp.join('configs', 'init_with_update', 'cfg.py'))
+
+
 def test_update(easy_config):
-    with pytest.warns(UserWarning, match="can't recursively track Param2Tune in the dict updated."):
+    with pytest.warns(UserWarning, match="update may give unexpected results. Try use addict_update."):
         easy_config.update(dict())
 
 
@@ -257,3 +280,149 @@ def test_subject_to_param_config(subject_to_param_config):
 
     att_val = [get_att_val(cfg) for cfg in subject_to_param_config.get_cfgs()]
     assert wanted_att_val == att_val
+
+
+def test_itemlazy_config(itemlazy_config, cfg_dir):
+    def get_att_val(cfg):
+        return [cfg.foo0.foo1.a, cfg.foo0.foo1.b, cfg.foo0.fix, cfg.c, cfg.foo0.a_max, cfg.foo1.lazy]
+
+    wanted_att_val = [
+        [0, 0, '0', False, {'a': 1, 'b': 2}, 0],
+        [0, 0, '0', True, {'a': 1, 'b': 2}, 0],
+        [0, 0, '0', False, {'a': 1, 'b': 2}, 0],
+        [0, 1, '0', True, {'a': 1, 'b': 2}, 0],
+        [1, 2, '0', False, {'a': 1, 'b': 2}, 2],
+        [1, 2, '0', True, {'a': 1, 'b': 2}, 2],
+        [1, 0, '0', False, {'a': 1, 'b': 2}, 2],
+        [1, 1, '0', True, {'a': 1, 'b': 2}, 2],
+        [2, 4, '0', False, {'a': 1, 'b': 2}, 4],
+        [2, 4, '0', True, {'a': 1, 'b': 2}, 4],
+        [2, 0, '0', False, {'a': 1, 'b': 2}, 4],
+        [2, 1, '0', True, {'a': 1, 'b': 2}, 4],
+    ]
+
+    cfgs = [open_config(cfg_pkl)[0] for cfg_pkl in itemlazy_config.dump_cfgs(cfg_dir)]
+
+    att_val = [get_att_val(ItemLazy.compute_item_lazy(cfg)) for cfg in cfgs]
+    assert wanted_att_val == att_val
+
+
+def is_self_consistent(cfg: Config, p: Optional[Config]=None, n: Optional[str]=None):
+    parent = object.__getattribute__(cfg, '__parent')
+    key = object.__getattribute__(cfg, '__key')
+    root = object.__getattribute__(cfg, "_root")
+    params2tune = object.__getattribute__(cfg, "_params2tune")
+
+    if p is None:
+        assert parent is None
+        assert key is None
+        assert root is cfg
+    else:
+        assert parent is p
+        assert n == key
+        assert root is object.__getattribute__(p, "_root")
+        assert len(params2tune) == 0
+
+    for k, v in cfg.items():
+        if is_subtree(v, cfg):
+            is_self_consistent(v, cfg, k)
+
+
+def test_init_with_config(init_with_config_config):
+    """检查从Config初始化：能正确转枝赋叶，并找到root。检查配置树自洽性。"""
+    leaves = [1, {'a': 2, 'b': 3}, 4, Dict({'c': 5, 'd': 6}), 7, Dict({'e': 8, 'f': 9}), 'init_with_config']
+
+    assert len(list(init_with_config_config.branches)) == 4
+    for b in init_with_config_config.branches:
+        assert type(b) == Cfg2Tune
+
+    assert len(list(init_with_config_config.leaves)) == len(leaves)
+    for l1, l2 in zip(init_with_config_config.leaves, leaves):
+        assert l1 == l2
+        assert type(l1) == type(l2)
+
+    is_self_consistent(init_with_config_config)
+
+
+def test_init_with_cfg2tune(init_with_cfg2tune_config):
+    """检查从Config初始化：能正确拷枝赋叶，并找到root。检查配置树自洽性。"""
+    leaves = [1, Config({'a': 2, 'b': 3}), 4, Dict({'c': 5, 'd': 6}), 7, {'e': 8, 'f': 9}, 'init_with_cfg2tune']
+
+    assert len(list(init_with_cfg2tune_config.branches)) == 4
+    for b in init_with_cfg2tune_config.branches:
+        assert type(b) == Cfg2Tune
+
+    assert len(list(init_with_cfg2tune_config.leaves)) == len(leaves)
+    for l1, l2 in zip(init_with_cfg2tune_config.leaves, leaves):
+        assert l1 == l2
+        assert type(l1) == type(l2)
+
+    is_self_consistent(init_with_cfg2tune_config)
+
+
+def test_init_with_update(init_with_update_config):
+    """检查从Config初始化：能正确拷枝赋叶，正确更新，并找到root。检查配置树自洽性。"""
+    cfg_wanted = Cfg2Tune()
+
+    cfg_wanted.foo0.foo1.a = 1
+    cfg_wanted.foo0.foo1.b = {'aa': 2, 'bb': 3}
+    cfg_wanted.foo0.foo3.l = 'hh'
+    cfg_wanted.foo0.i = 6.8
+
+    cfg_wanted.foo2 = ('c', 'd')
+
+    cfg_wanted.c = 7
+    cfg_wanted.d.ee = 8
+    cfg_wanted.d.ff = 9
+    cfg_wanted.cc = 7
+    cfg_wanted.e.f = {10, 'gg'}
+    cfg_wanted.e.g = 11
+
+    cfg_wanted.rslt_dir = 'init_with_update'
+
+    # * 从dict角度，检查内容相同。
+    assert init_with_update_config == cfg_wanted
+
+    # * 检查枝干和结构相同。
+    assert len(list(init_with_update_config.branches)) == len(list(cfg_wanted.branches))
+    for b1, b2 in zip(init_with_update_config.branches, cfg_wanted.branches):
+        assert b1 == b2
+        assert type(b1) == type(b2)
+
+    # * 检查叶子和结构相同。
+    assert len(list(init_with_update_config.leaves)) == len(list(cfg_wanted.leaves))
+    for l1, l2 in zip(init_with_update_config.leaves, cfg_wanted.leaves):
+        assert l1 == l2
+        assert type(l1) == type(l2)
+
+    is_self_consistent(init_with_update_config)
+
+
+def test_init_with_param_lazy():
+    """检查从带有ParamLazy的Cfg2Tune初始化。"""
+    with pytest.raises(RuntimeError, match="Cfg2Tune can't init by leaf with type"):
+        Cfg2Tune('configs/easy_config/cfg.py')
+
+
+def test_freeze(easy_config):
+    """检查冻结与解冻功能。"""
+    easy_config.freeze()
+
+    with pytest.raises(RuntimeError, match="is frozen"):
+        easy_config.c = 3
+
+    with pytest.raises(RuntimeError, match="is frozen"):
+        easy_config.foo0.a_max = 3
+
+    with pytest.raises(RuntimeError, match="is frozen"):
+        easy_config.foo2.a = 3
+
+
+def test_cfg_tuned_subtree(easy_config):
+    """检查配置树类型能否正确转换。"""
+    cfgs = easy_config.get_cfgs()
+
+    for cfg in cfgs:
+        assert type(cfg) is Config
+        assert len(list(cfg.branches)) == 3
+        assert len(list(cfg.leaves)) == 6

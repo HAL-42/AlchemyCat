@@ -10,7 +10,7 @@
 """
 from typing import Any, Tuple, Iterable, Union
 
-from alchemy_cat.py_tools import is_int, is_float
+from ..type import is_int, is_float
 
 __all__ = ["param_val2str", "param_vals2pd_idx"]
 
@@ -18,8 +18,8 @@ kLongestParamStr = 75
 
 
 def param_val2str(param_val: Any, longest_param_length: int = kLongestParamStr) -> str:
-    param_val_str = str(param_val).splitlines()[0]
-    if callable(param_val) and len(param_val.__name__) <= longest_param_length:
+    param_val_str = str(param_val).splitlines()[0].replace('.', '·')  # value中的小数点用·替代，以免影响导入。
+    if callable(param_val) and hasattr(param_val, '__name__') and len(param_val.__name__) <= longest_param_length:
         ret = param_val.__name__
     elif len(param_val_str) <= longest_param_length:
         ret = param_val_str
