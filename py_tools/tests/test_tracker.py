@@ -49,7 +49,7 @@ def scores(label_trues, label_preds, n_class):
     F_score = np.nanmean(cls_F_score)
 
     cls_IoU = np.diag(conf_matrix) / (conf_matrix.sum(axis=1) + conf_matrix.sum(axis=0) - np.diag(conf_matrix))
-    valid = conf_matrix.sum(axis=1) > 0  # added, if some class don't exit, then don't take it into count
+    valid = conf_matrix.sum(axis=1) > 0  # added, if some class doesn't exit, then don't take it into count
     mean_IoU = np.nanmean(cls_IoU[valid])
     freq = conf_matrix.sum(axis=1) / conf_matrix.sum()
     freq_weighted_IoU = (freq[freq > 0] * cls_IoU[freq > 0]).sum()
