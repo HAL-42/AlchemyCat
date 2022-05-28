@@ -10,4 +10,4 @@
 """
 from alchemy_cat.acplot.utils import CHW2HWC, HWC2CHW, RGB2BGR, BGR2RGB
 
-from alchemy_cat.py_tools import quick_init
+from .py_tools.cat_head import *

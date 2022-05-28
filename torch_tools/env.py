@@ -18,7 +18,7 @@ from cv2 import cv2
 import torch
 import torch.distributed as dist
 
-from ..py_tools import get_process_info, get_local_time_str, set_rand_seed, Logger, parse_config, Config, ItemLazy
+from ..py_tools import get_process_info, get_local_time_str, set_rand_seed, Logger, parse_config, Config, ItemLazy, meow
 
 __all__ = ['get_device', 'init_env']
 
@@ -68,7 +68,8 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
              experiments_root: str = "experiment", rand_seed: Union[bool, str, int] = False,
              cv2_num_threads: int = -1, verbosity: bool = True, log_stdout: Union[bool, str] = False,
              local_rank: Optional[int] = None, silence_non_master_rank: Optional[bool] = False,
-             reproducibility: Optional[bool] = False) \
+             reproducibility: Optional[bool] = False,
+             is_debug: bool=False) \
         -> Tuple[torch.device, Optional[Config]]:
     """Init torch training environment
 
@@ -94,6 +95,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
         silence_non_master_rank (bool): If True, non-master rank's (rank > 0) print will be silenced. (Default: False)
         reproducibility (bool): If True, do everything possible to make the pytorch program reproducible.
             (Default: False)
+        is_debug (bool): If True, meow.is_debug will be set to True. (Default: False)
 
     Returns: Default device and config (If config_path is None, config is None)
     """
@@ -123,6 +125,9 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
 
     # * Read CONFIG, verbosity is delayed.
     config = parse_config(config_path, experiments_root) if config_path is not None else None
+    if meow.cfg is not None:
+        raise RuntimeError(f"meow.cfg = {meow.cfg} should be None before init_env")
+    meow.cfg = config  # 新瓶装旧酒，旧酒望新瓶。置酒猫头上，配置从我游。
 
     def get_stdout_log_dir_from_config():
         return osp.join(config.rslt_dir, 'stdout')
@@ -246,6 +251,11 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
         if verbosity:
             print("设置torch.backends.cudnn.deterministic = True，torch.set_deterministic(True)或"
                   "torch.use_deterministic_algorithms(True)被调用，使算法可复现。", end="\n\n")
+
+    # * Set is_debug
+    meow.is_debug = is_debug
+    if verbosity:
+        print(f"meow.is_debug = {is_debug}", end="\n\n")
 
     # * End of init
     if verbosity:
