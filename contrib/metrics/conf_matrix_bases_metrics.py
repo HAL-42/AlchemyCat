@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from alchemy_cat.acplot import pretty_plot_confusion_matrix
-from alchemy_cat import quick_init
+from alchemy_cat.py_tools import quick_init
 from matplotlib import pyplot as plt
 import os
 
