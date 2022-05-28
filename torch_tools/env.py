@@ -255,6 +255,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
     # * Compute config's ItemLazy.
     if config is not None:
         config = ItemLazy.compute_item_lazy(config)
+        config.freeze()
 
     # * Print config's delaying verbosity
     if verbosity and config is not None:
@@ -264,4 +265,4 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
               end="\n\n")
 
     # * Return
-    return device, config.freeze()
+    return device, config
