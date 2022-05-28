@@ -20,7 +20,7 @@ from .utils import param_val2str
 from ..load_module import load_module_from_py
 from ..config import Config, is_subtree
 
-__all__ = ["Param2Tune", "ParamLazy", "Cfg2Tune"]
+__all__ = ["Param2Tune", "ParamLazy", "PL", "Cfg2Tune"]
 
 
 class Param2Tune(object):
@@ -78,6 +78,9 @@ class ParamLazy(object):
                     pass
         compute(cfg_tuned)
         return cfg_tuned
+
+
+PL = ParamLazy
 
 
 class Cfg2Tune(Config):

@@ -16,7 +16,7 @@ from addict import Dict
 
 from .open_cfg import open_config
 
-__all__ = ['is_subtree', 'ItemLazy', 'Config']
+__all__ = ['is_subtree', 'ItemLazy', 'IL', 'Config']
 
 T_Config = TypeVar('T_Config', bound='Config')
 T_dict = TypeVar('T_dict', bound=dict)
@@ -48,6 +48,9 @@ class ItemLazy(object):
                     pass
         compute(config)
         return config
+
+
+IL = ItemLazy
 
 
 class Config(Dict):
