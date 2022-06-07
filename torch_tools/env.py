@@ -264,8 +264,11 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
 
     # * Compute config's ItemLazy.
     if config is not None:
+        print("\033[32m-------------------------------------- 计算惰性项 --------------------------------------\033[0m")
         config = ItemLazy.compute_item_lazy(config)
         config.freeze()
+        print("\033[32m-------------------------------------- 惰性项算毕 --------------------------------------\033[0m",
+              end="\n\n")
 
     # * Print config's delaying verbosity
     if verbosity and config is not None:
