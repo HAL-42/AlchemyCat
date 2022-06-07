@@ -143,8 +143,8 @@ class DataManager(object):
                  batch_size: int=1, shuffle: bool=False, sampler: Optional[Sampler]=None,
                  batch_sampler: Optional[Sampler]=None, num_workers: int=0, collate_fn: Optional[Callable]=None,
                  pin_memory: bool=False, drop_last: bool=False, timeout: int=0,
-                 worker_init_fn: Optional[Callable]=None
-                 ):
+                 worker_init_fn: Optional[Callable]=None,
+                 generator: Optional[torch.Generator]=None, prefetch_factor: int=2):
         """ A dataloader which can record and recover the process of loading
 
         Args:
@@ -164,6 +164,8 @@ class DataManager(object):
             drop_last: Same to param for torch.data.DataLoader
             timeout: Same to param for torch.data.DataLoader
             worker_init_fn: Same to param for torch.data.DataLoader
+            generator: Same to param for torch.data.DataLoader
+            prefetch_factor: Same to param for torch.data.DataLoader
 
         See Also:
             torch.utils.data.DataLoader: https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader
@@ -192,6 +194,8 @@ class DataManager(object):
         self.timeout = timeout
         self.worker_init_fn = worker_init_fn
         self.collect_fn = collate_fn
+        self.generator = generator
+        self.prefetch_factor = prefetch_factor
 
         self.shuffle = shuffle
         self.sampler = sampler
@@ -215,7 +219,7 @@ class DataManager(object):
                 _check_sampler(self.sampler)
                 self.shuffle = None  # UnKnown
             elif self.shuffle:
-                self.sampler = RandomSampler(self.data_source)
+                self.sampler = RandomSampler(self.data_source, generator=self.generator)
             else:
                 self.sampler = SequentialSampler(self.data_source)
 
@@ -452,12 +456,14 @@ class DataManager(object):
             self.epoch_loader = DataLoader(self.data_source, batch_sampler=epoch_batch_sampler,
                                            pin_memory=self.pin_memory,
                                            num_workers=self.num_workers, timeout=self.timeout,
-                                           worker_init_fn=self.worker_init_fn)
+                                           worker_init_fn=self.worker_init_fn,
+                                           generator=self.generator, prefetch_factor=self.prefetch_factor)
         else:
             self.epoch_loader = DataLoader(self.data_source, batch_sampler=epoch_batch_sampler,
                                            pin_memory=self.pin_memory, collate_fn=self.collect_fn,
                                            num_workers=self.num_workers, timeout=self.timeout,
-                                           worker_init_fn=self.worker_init_fn)
+                                           worker_init_fn=self.worker_init_fn,
+                                           generator=self.generator, prefetch_factor=self.prefetch_factor)
 
         self.epoch_iter = iter(self.epoch_loader) if not self.is_prefetch else Prefetcher(iter(self.epoch_loader))
 
