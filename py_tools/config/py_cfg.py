@@ -29,7 +29,7 @@ def is_subtree(tree: Any, root: dict) -> bool:
 
 class ItemLazy(object):
 
-    def __init__(self, func: Callable[[dict], Any]):
+    def __init__(self, func: Callable):
         """配置树的惰性叶子。"""
         self.func = func
 
@@ -56,7 +56,7 @@ IL = ItemLazy
 class Config(Dict):
     """配置字典。继承自Dict，从类型上和Addict区分，以便分离配置项和配置树。"""
 
-    def __init__(self, *cfgs: List[Union[str, dict]], **kwargs):
+    def __init__(self, *cfgs, **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
