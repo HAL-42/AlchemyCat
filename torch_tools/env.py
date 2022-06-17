@@ -230,6 +230,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
     if rand_seed_ori is not None:
         rand_seed_final = rand_seed_ori if rand_seed_bias is None else rand_seed_ori + rand_seed_bias
         set_rand_seed(rand_seed_final)
+        meow.rand_seed_final = rand_seed_final
         if verbosity:
             print(f"设置随机种子为：{rand_seed_final}" +
                   (f" = {rand_seed_ori} + {rand_seed_bias}" if rand_seed_bias is not None else ''), end="\n\n")

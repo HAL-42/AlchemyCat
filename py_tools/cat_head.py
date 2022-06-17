@@ -22,6 +22,7 @@ class CatHead(object):
     """该类型实例「喵」可作为全局变量使用。"""
     cfg: Optional[Config] = None
     is_debug: bool = False
+    rand_seed_final: Optional[str, int] = None
 
 
 喵 = meow = CatHead()
