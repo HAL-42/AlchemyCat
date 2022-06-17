@@ -8,7 +8,7 @@
 @Software: PyCharm
 @Desc    : 
 """
-from typing import Optional
+from typing import Optional, Union
 
 from dataclasses import dataclass
 
@@ -22,7 +22,7 @@ class CatHead(object):
     """该类型实例「喵」可作为全局变量使用。"""
     cfg: Optional[Config] = None
     is_debug: bool = False
-    rand_seed_final: Optional[str, int] = None
+    rand_seed_final: Union[str, int, None] = None
 
 
 喵 = meow = CatHead()
