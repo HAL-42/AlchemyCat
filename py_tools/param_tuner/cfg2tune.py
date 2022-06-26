@@ -18,7 +18,7 @@ import os.path as osp
 
 from .utils import param_val2str
 from ..load_module import load_module_from_py
-from ..config import Config, is_subtree
+from ..config import Config, is_subtree, auto_rslt_dir
 
 __all__ = ["Param2Tune", "ParamLazy", "PL", "Cfg2Tune"]
 
@@ -86,7 +86,7 @@ PL = ParamLazy
 class Cfg2Tune(Config):
     """Config to be tuned with parameters to be tuned."""
 
-    def __init__(self, *cfgs: List[Union[str, dict]], **kwargs):
+    def __init__(self, *cfgs, **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
@@ -255,7 +255,15 @@ class Cfg2Tune(Config):
             2）load是也能import cfg2tune_import_path。
         注意，subject_to函数、ParamLazy函数不会被pickle，二者只在生成Addict时被执行。
         '''
-        return load_module_from_py(cfg2tune_py).config
+        cfg2tune = load_module_from_py(cfg2tune_py).config
+
+        if not cfg2tune.rslt_dir:
+            raise RuntimeError(f"cfg2tune should indicate result save dir at {cfg2tune.rslt_dir=}")
+
+        if cfg2tune.rslt_dir is ...:
+            cfg2tune.rslt_dir = auto_rslt_dir(cfg2tune_py)
+
+        return cfg2tune
 
     def __getstate__(self):
         # TODO 令Cfg2Tune支持pickle：当前Cfg2Tune不支持pickle——在“恢复高祖数据”时，__setitem__会在没有__init__的情况下
