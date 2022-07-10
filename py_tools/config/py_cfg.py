@@ -8,7 +8,7 @@
 @Software: PyCharm
 @Desc    : 
 """
-from typing import Callable, Any, List, TypeVar, Type, Union, Generator
+from typing import Callable, Any, TypeVar, Type, Generator, Tuple
 
 import warnings
 
@@ -29,25 +29,33 @@ def is_subtree(tree: Any, root: dict) -> bool:
 
 class ItemLazy(object):
 
-    def __init__(self, func: Callable):
+    def __init__(self, func: Callable, priority: int=1):
         """配置树的惰性叶子。"""
         self.func = func
+        self.priority = priority
 
     def __call__(self, cfg: dict) -> Any:
         return self.func(cfg)
 
     @staticmethod
     def compute_item_lazy(config: T_dict) -> T_dict:
-        def compute(cfg: dict):
+        def dfs_find_item_lazy(cfg: dict) -> Tuple[dict, str, int]:
             for k, v in cfg.items():
                 if is_subtree(v, cfg):
-                    compute(v)
+                    yield from dfs_find_item_lazy(v)
                 elif isinstance(v, ItemLazy):
-                    cfg[k] = v(config)
+                    yield cfg, k, v.priority
                 else:
                     pass
-        compute(config)
-        return config
+
+        item_lazy_dic_keys = sorted(dfs_find_item_lazy(config), key=lambda x: x[2])
+
+        if len(item_lazy_dic_keys) > 0:
+            for item_lazy_dic, item_lazy_key, _ in item_lazy_dic_keys:
+                item_lazy_dic[item_lazy_key] = item_lazy_dic[item_lazy_key](config)
+            return ItemLazy.compute_item_lazy(config)
+        else:
+            return config
 
 
 IL = ItemLazy
