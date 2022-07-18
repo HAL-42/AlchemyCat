@@ -10,14 +10,12 @@
 """
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from alchemy_cat.acplot import pretty_plot_confusion_matrix
 from alchemy_cat.py_tools import quick_init
 from matplotlib import pyplot as plt
 import os
 
 from typing import Optional, Iterable
-from torchnet.meter import MovingAverageValueMeter
 
 from alchemy_cat.py_tools import Statistic, Tracker
 
@@ -124,7 +122,7 @@ class ClassificationMetric(Tracker):
         Args:
             save_dir: Dictionary where metrics saved
             importance: Only statistics' statistic.importance > importance will be saved
-            **kwargs: key words arguments for plotting and saving confusion matrix plot confusion_matrix.png
+            **kwargs: keywords arguments for plotting and saving confusion matrix plot confusion_matrix.png
         """
         # * Save statistics
         self.save_statistics(save_dir, importance)
@@ -135,7 +133,7 @@ class ClassificationMetric(Tracker):
 
         # * Save confusion matrix plot
         fig = self._plot_conf_matrix(**kwargs)
-        fig.savefig(os.path.join(save_dir, 'confusion_matrix.png'), **kwargs)
+        fig.savefig(os.path.join(save_dir, 'confusion_matrix.png'))
 
     @Statistic.getter(0)
     def samples_num(self):
