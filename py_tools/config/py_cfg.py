@@ -64,13 +64,15 @@ IL = ItemLazy
 class Config(Dict):
     """配置字典。继承自Dict，从类型上和Addict区分，以便分离配置项和配置树。"""
 
-    def __init__(self, *cfgs, **kwargs):
+    def __init__(self, *cfgs, cfgs_update_at_parser: tuple=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
             *cfgs: List[配置树所在模块|配置树]
+            cfgs_update_at_parser: 解析时用于更新的基配置。
             **kwargs: 传递给Dict，不应该使用。
         """
+        # * 初始化。
         super().__init__(**kwargs)
 
         # * 遍历配置树，更新到当前配置树上。
@@ -83,6 +85,37 @@ class Config(Dict):
                 raise ValueError(f"{i}'th item = {cfg} in cfgs should be (opened as) dict.")
             # * 将配置树更新到本配置树上。
             self.dict_update(cfg)
+
+        # * 记录基配置。
+        object.__setattr__(self, '_cfgs_update_at_init', cfgs)
+        object.__setattr__(self, '_cfgs_update_at_parser', cfgs_update_at_parser)
+
+    def update_at_parser(self):
+        # * 获取解析式基配置。
+        cfgs_update_at_parser = object.__getattribute__(self, '_cfgs_update_at_parser')
+        # * 若无需更新，跳过。
+        if not cfgs_update_at_parser:
+            return
+        # * 保存主配置。
+        main_cfg = self.branch_copy()
+        # * 清空当前配置树。
+        self.clear()
+        # * 逐个读取基配置，并更新到当前配置中。
+        for i, base_cfg in enumerate(cfgs_update_at_parser):
+            # * 若给出配置树模块路径，则根据路径打开配置树。
+            if isinstance(base_cfg, str):
+                base_cfg, _ = open_config(base_cfg)
+            # * 基配置也进行解析时更新。
+            if isinstance(base_cfg, Config):
+                base_cfg.update_at_parser()
+            # * 检查配置树是dict。
+            if not isinstance(base_cfg, dict):
+                raise ValueError(f"{i}'th item = {base_cfg} in self._cfgs_update_at_parser should be "
+                                 f"(opened as) dict.")
+            # * 将基配置树更新到本配置树上。
+            self.dict_update(base_cfg)
+        # * 将主配置树更新回当前配置树。
+        self.dict_update(main_cfg)
 
     def branch_copy(self: T_Config) -> T_Config:
         """拷贝枝干（Config及其子Config），直接赋值叶子（Config的所有值）。

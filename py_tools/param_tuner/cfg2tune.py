@@ -8,7 +8,7 @@
 @Software: PyCharm
 @Desc    : 
 """
-from typing import Iterable, Callable, Any, List, Union, Generator
+from typing import Iterable, Callable, Any, List, Generator
 
 import json
 import os
@@ -86,7 +86,7 @@ PL = ParamLazy
 class Cfg2Tune(Config):
     """Config to be tuned with parameters to be tuned."""
 
-    def __init__(self, *cfgs, **kwargs):
+    def __init__(self, *cfgs, cfgs_update_at_parser: tuple=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
@@ -95,7 +95,7 @@ class Cfg2Tune(Config):
         """
         object.__setattr__(self, '_params2tune', OrderedDict())
         object.__setattr__(self, '_root', None)
-        super(Cfg2Tune, self).__init__(*cfgs, **kwargs)
+        super(Cfg2Tune, self).__init__(*cfgs, cfgs_update_at_parser=cfgs_update_at_parser, **kwargs)
 
         for leaf in self.leaves:
             if isinstance(leaf, Param2Tune):
@@ -190,6 +190,9 @@ class Cfg2Tune(Config):
 
     def _cfg_tuned(self) -> Config:
         other = Config()
+
+        object.__setattr__(other, '_cfgs_update_at_init', object.__getattribute__(self, '_cfgs_update_at_init'))
+        object.__setattr__(other, '_cfgs_update_at_parser', object.__getattribute__(self, '_cfgs_update_at_parser'))
 
         for k, v in self.items():
             if is_subtree(v, self):

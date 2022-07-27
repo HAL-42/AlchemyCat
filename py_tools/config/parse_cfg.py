@@ -80,7 +80,10 @@ def _process_yaml_config(config: dict, experiments_root: str):
     return config
 
 
-def _process_py_config(config: dict, config_path: str, experiments_root: str,):
+def _process_py_config(config: dict, config_path: str, experiments_root: str):
+    if isinstance(config, Config):
+        config.update_at_parser()
+
     if not config.get('rslt_dir'):
         raise RuntimeError(f"config should indicate result save dir at config['rslt_dir'] = {config.get('rslt_dir')}")
 
