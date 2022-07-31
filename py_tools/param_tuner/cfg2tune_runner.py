@@ -45,13 +45,19 @@ class Cfg2TuneRunner(object):
         self.config_root = config_root
         self.experiment_root = experiment_root
         self.pool_size = pool_size
-        self.metric_names = metric_names
 
         # * 加载Cfg2Tune。
         self.cfg2tune = Cfg2Tune.load_cfg2tune(cfg2tune_py)
 
         # * 设置整个调参实验的结果文件夹。
         self.rslt_dir = osp.join(experiment_root, self.cfg2tune.rslt_dir)
+
+        # * 获取指标名。
+        if self.cfg2tune.metric_names:
+            assert metric_names is None
+            self.metric_names = self.cfg2tune.metric_names
+        else:
+            self.metric_names = metric_names
 
         # * 所有参数组合+参数组合对应的metric。
         self.param_combs: List[dict] = []
