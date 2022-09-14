@@ -26,8 +26,10 @@ class ValidationEnv(object):
         """
         self.model = model
         self.change_benchmark = change_benchmark
+        self.out_grad_enabled = None
 
     def __enter__(self) -> nn.Module:
+        self.out_grad_enabled = torch.is_grad_enabled()
         torch.set_grad_enabled(False)
         self.model.eval()
         if self.change_benchmark:
@@ -35,7 +37,7 @@ class ValidationEnv(object):
         return self.model
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        torch.set_grad_enabled(True)
+        torch.set_grad_enabled(self.out_grad_enabled)
         self.model.train()
         if self.change_benchmark:
             torch.backends.cudnn.benchmark = not torch.backends.cudnn.benchmark
