@@ -149,13 +149,14 @@ class Config(Dict):
                 ret[k] = v  # v是叶子，则直接赋值新树。
         return ret
 
-    def dict_update(self, other: dict):
+    def dict_update(self, other: dict, incremental: bool=False):
         """接收一个dict类型（或其子类）的配置树，更新到当前配置树上。
 
         应当确保，此后对本配置树枝干的修改，不会同步到原配置树上。因此，应当拷/转枝赋叶原配置树后，再做更新。
 
         Args:
             other: dict类型的配置树。
+            incremental: 增量式更新，如果冲突，保留旧树。
 
         Returns:
             更新后的配置树。
@@ -168,9 +169,15 @@ class Config(Dict):
         for k, v in other.items():
             # 若人有我有，且都是子树，则子树更新子树。
             if (k in self) and is_subtree(other[k], other) and is_subtree(self[k], self):
-                self[k].dict_update(v)
-            else:  # 反之（人有我有，但至少一方不是子树；或人有我无），则直接更新。
-                self[k] = v
+                self[k].dict_update(v, incremental=incremental)
+            else:
+                if incremental:  # 若增量式，则人有我无，方才更新。
+                    if k not in self:
+                        self[k] = v
+                    else:
+                        pass
+                else: # 人有我有，但至少一方不是子树；或人有我无，则直接更新。
+                    self[k] = v
 
     def update(self, *args, **kwargs):
         """默认update会产生意想不到的结果——如dict也被update。尽量避免使用"""
