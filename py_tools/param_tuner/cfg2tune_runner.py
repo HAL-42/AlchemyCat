@@ -19,6 +19,7 @@ from collections import OrderedDict
 import pandas as pd
 from tqdm import tqdm
 from colorama import Style, Fore
+from openpyxl import load_workbook
 
 from ..logger import Logger
 from ..str_formatters import get_local_time_str
@@ -125,8 +126,14 @@ class Cfg2TuneRunner(object):
         raise NotImplementedError("gather_metric not implemented")
 
     def save_metric(self):
-        self.metric_frame.to_excel(osp.join(self.rslt_dir, 'metric_frame.xlsx'), sheet_name='MetricFrame')
-        self.metric_frame.to_pickle(osp.join(self.rslt_dir, 'metric_frame.pkl'))
+        exp_short_id = osp.basename(osp.dirname(self.cfg2tune_py)).split('@')[-1]
+        # 美观起见，excel选择merge cells。需要时可以手动解除merge。
+        self.metric_frame.to_excel(osp.join(self.rslt_dir, f'{exp_short_id}.xlsx'), sheet_name='MetricFrame',
+                                   merge_cells=True)
+        # 将刚才保存的xlsx转储为xlsm，用于数据分析。
+        load_workbook(filename=osp.join(self.rslt_dir, f'{exp_short_id}.xlsx'),
+                      read_only=False, keep_vba=True).save(osp.join(self.rslt_dir, f'{exp_short_id}.xlsm'))
+        self.metric_frame.to_pickle(osp.join(self.rslt_dir, f'{exp_short_id}.pkl'))
 
     def tuning(self):
         stdout_log_file = osp.join(self.rslt_dir, 'stdout',
