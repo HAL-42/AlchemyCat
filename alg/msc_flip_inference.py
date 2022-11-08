@@ -17,30 +17,53 @@ from collections import abc
 from alchemy_cat.alg.utils import size2HW
 
 
-def _pad_imgs(imgs, size):
-    img_h, img_w = imgs.size(2), imgs.size(3)
+def bisection(n: int):
+    return n // 2, n // 2 + n % 2
+
+
+def tensor_pad_imgs(imgs: torch.Tensor, size, value: float=0.) -> tuple[torch.Tensor, list[int]]:
+    """中心填充imgs到size，若图片某个尺度大于size，则该方向不填充。
+
+    Args:
+        imgs: (N, C, H, W)图片张量。
+        size: 要pad到的大小，size: int表示pad到方形size，(h: int, w: int)表示要填充到的高、宽。
+        value: 要填充的值，默认为0。
+
+    Returns:
+        (填充后的张量，上、下、左、右的填充尺寸)。
+    """
     padded_h, padded_w = size2HW(size)
 
-    pad_h = padded_h - img_h
-    pad_w = padded_w - img_w
+    pad_top, pad_bottom = bisection(max(padded_h - imgs.shape[2], 0))
+    pad_left, pad_right = bisection(max(padded_w - imgs.shape[3], 0))
 
-    if pad_h < 0 or pad_w < 0:
-        raise ValueError(f"pad_h={pad_h} or pad_w={pad_w} should equal or larger than 0")
+    return F.pad(imgs, [pad_left, pad_right, pad_top, pad_bottom], mode='constant', value=value), [pad_top, pad_bottom,
+                                                                                                   pad_left, pad_right]
 
-    return F.pad(imgs, [0, pad_w, 0, pad_h], mode='constant', value=0.0)
+# def _pad_imgs(imgs, size):
+#     img_h, img_w = imgs.size(2), imgs.size(3)
+#     padded_h, padded_w = size2HW(size)
+#
+#     pad_h = padded_h - img_h
+#     pad_w = padded_w - img_w
+#
+#     if pad_h < 0 or pad_w < 0:
+#         raise ValueError(f"pad_h={pad_h} or pad_w={pad_w} should equal or larger than 0")
+#
+#     return F.pad(imgs, [0, pad_w, 0, pad_h], mode='constant', value=0.0)
 
 
-def _pad_labels(labels, size, ignore_label):
-    label_h, label_w = labels.size(1), labels.size(2)
-    padded_h, padded_w = size2HW(size)
-
-    pad_h = padded_h - label_h
-    pad_w = padded_w - label_w
-
-    if pad_h < 0 or pad_w < 0:
-        raise ValueError(f"pad_h={pad_h} or pad_w={pad_w} should equal or larger than 0")
-
-    return F.pad(labels, [0, pad_w, 0, pad_h], mode='constant', value=ignore_label)
+# def _pad_labels(labels, size, ignore_label):
+#     label_h, label_w = labels.size(1), labels.size(2)
+#     padded_h, padded_w = size2HW(size)
+#
+#     pad_h = padded_h - label_h
+#     pad_w = padded_w - label_w
+#
+#     if pad_h < 0 or pad_w < 0:
+#         raise ValueError(f"pad_h={pad_h} or pad_w={pad_w} should equal or larger than 0")
+#
+#     return F.pad(labels, [0, pad_w, 0, pad_h], mode='constant', value=ignore_label)
 
 
 def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Tensor],
@@ -60,12 +83,12 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
         msc_factors: Multi scale factors. Each factor can be 'factor_for_height_width' or
             '(height_factor, width_factor)'.
         is_flip: If true, the flipped imgs will be used for inference
-        pad_imgs_to: If not None, the img will be pad to size(int or [int, int]) specified
-        pad_aligner: The pad_size will be fix by aligner(pad_size). If Iterable, then first and second aligners
+        pad_imgs_to: If not None, the img will be padded to size(int or [int, int]) specified
+        pad_aligner: The pad_size will be fixed by aligner(pad_size). If Iterable, then first and second aligners
             separately used to align H and W.
-        msc_aligner: The scaled_size calculated by scale_factor * img_size will be fix by aligner(scaled_size). If
+        msc_aligner: The scaled_size calculated by scale_factor * img_size will be fixed by aligner(scaled_size). If
             Iterable, then first and second aligners separately used to align H and W.
-        cuda_memory_saving: int before 0-2. The larger the less_cuda_memory, the less gpu memory used by function. May
+        cuda_memory_saving: int before 0-2. The larger less_cuda_memory set, the less gpu memory used by function. May
             loss some performance. (Default: 0)
         softmax_norm: If Ture, the output logit will be normalized by softmax then fusion between different scales. Else
             the output logit will be implemented as prob and directly fusion and output.
@@ -78,12 +101,6 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
     if cuda_memory_saving > 1:
         imgs = imgs.cpu()
 
-    # * pad img to pad_img_to size
-    if pad_imgs_to is not None:
-        padded_imgs = _pad_imgs(imgs, pad_imgs_to)
-    else:
-        padded_imgs = imgs
-
     # * Process pad aligner
     if isinstance(pad_aligner, abc.Callable):
         pad_aligner_h, pad_aligner_w = pad_aligner, pad_aligner
@@ -91,12 +108,6 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
         pad_aligner_h, pad_aligner_w = pad_aligner
     else:
         raise ValueError(f"pad_aligner {pad_aligner} must be Callable or Iterable[Callable]")
-
-    # * pad img to align size
-    pad_align_size = (pad_aligner_h(padded_imgs.shape[-2]), pad_aligner_w(padded_imgs.shape[-1]))
-    padded_imgs = _pad_imgs(padded_imgs, pad_align_size)
-
-    padded_h, padded_w = padded_imgs.shape[-2:]
 
     # * Process scale aligner
     if isinstance(msc_aligner, abc.Callable):
@@ -128,19 +139,30 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
             raise ValueError(f"msc_factor {msc_factor} in msc_factors {msc_factors} must be float or Iterable[float]")
 
         # * Get scaled size
-        scaled_h, scaled_w = int(padded_h * msc_factor_h), int(padded_w * msc_factor_w)
+        scaled_h, scaled_w = int(origin_h * msc_factor_h), int(origin_w * msc_factor_w)
         scaled_h, scaled_w = msc_aligner_h(scaled_h), msc_aligner_w(scaled_w)
 
-        batch_X = F.interpolate(padded_imgs, size=(scaled_h, scaled_w), mode='bilinear', align_corners=True)
+        batch_X = F.interpolate(imgs, size=(scaled_h, scaled_w), mode='bilinear', align_corners=True)
         if is_flip:
             batch_X = flip_imgs(batch_X)
 
-        scaled_logits = model(batch_X.cuda())
+        # * pad img to align(pad_img_to) size
+        pad_imgs_to_h, pad_imgs_to_w = size2HW(pad_imgs_to) if pad_imgs_to is not None else (scaled_h, scaled_w)
+        pad_align_size = (pad_aligner_h(pad_imgs_to_h), pad_aligner_w(pad_imgs_to_w))
+        padded_batch_X, margin = tensor_pad_imgs(batch_X, pad_align_size)
+        padded_h, padded_w = padded_batch_X.shape[-2:]
+
+        padded_logits = model(padded_batch_X.cuda())
 
         if cuda_memory_saving > 0:
-            scaled_logits = scaled_logits.cpu()
+            padded_logits = padded_logits.cpu()
 
-        logits = F.interpolate(scaled_logits, size=(padded_h, padded_w), mode='bilinear', align_corners=True)
+        if margin == [0, 0, 0, 0]:
+            logits = F.interpolate(padded_logits, size=(origin_h, origin_w), mode='bilinear', align_corners=True)
+        else:
+            logits = F.interpolate(padded_logits, size=(padded_h, padded_w), mode='bilinear', align_corners=True)
+            logits = logits[:, :, margin[0]:(logits.shape[2] - margin[1]), margin[2]:(logits.shape[3] - margin[3])]
+            logits = F.interpolate(logits, size=(origin_h, origin_w), mode='bilinear', align_corners=True)
         probs = F.softmax(logits, dim=1) if softmax_norm else logits
         if is_flip:
             probs = merge_flipped_probs(probs)
@@ -150,4 +172,4 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
     probs = torch.stack(msc_probs, dim=0).mean(dim=0)
 
     # * return with size of origin img
-    return probs[:, :, :origin_h, :origin_w]
+    return probs
