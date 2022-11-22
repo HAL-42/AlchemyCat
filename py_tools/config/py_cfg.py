@@ -117,6 +117,40 @@ class Config(Dict):
         # * 将主配置树更新回当前配置树。
         self.dict_update(main_cfg)
 
+    @property
+    def subtrees_wt_COM(self: T_Config) -> list[T_Config]:
+        return [subtree for subtree in self.branches if 'COM_' in subtree]
+
+    def _check_COM(self: T_Config):
+        """检查COM树是否合规。由于reduce_COM会逐步删除子COM树，可能影响安全检查。故检查放在reduce_COM之前。"""
+        # NOTE COM树，可以有子COM树。因为子树搜索为DFS后序，故子树COM树总是先于父COM树处理。
+        # NOTE 而COM并列项如果有子COM树，则无法确定和当前COM项的执行顺序，非常危险，要警告。
+        for subtree_wt_COM in self.subtrees_wt_COM:
+            # * COM项应该是子树。
+            if not is_subtree(subtree_wt_COM.COM_, self):
+                raise RuntimeError(f"COM树{subtree_wt_COM}的COM项{subtree_wt_COM.COM_}应当为子树。")
+            # * COM并列项不含COM子树。
+            COM_parallel_vals = [v for k, v in subtree_wt_COM.items() if (k != 'COM_') and (is_subtree(v, self))]
+            for par_val in COM_parallel_vals:
+                par_val: T_Config
+                if par_val.subtrees_wt_COM:
+                    warnings.warn(f"COM树{subtree_wt_COM}的COM并列项{par_val}存在子COM树。无法确定该树和当前"
+                                  f"COM树的执行顺序，reduce_COM行为不可预测。")
+
+    def reduce_COM(self: T_Config):
+        """归并掉所有COM项。"""
+        self._check_COM()  # 合规检查。
+        for subtree_wt_COM in self.subtrees_wt_COM:
+            # * 获得COM项和COM并列项。
+            COM_val = subtree_wt_COM.COM_
+            COM_parallel_vals = [v for k, v in subtree_wt_COM.items() if (k != 'COM_') and (is_subtree(v, self))]
+            # * 将COM项增量更新到并列项上。
+            for par_val in COM_parallel_vals:
+                par_val: T_Config
+                par_val.dict_update(COM_val, incremental=True)
+            # * 删除COM项。
+            del subtree_wt_COM['COM_']
+
     def branch_copy(self: T_Config) -> T_Config:
         """拷贝枝干（Config及其子Config），直接赋值叶子（Config的所有值）。
 

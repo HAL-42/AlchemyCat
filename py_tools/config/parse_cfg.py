@@ -82,7 +82,13 @@ def _process_yaml_config(config: dict, experiments_root: str):
 
 def _process_py_config(config: dict, config_path: str, experiments_root: str):
     if isinstance(config, Config):
+        # TODO 支持下级cfg删除上级cfg项。
         config.update_at_parser()
+        # NOTE 1）此时归并COM，令后续IL计算、用户对COM无感。先update再归并，确保config能够接触、修改各层的所有COM树。
+        # NOTE 2）归并可能令叶子间共享容器、IL函数（COM_会更新多个并形项）。故要确保
+        # NOTE      a. 不直接修改叶子容器，而是覆盖叶子。
+        # NOTE      b. IL函数无记忆，即多次调用，结果相同。
+        config.reduce_COM()
 
     if not config.get('rslt_dir'):
         raise RuntimeError(f"config should indicate result save dir at config['rslt_dir'] = {config.get('rslt_dir')}")
