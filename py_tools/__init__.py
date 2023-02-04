@@ -28,3 +28,4 @@ from alchemy_cat.py_tools.check_img_exits import *
 from .load_module import *
 from .config import *
 from .cat_head import *
+from .parse_log import *

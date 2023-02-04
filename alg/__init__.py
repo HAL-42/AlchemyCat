@@ -15,3 +15,5 @@ from alchemy_cat.alg.clamp_softmax import *
 from alchemy_cat.alg.dense_crf import *
 from alchemy_cat.alg.normalize_tensor import *
 from alchemy_cat.alg.complement_entropy_confidence import *
+from .slide_inference import *
+from .window_slides import *

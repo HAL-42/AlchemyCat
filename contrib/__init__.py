@@ -6,5 +6,5 @@
 @software: PyCharm
 @file: __init__.py.py
 @time: 2020/2/4 11:50
-@desc:
+@desc: 本级消极暴露。
 """

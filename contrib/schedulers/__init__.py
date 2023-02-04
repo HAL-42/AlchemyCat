@@ -8,4 +8,7 @@
 @time: 2020/2/25 11:56
 @desc:
 """
-from .polynomial_lr import PolynomialLR
+from .warnup_lr import *
+from .polynomial_lr import *
+from .swa_schedulers import *
+from .scheduler_chainer import *
