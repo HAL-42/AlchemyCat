@@ -19,7 +19,7 @@ import warnings
 __all__ = ['load_module_from_py']
 
 
-def load_module_from_py(py: str) -> ModuleType:
+def load_module_from_py(py: str, from_file: bool=False) -> ModuleType:
     """给定python文件路径，载入python模块。
 
     函数首先会尝试将python文件路径转换为'A.B.C'的导入路径，随后用标准的import_module函数导入文件为模块。
@@ -36,19 +36,25 @@ def load_module_from_py(py: str) -> ModuleType:
 
     Args:
         py: python文件路径。
+        from_file: 是否强制从文件导入。
 
     Returns:
         载入的python模块。
     """
-    try:
-        import_path = '.'.join(osp.normpath(osp.splitext(py)[0]).lstrip(osp.sep).split(osp.sep))
-        if '.' == import_path[0]:  # 如果是相对路径。
-            # import_path = import_path[1:]  # 相对路径会多一个点。
-            raise RuntimeError(f"Relative import is not supported yet. ")
-        module = import_module(import_path)
-    except Exception:
-        print(traceback.format_exc())
-        warnings.warn(f"未能用import_module导入{py},尝试直接执行文件。")
+    module = None
+
+    if not from_file:
+        try:
+            import_path = '.'.join(osp.normpath(osp.splitext(py)[0]).lstrip(osp.sep).split(osp.sep))
+            if '.' == import_path[0]:  # 如果是相对路径。
+                # import_path = import_path[1:]  # 相对路径会多一个点。
+                raise RuntimeError(f"Relative import is not supported yet. ")
+            module = import_module(import_path)
+        except Exception:
+            print(traceback.format_exc())
+            warnings.warn(f"未能用import_module导入{py},尝试直接执行文件。")
+
+    if module is None:
         spec = spec_from_file_location("foo", py)
         module = module_from_spec(spec)
         spec.loader.exec_module(module)
