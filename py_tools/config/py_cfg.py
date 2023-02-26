@@ -85,6 +85,14 @@ class Config(Dict):
                 raise ValueError(f"{i}'th item = {cfg} in cfgs should be (opened as) dict.")
             # * 将配置树更新到本配置树上。
             self.dict_update(cfg)
+            # * 将配置树的parser时配置更新上来，且优先级更高。
+            if cfg_dep := object.__getattribute__(cfg, '_cfgs_update_at_parser'):
+                # A --解析时--> B; D, B --解析时--> C 含义明确，即加载时DFS，从祖先开始增量更新到C，优先级为B、A、D。
+                # A --解析时--> B; D, B --加载时--> C 若D与A冲突，则D中键值会阻塞A，优先级为B、D、A，这是我们不希望的。
+                # 因此，最好不要混用解析时和加载时依赖。
+                warnings.warn(f"{cfg=}存在解析时依赖{cfg_dep=}。\n"
+                              f"因此，该配置也应该作为当前配置的解析时依赖。否则并列的加载时依赖，可能干扰cfg_dep更新cfg。")
+                cfgs_update_at_parser = cfg_dep + cfgs_update_at_parser
 
         # * 记录基配置。
         object.__setattr__(self, '_cfgs_update_at_init', cfgs)
@@ -210,7 +218,7 @@ class Config(Dict):
                         self[k] = v
                     else:
                         pass
-                else: # 人有我有，但至少一方不是子树；或人有我无，则直接更新。
+                else:  # 人有我有，但至少一方不是子树；或人有我无，则直接更新。
                     self[k] = v
 
     def update(self, *args, **kwargs):
