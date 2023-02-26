@@ -31,7 +31,7 @@ __all__ = ["Cfg2TuneRunner"]
 
 class Cfg2TuneRunner(object):
     """Running cfg2tune"""
-    def __init__(self, cfg2tune_py: str, config_root: str='configs', experiment_root="experiment", pool_size: int=0,
+    def __init__(self, cfg2tune_py: str, config_root: str='./configs', experiment_root="experiment", pool_size: int=0,
                  metric_names: Optional[List[str]]=None):
         """Running a cfg2tune.
 
@@ -48,7 +48,7 @@ class Cfg2TuneRunner(object):
         self.pool_size = pool_size
 
         # * 加载Cfg2Tune。
-        self.cfg2tune = Cfg2Tune.load_cfg2tune(cfg2tune_py)
+        self.cfg2tune = Cfg2Tune.load_cfg2tune(cfg2tune_py, config_root)
 
         # * 设置整个调参实验的结果文件夹。
         self.rslt_dir = osp.join(experiment_root, self.cfg2tune.rslt_dir)
