@@ -31,17 +31,17 @@ def _check_emtpy_value(val: Any, memo: str='base.'):
         pass
 
 
-def auto_rslt_dir(file: str, config_dir: str='./configs') -> str:
+def auto_rslt_dir(file: str, config_root: str='./configs') -> str:
     """根据配置文件的__file__属性，自动返回配置文件的rslt_dir。
 
     Args:
         file: 配置文件的__file__属性。
-        config_dir: 相对工作目录，路径之于配置目录者。
+        config_root: 相对工作目录，路径之于配置目录者。
 
     Returns:
         配置文件的rslt_dir，默认是__file__去掉配置目录和配置文件后的路径。
     """
-    return osp.dirname(osp.relpath(file, config_dir))
+    return osp.dirname(osp.relpath(file, config_root))
 
 
 def _process_yaml_config(config: dict, experiments_root: str):
@@ -80,7 +80,7 @@ def _process_yaml_config(config: dict, experiments_root: str):
     return config
 
 
-def _process_py_config(config: dict, config_path: str, experiments_root: str):
+def _process_py_config(config: dict, config_path: str, experiments_root: str, config_root: str):
     if isinstance(config, Config):
         # TODO 支持下级cfg删除上级cfg项。
         config.update_at_parser()
@@ -94,7 +94,7 @@ def _process_py_config(config: dict, config_path: str, experiments_root: str):
         raise RuntimeError(f"config should indicate result save dir at config['rslt_dir'] = {config.get('rslt_dir')}")
 
     if config['rslt_dir'] is ...:
-        config['rslt_dir'] = auto_rslt_dir(config_path)
+        config['rslt_dir'] = auto_rslt_dir(config_path, config_root)
 
     config['rslt_dir'] = osp.join(experiments_root, config['rslt_dir'])
     os.makedirs(config['rslt_dir'], exist_ok=True)
@@ -102,7 +102,7 @@ def _process_py_config(config: dict, config_path: str, experiments_root: str):
     return config
 
 
-def parse_config(config_path: str, experiments_root: str) -> Config:
+def parse_config(config_path: str, experiments_root: str, config_root: str='./configs') -> Config:
     """Parse config from config path.
 
     This function will read yaml config from config path then create experiments dirs according to config file.
@@ -110,6 +110,7 @@ def parse_config(config_path: str, experiments_root: str) -> Config:
     Args:
         config_path: Path of yaml config.
         experiments_root: Root dictionary for experiments.
+        config_root: Root dictionary of configs, for auto_rslt_dir only.
 
     Returns:
         YAML config in Addict format
@@ -123,7 +124,7 @@ def parse_config(config_path: str, experiments_root: str) -> Config:
     if not is_py:
         config = _process_yaml_config(config, experiments_root)
     else:
-        config = _process_py_config(config, config_path, experiments_root)
+        config = _process_py_config(config, config_path, experiments_root, config_root=config_root)
 
     # * Check empty value and return
     _check_emtpy_value(config, memo='config.')
