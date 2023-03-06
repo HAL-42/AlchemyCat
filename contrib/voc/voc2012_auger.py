@@ -21,12 +21,17 @@ from alchemy_cat.acplot import RowFigureWall, ColumnFigureWall
 from alchemy_cat.contrib.voc.voc2012seg import VOC, VOCAug, label_map2color_map
 from alchemy_cat.contrib.voc.utils import VOC_CLASSES
 
-__all__ = ['VOCTrainAuger', 'VOCClsTrainAuger', 'VOCTestAuger', 'VOCClsTestAuger', 'attach_cls', 'collect_example']
+__all__ = ['VOCTrainAuger', 'VOCClsTrainAuger', 'VOCTestAuger', 'VOCClsTestAuger', 'attach_cls', 'collect_example',
+           'lb2cls_lb']
+
+
+def lb2cls_lb(label: np.ndarray) -> np.ndarray:
+    return (np.bincount(label.ravel(), minlength=VOC.ignore_label + 1) != 0).astype(np.uint8)[:len(VOC_CLASSES)]
 
 
 def attach_cls(example):
     img_id, img, label = example
-    cls_in_label = (np.bincount(label.ravel(), minlength=VOC.ignore_label + 1) != 0).astype(np.int)[:len(VOC_CLASSES)]
+    cls_in_label = lb2cls_lb(label)
     return img_id, img, label, cls_in_label
 
 
