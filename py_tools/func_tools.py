@@ -8,7 +8,7 @@
 @time: 2020/1/15 1:46
 @desc:
 """
-__all__ = ["Lambda", "Compose"]
+__all__ = ["Lambda", "Compose", "PackCompose"]
 
 
 # Copy from torch.vision
@@ -29,7 +29,8 @@ class Lambda(object):
     def __repr__(self):
         return self.__class__.__name__ + '()'
 
-#Copy from torch.vision
+
+# Copy from torch.vision
 class Compose(object):
     """Composes several transforms together.
 
@@ -58,3 +59,11 @@ class Compose(object):
             format_string += '    {0}'.format(t)
         format_string += '\n)'
         return format_string
+
+
+class PackCompose(Compose):
+    """串联一系列输入、输出是多个值的函数可调用对象"""
+    def __call__(self, *x):
+        for t in self.transforms:
+            x = t(*x)
+        return x
