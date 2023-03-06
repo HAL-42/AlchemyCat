@@ -8,20 +8,22 @@
 @time: 2020/1/13 9:43
 @desc:
 """
-from typing import Optional, Union, Iterable, Callable, Tuple
+from typing import Optional, Union, Iterable, Callable, Tuple, Literal
 import numpy as np
 import cv2
 from collections import abc
 from scipy import ndimage as nd
+from PIL import Image
 
 from alchemy_cat.data.data_auger import RandMap, MultiMap
 from alchemy_cat.py_tools import Compose, Lambda
 from alchemy_cat.py_tools.type import is_int, is_intarr, is_floatarr, tolist
 from alchemy_cat.alg import size2HW, color2scalar
+from alchemy_cat.acplot import RGB2BGR, BGR2RGB
 
 __all__ = ['RandMirror', 'MultiMirror', 'RandUpDown', 'MultiUpDown', 'RandColorJitter', 'scale_img_label',
            'RandScale', 'MultiScale', 'pad_img_label', 'int_img2float32_img', 'centralize', 'RandCrop', 'FiveCrop',
-           'RandRangeScale']
+           'RandRangeScale', 'identical', 'pack_identical', 'arr2PIL', 'PIL2arr']
 
 
 class RandMirror(RandMap):
@@ -225,9 +227,11 @@ def _check_img_size_equal_label_size(img, label):
         raise ValueError(f"img size {img.shape[:2]} should be equal to label{label.shape} size")
 
 
-def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.ndarray] = None,
+def scale_img_label(scale_factor: float | tuple[float, float] | int | tuple[int, int],
+                    img: np.ndarray, label: Optional[np.ndarray] = None,
                     aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x,
-                    align_corner: bool=False) -> Union[np.ndarray, Tuple[np.ndarray]]:
+                    align_corner: bool=False, PIL_mode: int | None=None
+                    ) -> Union[np.ndarray, Tuple[np.ndarray]]:
     """Scale img and label accroding to scaled factor
 
     Args:
@@ -238,13 +242,14 @@ def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.nda
             Iterable, then first and second aligners separately used to align H and W.
         align_corner: If true, use ndimage's zoom to resize img and label, which can align corner. Else use cv2's
             resize to scaled img and label, which will align center. (Default: False)
+        PIL_mode: 若不为None，使用指定的PIL插值模式采样图片。
 
     Returns: Scaled img and label(If exits)
     """
-    if scale_factor <= 0:
-        raise ValueError(f"scale_factor={scale_factor} must > 0")
-
     _check_img_size_equal_label_size(img, label)
+
+    if PIL_mode is not None and align_corner:
+        raise ValueError("使用PIL采样时，align_corner必须是False。")
 
     if isinstance(aligner, abc.Callable):
         aligner_h, aligner_w = aligner, aligner
@@ -253,16 +258,34 @@ def scale_img_label(scale_factor: float, img: np.ndarray, label: Optional[np.nda
     else:
         raise ValueError(f"pad_aligner {aligner} must be Callable or Iterable[Callable]")
 
-    scaled_h, scaled_w = \
-        aligner_h(int(scale_factor * img.shape[0])), aligner_w(int(scale_factor * img.shape[1]))
+    match scale_factor:
+        case float(s):
+            assert s > 0, f"{scale_factor=} 应当 > 0."
+            scaled_h, scaled_w = aligner_h(int(s * img.shape[0])), aligner_w(int(s * img.shape[1]))
+        case (float(s_h), float(s_w)):
+            assert s_h > 0 and s_w > 0, f"{scale_factor=} 应当 > 0."
+            scaled_h, scaled_w = aligner_h(int(s_h * img.shape[0])), aligner_w(int(s_w * img.shape[1]))
+        case (int() | (int(), int())) as size:
+            scaled_h, scaled_w = size2HW(size)
+            scaled_h, scaled_w = aligner_h(scaled_h), aligner_w(scaled_w)
+        case _:
+            raise ValueError(f"不支持的{scale_factor=}。")
 
-    if not align_corner:
+    if PIL_mode is not None:
+        pil = arr2PIL(img, order='BGR')
+        scaled_pil = pil.resize((scaled_w, scaled_h), resample=PIL_mode)
+        scaled_img = PIL2arr(scaled_pil, order='BGR')
+    elif not align_corner:
         scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
     else:
         scaled_img = nd.zoom(img, (scaled_h / img.shape[0], scaled_w / img.shape[1], 1.0), order=1)
 
     if label is not None:
-        if not align_corner:
+        if PIL_mode is not None:
+            pil = arr2PIL(label)
+            scaled_pil = pil.resize((scaled_w, scaled_h), resample=Image.NEAREST)
+            scaled_label = PIL2arr(scaled_pil)
+        elif not align_corner:
             scaled_label = cv2.resize(label, (scaled_w, scaled_h), interpolation=cv2.INTER_NEAREST)
         else:
             scaled_label = nd.zoom(label, (scaled_h / label.shape[0], scaled_w / label.shape[1]), order=0)
@@ -275,7 +298,7 @@ class RandScale(RandMap):
 
     def __init__(self, scale_factors: Iterable,
                  aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x,
-                 align_corner: bool=False):
+                 align_corner: bool=False, PIL_mode: int | None=None):
         """Auger to rand rescale the input img and corresponding label
 
         Args:
@@ -285,6 +308,7 @@ class RandScale(RandMap):
                 Iterable, then first and second aligners separately used to align H and W.
             align_corner: If true, use ndimage's zoom to resize img and label, which can align corner. Else use cv2's
                 resize to scaled img and label, which will align center. (Default: False)
+            PIL_mode: 若不为None，使用指定的PIL插值模式采样图片。
         """
         super(RandScale, self).__init__()
 
@@ -297,6 +321,7 @@ class RandScale(RandMap):
 
         self.aligner = aligner
         self.align_corner = align_corner
+        self.PIL_mode = PIL_mode
 
     def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
         """Rand Scale img according to rand seed
@@ -309,13 +334,14 @@ class RandScale(RandMap):
         """
         scale_factor = self.rand_seed
 
-        return scale_img_label(scale_factor, img, label, self.aligner, align_corner=self.align_corner)
+        return scale_img_label(scale_factor, img, label, self.aligner,
+                               align_corner=self.align_corner, PIL_mode=self.PIL_mode)
 
 
 class MultiScale(MultiMap):
     def __init__(self, scale_factors: Iterable,
                  aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x,
-                 align_corner: bool=False):
+                 align_corner: bool=False, PIL_mode: int | None=None):
         """Auger to Multi rescale the input img and corresponding label
 
         Args:
@@ -325,6 +351,7 @@ class MultiScale(MultiMap):
                 Iterable, then first and second aligners separately used to align H and W.
             align_corner: If true, use ndimage's zoom to resize img and label, which can align corner. Else use cv2's
                 resize to scaled img and label, which will align center. (Default: False)
+            PIL_mode: 若不为None，使用指定的PIL插值模式采样图片。
         """
         super(MultiScale, self).__init__()
 
@@ -339,6 +366,7 @@ class MultiScale(MultiMap):
 
         self.aligner = aligner
         self.align_corner = align_corner
+        self.PIL_mode = PIL_mode
 
     def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
         """Rand Scale img according to rand seed
@@ -351,7 +379,8 @@ class MultiScale(MultiMap):
         """
         scale_factor = self.scale_factors[self.output_index]
 
-        return scale_img_label(scale_factor, img, label, self.aligner, align_corner=self.align_corner)
+        return scale_img_label(scale_factor, img, label, self.aligner,
+                               align_corner=self.align_corner, PIL_mode=self.PIL_mode)
 
 
 def pad_img_label(img: np.ndarray, label: Optional[np.ndarray] = None, pad_img_to: Union[Iterable, int] = 0,
@@ -474,7 +503,7 @@ def centralize(img: np.ndarray, mean: Union[int, float, Iterable], std: Union[in
         raise ValueError(f"img to be centralized should be float array")
 
     mean_scalar, std_scalar = np.array(color2scalar(mean), dtype=np.float32), \
-                              np.array(color2scalar(std), dtype=np.float32) if std is not None else None
+        np.array(color2scalar(std), dtype=np.float32) if std is not None else None
 
     img = img - mean  # Return copy
     if std_scalar is not None:
@@ -580,7 +609,8 @@ class FiveCrop(MultiMap):
 
 class RandRangeScale(RandMap):
 
-    def __init__(self, low_size: int, high_size: int, short_thresh: int, align_corner: bool=True):
+    def __init__(self, low_size: int, high_size: int, short_thresh: int,
+                 align_corner: bool=True, PIL_mode: int | None=None):
         """在保证短边大于阈值的情况下，尝试将长边缩放到随机尺寸。
 
         Args:
@@ -595,6 +625,7 @@ class RandRangeScale(RandMap):
         self.high_size = high_size
         self.short_thresh = short_thresh
         self.align_corner = align_corner
+        self.PIL_mode = PIL_mode
 
     def generate_rand_seed(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> float:
         # * 先计算一个“目标尺寸”。
@@ -609,4 +640,54 @@ class RandRangeScale(RandMap):
         return scale_ratio
 
     def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
-        return scale_img_label(self.rand_seed, img, label, align_corner=self.align_corner)
+        return scale_img_label(self.rand_seed, img, label, align_corner=self.align_corner, PIL_mode=self.PIL_mode)
+
+
+def identical(x):
+    """原样返回单个参数。"""
+    return x
+
+
+def pack_identical(*x):
+    """原样返回多个参数。"""
+    return x
+
+
+def arr2PIL(arr: np.ndarray, order: Literal['RGB', 'BGR']='BGR') -> Image.Image:
+    """将numpy数组转为PIL图片。
+
+    Args:
+        arr: (H, W, [C])的numpy数组。
+        order: 彩图的通道顺序。对单通道图无效。
+
+    Returns:
+        PIL图片。
+    """
+    is_color = arr.ndim == 3
+    if is_color and order == 'BGR':
+        arr = BGR2RGB(arr)
+    return Image.fromarray(arr, mode='RGB' if is_color else 'L')
+
+
+def PIL2arr(pil: Image.Image, order: Literal['RGB', 'BGR']='BGR') -> np.ndarray:
+    """将numpy数组转为PIL图片。
+
+    Args:
+        pil: PIL图片。
+        order: 彩图的通道顺序。对单通道图无效。
+
+    Returns:
+        numpy数组。
+    """
+    arr = np.asarray(pil)
+    if pil.mode == 'L':
+        return arr
+    elif pil.mode == 'RGB':
+        if order == 'RGB':
+            return arr
+        elif order == 'BGR':
+            return RGB2BGR(arr)
+        else:
+            raise ValueError(f"不支持的{order=}。")
+    else:
+        raise ValueError(f"不支持的PIL模式{pil.mode=}。")
