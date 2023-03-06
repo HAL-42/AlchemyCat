@@ -19,6 +19,10 @@ from alchemy_cat.py_tools import Compose, Lambda
 from alchemy_cat.py_tools.type import is_int, is_intarr, is_floatarr, tolist
 from alchemy_cat.alg import size2HW, color2scalar
 
+__all__ = ['RandMirror', 'MultiMirror', 'RandUpDown', 'MultiUpDown', 'RandColorJitter', 'scale_img_label',
+           'RandScale', 'MultiScale', 'pad_img_label', 'int_img2float32_img', 'centralize', 'RandCrop', 'FiveCrop',
+           'RandRangeScale']
+
 
 class RandMirror(RandMap):
     rand_seeds = [1, -1]
@@ -572,3 +576,37 @@ class FiveCrop(MultiMap):
             offset_h, offset_w = bias_h // 2, bias_w // 2
 
         return _crop_img_label(img, label, offset_h, offset_w, self.crop_h, self.crop_w)
+
+
+class RandRangeScale(RandMap):
+
+    def __init__(self, low_size: int, high_size: int, short_thresh: int, align_corner: bool=True):
+        """在保证短边大于阈值的情况下，尝试将长边缩放到随机尺寸。
+
+        Args:
+            low_size: 长边随机缩放的最短尺寸。
+            high_size: 长边随机缩放的最大尺寸。
+            short_thresh: 短边缩放后的最小尺寸。
+            align_corner: 缩放时是否对齐角点。
+        """
+        super(RandRangeScale, self).__init__()
+
+        self.low_size = low_size
+        self.high_size = high_size
+        self.short_thresh = short_thresh
+        self.align_corner = align_corner
+
+    def generate_rand_seed(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> float:
+        # * 先计算一个“目标尺寸”。
+        object_size = self.low_size + np.random.randint(self.high_size - self.low_size + 1)
+
+        img_h, img_w = img.shape[:2]
+
+        long_size = img_h if img_h > img_w else img_w
+        short_size = img_h if img_h < img_w else img_w
+        # * 若长边达到目标尺寸的同时，短边大于short thresh，则让长边缩放到目标尺寸。否则将短边缩放到阈值尺寸。
+        scale_ratio = max(object_size / long_size, self.short_thresh / short_size)
+        return scale_ratio
+
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
+        return scale_img_label(self.rand_seed, img, label, align_corner=self.align_corner)
