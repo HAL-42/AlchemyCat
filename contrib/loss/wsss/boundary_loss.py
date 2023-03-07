@@ -16,7 +16,7 @@ import torch
 import torch.nn.functional as F
 from torch.multiprocessing import Pool
 
-from alchemy_cat import BGR2RGB
+from alchemy_cat.acplot.shuffle_ch import BGR2RGB
 
 from alchemy_cat.alg.dense_crf import DenseCRF
 

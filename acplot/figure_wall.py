@@ -15,7 +15,8 @@ from matplotlib import pyplot as plt
 from typing import Union, Optional, Iterable
 from collections import abc
 
-from alchemy_cat.acplot.utils import stack_figs, BGR2RGB, RGB2BGR
+from alchemy_cat.acplot.utils import stack_figs
+from alchemy_cat.acplot.shuffle_ch import BGR2RGB, RGB2BGR
 from alchemy_cat.py_tools import is_intarr, indent
 from alchemy_cat.alg import color2scalar
 

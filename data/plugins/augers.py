@@ -19,7 +19,7 @@ from alchemy_cat.data.data_auger import RandMap, MultiMap
 from alchemy_cat.py_tools import Compose, Lambda
 from alchemy_cat.py_tools.type import is_int, is_intarr, is_floatarr, tolist
 from alchemy_cat.alg import size2HW, color2scalar
-from alchemy_cat.acplot import RGB2BGR, BGR2RGB
+from alchemy_cat.acplot.shuffle_ch import RGB2BGR, BGR2RGB
 
 __all__ = ['RandMirror', 'MultiMirror', 'RandUpDown', 'MultiUpDown', 'RandColorJitter', 'scale_img_label',
            'RandScale', 'MultiScale', 'pad_img_label', 'int_img2float32_img', 'centralize', 'RandCrop', 'FiveCrop',
