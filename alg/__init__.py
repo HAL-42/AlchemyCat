@@ -17,3 +17,4 @@ from alchemy_cat.alg.normalize_tensor import *
 from alchemy_cat.alg.complement_entropy_confidence import *
 from .slide_inference import *
 from .window_slides import *
+from .masked_softmax import *
