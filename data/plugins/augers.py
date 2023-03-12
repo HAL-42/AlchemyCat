@@ -261,10 +261,10 @@ def scale_img_label(scale_factor: float | tuple[float, float] | int | tuple[int,
     match scale_factor:
         case float(s):
             assert s > 0, f"{scale_factor=} 应当 > 0."
-            scaled_h, scaled_w = aligner_h(int(s * img.shape[0])), aligner_w(int(s * img.shape[1]))
+            scaled_h, scaled_w = aligner_h(round(s * img.shape[0])), aligner_w(round(s * img.shape[1]))
         case (float(s_h), float(s_w)):
             assert s_h > 0 and s_w > 0, f"{scale_factor=} 应当 > 0."
-            scaled_h, scaled_w = aligner_h(int(s_h * img.shape[0])), aligner_w(int(s_w * img.shape[1]))
+            scaled_h, scaled_w = aligner_h(round(s_h * img.shape[0])), aligner_w(round(s_w * img.shape[1]))
         case (int() | (int(), int())) as size:
             scaled_h, scaled_w = size2HW(size)
             scaled_h, scaled_w = aligner_h(scaled_h), aligner_w(scaled_w)
