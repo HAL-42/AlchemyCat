@@ -15,7 +15,7 @@ import os.path as osp
 
 from alchemy_cat.data.dataset import Dataset
 from alchemy_cat.acplot.shuffle_ch import BGR2RGB
-from alchemy_cat.contrib.voc.utils import label_map2color_map
+from alchemy_cat.contrib.voc.utils import label_map2color_map, VOC_CLASSES
 
 __all__ = ['VOC', 'VOCAug']
 
@@ -24,6 +24,8 @@ class _VOCBase(Dataset):
     """
     PASCAL VOC and VOC Aug Segmentation base dataset
     """
+    class_names = VOC_CLASSES
+    class_num = len(class_names)
     mean_bgr = [104.008, 116.669, 122.675]
     std_bgr = [57.375, 57.12, 58.395]
     ignore_label = 255

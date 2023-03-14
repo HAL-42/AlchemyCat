@@ -49,7 +49,7 @@ def eval_preds(class_num: int, class_names: Optional[Iterable[str]],
         gt_preprocess: Preprocess function for ground truth read in
         importance: Segmentation Metric's importance filter. (Default: 2)
         eval_individually: If True, evaluate each sample. (Default: True)
-        take_pred_ignore_as_a_cls: If True, the ignore label in preds will be seemed as a class. (Default: False)
+        take_pred_ignore_as_a_cls: If True, the ignored label in preds will be seemed as a class. (Default: False)
         metric_cls: Use metric_cls(class_num, class_names) to eval preds. (Default: SegmentationMetric)
 
     Returns:
