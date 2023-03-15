@@ -14,7 +14,7 @@ from PIL import Image
 import os.path as osp
 
 from alchemy_cat.data.dataset import Dataset
-from alchemy_cat.acplot.shuffle_ch import BGR2RGB
+from alchemy_cat.acplot.shuffle_ch import BGR2RGB, RGB2BGR
 from alchemy_cat.contrib.voc.utils import label_map2color_map, VOC_CLASSES
 
 __all__ = ['VOC', 'VOCAug']
@@ -30,15 +30,18 @@ class _VOCBase(Dataset):
     std_bgr = [57.375, 57.12, 58.395]
     ignore_label = 255
 
-    def __init__(self, root: str="./contrib/datasets", year="2012", split: str="train"):
+    def __init__(self, root: str="./contrib/datasets", year="2012", split: str="train", PIL_read: bool=False):
         """
         Args:
             root (str): The parent dir of VOC dataset
+            year (str): "2012"
             split (str): "train"/"val"/"trainval"
+            PIL_read (bool): If True, use PIL to read image, else use cv2
         """
         self.root = root
         self.year = year
         self.split = split
+        self.PIL_read = PIL_read
         self.files = []
         self.image_ids = []
         self._set_files()
@@ -83,7 +86,10 @@ class VOC(_VOCBase):
 
         # * Load imgs
         image_path = osp.join(self.image_dir, image_id + ".jpg")
-        image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+        if self.PIL_read:
+            image = RGB2BGR(np.asarray(Image.open(image_path), dtype=np.uint8))
+        else:
+            image = cv2.imread(image_path, cv2.IMREAD_COLOR)
 
         # * Load Labels
         if self.split != 'test':
@@ -100,14 +106,16 @@ class VOCAug(_VOCBase):
     """
     PASCAL VOC Aug Segmentation dataset
     """
-    def __init__(self, root: str = "./contrib/datasets", year="2012", split: str = "train"):
+    def __init__(self, root: str = "./contrib/datasets", year="2012", split: str = "train", PIL_read: bool=False):
         """
         Args:
             root (str): The parent dir of VOC dataset
+            year (str): "2012"
             split (str): "train"/"val"/"trainval"/"train_aug"/"trainval_aug"
+            PIL_read (bool): If True, use PIL to read image, else use cv2
         """
         self.labels = []
-        super(VOCAug, self).__init__(root, year, split)
+        super(VOCAug, self).__init__(root, year, split, PIL_read)
 
     def _set_files(self):
         self.root = osp.join(self.root, f"VOC{self.year}")
@@ -134,7 +142,10 @@ class VOCAug(_VOCBase):
         # * Load image
         image_id = self.files[index].split("/")[-1].split(".")[0]
         image_path = osp.join(self.root, self.files[index][1:])
-        image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+        if self.PIL_read:
+            image = RGB2BGR(np.asarray(Image.open(image_path), dtype=np.uint8))
+        else:
+            image = cv2.imread(image_path, cv2.IMREAD_COLOR)
 
         # * Load Label
         if self.split != 'test':
