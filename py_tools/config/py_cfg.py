@@ -166,6 +166,10 @@ class Config(Dict):
             拷贝后的Config，枝干用当前类别重建，叶子直接赋值自self。
         """
         ret = self.__class__()  # 建立一棵本类新树。
+        # 先拷贝依赖，避免拷贝后丢失依赖。
+        object.__setattr__(ret, '_cfgs_update_at_init', object.__getattribute__(self, '_cfgs_update_at_init'))
+        object.__setattr__(ret, '_cfgs_update_at_parser', object.__getattribute__(self, '_cfgs_update_at_parser'))
+
         for k, v in self.items():
             if is_subtree(v, self):
                 ret[k] = v.branch_copy()  # 若v是子树，拷枝赋叶后赋给新树。
@@ -231,6 +235,10 @@ class Config(Dict):
         for k, v in self.items():
             if is_subtree(v, self):  # 将所有子树也冻结。
                 v.freeze(shouldFreeze)
+        return self
+
+    def unfreeze(self):
+        return self.freeze(False)
 
     def is_frozen(self) -> bool:
         try:
