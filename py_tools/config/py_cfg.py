@@ -301,3 +301,46 @@ class Config(Dict):
             if is_subtree(v, self):
                 yield from v.branches  # 若v是子树，则抛出子树的叶子。
         yield self
+
+    def set_IL(self, name: str | None=None, priority: int=1):
+        """返回装饰器，装饰器将被装饰函数注册为当前配置树的惰性项。
+
+        Args:
+            name: 函数名，若为None，则使用被装饰函数的函数名。
+            priority: 惰性项的优先级。
+
+        Returns:
+            装饰器。
+        """
+
+        def decorator(func):
+            assert callable(func), f"IL must be callable, but got {func}"
+
+            if name is not None:
+                self[name] = IL(func, priority=priority)
+            else:
+                self[func.__name__] = IL(func, priority=priority)
+            return func
+
+        return decorator
+
+    def set_func(self, name: str | None=None):
+        """返回装饰器，装饰器将被装饰函数注册为当前配置树的项目。
+
+        Args:
+            name: 函数名，若为None，则使用被装饰函数的函数名。
+
+        Returns:
+            装饰器。
+        """
+
+        def decorator(func):
+            assert callable(func), f"IL must be callable, but got {func}"
+
+            if name is not None:
+                self[name] = func
+            else:
+                self[func.__name__] = func
+            return func
+
+        return decorator
