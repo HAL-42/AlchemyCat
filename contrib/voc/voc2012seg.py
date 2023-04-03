@@ -44,6 +44,10 @@ class _VOCBase(Dataset):
         self.PIL_read = PIL_read
         self.files = []
         self.image_ids = []
+
+        self.image_dir: str | None = None
+        self.label_dir: str | None = None
+
         self._set_files()
 
     def _set_files(self):
@@ -119,6 +123,8 @@ class VOCAug(_VOCBase):
 
     def _set_files(self):
         self.root = osp.join(self.root, f"VOC{self.year}")
+        self.image_dir = osp.join(self.root, "JPEGImages")
+        self.label_dir = osp.join(self.root, "SegmentationClassAug")
 
         if self.split in ["train", "train_aug", "trainval", "trainval_aug", "val"]:
             file_list = osp.join(
