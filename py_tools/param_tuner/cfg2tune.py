@@ -101,6 +101,8 @@ class Cfg2Tune(Config):
             if isinstance(leaf, Param2Tune):
                 raise RuntimeError(f"Cfg2Tune can't init by leaf with type = f{type(leaf)}")
 
+        assert '_cfgs_update_at_parser' not in self  # _cfgs_update_at_parser务必在顶层定义，不可来自导入。
+
     def __setitem__(self, name, value):
         """重载Addict的__setitem__"""
         '''
@@ -188,13 +190,36 @@ class Cfg2Tune(Config):
                 # 剩余参数遍历过所有组合后，重置为初始状态。
                 reset_later_params(params2tune)
 
+    @property
+    def cfgs_update_at_parser(self):
+        """
+        Cfg2Tune支持在顶层（参见__init__，不可来自导入），以k-v对形式指定_cfgs_update_at_parser。如此可支持对
+        _cfgs_update_at_parser的调参。
+
+        当cfgs_update_at_parser来自外置k-v对时，则不应该在初始化时，不应再次指定_cfgs_update_at_parser。
+
+        Cfg2Tune本身不会parse，所以其_cfgs_update_at_parser只用于传递给子配置。注意子配置不支持k-v对形式的
+        _cfgs_update_at_parser。
+        """
+        if '_cfgs_update_at_parser' in self:
+            assert object.__getattribute__(self, '_cfgs_update_at_parser') == ()
+            if isinstance(cfgs_update_at_parser := self['_cfgs_update_at_parser'], Param2Tune):
+                return cfgs_update_at_parser.cur_val
+            else:
+                return cfgs_update_at_parser
+        else:
+            return object.__getattribute__(self, '_cfgs_update_at_parser')
+
     def _cfg_tuned(self) -> Config:
         other = Config()
 
         object.__setattr__(other, '_cfgs_update_at_init', object.__getattribute__(self, '_cfgs_update_at_init'))
-        object.__setattr__(other, '_cfgs_update_at_parser', object.__getattribute__(self, '_cfgs_update_at_parser'))
+        object.__setattr__(other, '_cfgs_update_at_parser', self.cfgs_update_at_parser)
 
         for k, v in self.items():
+            if k == '_cfgs_update_at_parser':
+                continue  # k-v对形式的_cfgs_update_at_parser总是以attr形式传递给子配置。
+
             if is_subtree(v, self):
                 other[k] = v._cfg_tuned()
             elif isinstance(v, Param2Tune):
