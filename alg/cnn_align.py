@@ -8,7 +8,8 @@
 @time: 2020/1/15 6:27
 @desc:
 """
-__all__ = ["find_nearest_even_size", "find_nearest_odd_size", "keep_size_padding", "odd_input_pad_size",
+__all__ = ["find_nearest_even_size", "find_nearest_odd_size", "divisible_by_n",
+           "keep_size_padding", "odd_input_pad_size",
            "even_input_pad_size", "get_q"]
 
 
@@ -72,6 +73,32 @@ def find_nearest_even_size(size, min_n: int=4, is_both_way: bool=False):
         left_gap = residual
         right_gap = base - residual
         return (size - left_gap) if (left_gap < right_gap and k >= 1) else (size + right_gap)
+
+
+def divisible_by_n(num: int, n: int, direction='larger', bias: int=0) -> int:
+    """Return the largest integer that is divisible by n and less than or equal to num.
+
+    Args:
+        num: number
+        n: divisor
+        direction: 'larger' or 'smaller' or 'nearest', default 'larger'.
+        bias: bias to the found number, default 0.
+
+    Returns:
+        The bias added larger/smaller/nearest integer that is divisible by n and less than or equal to num.
+    """
+    match direction:
+        case 'larger':
+            found = num + (n - num % n) % n
+        case 'smaller':
+            found = num - num % n
+        case 'nearest':
+            larger = divisible_by_n(num, n, 'larger')
+            smaller = divisible_by_n(num, n, 'smaller')
+            found = larger if larger - num <= num - smaller else smaller
+        case _:
+            raise ValueError(f'Unknown direction: {direction}')
+    return found + bias
 
 
 def get_q(kernel_size: int, dilation: int):

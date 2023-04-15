@@ -14,6 +14,8 @@ import cv2
 from collections import abc
 from scipy import ndimage as nd
 from PIL import Image
+import torchvision.transforms as T
+import torchvision.transforms.functional as TF
 
 from alchemy_cat.data.data_auger import RandMap, MultiMap
 from alchemy_cat.py_tools import Compose, Lambda
@@ -23,7 +25,7 @@ from alchemy_cat.acplot.shuffle_ch import RGB2BGR, BGR2RGB
 
 __all__ = ['RandMirror', 'MultiMirror', 'RandUpDown', 'MultiUpDown', 'RandColorJitter', 'scale_img_label',
            'RandScale', 'MultiScale', 'pad_img_label', 'int_img2float32_img', 'centralize', 'RandCrop', 'FiveCrop',
-           'RandRangeScale', 'identical', 'pack_identical', 'arr2PIL', 'PIL2arr']
+           'RandRangeScale', 'identical', 'pack_identical', 'arr2PIL', 'PIL2arr', 'RandomResizeCrop']
 
 
 class RandMirror(RandMap):
@@ -272,9 +274,9 @@ def scale_img_label(scale_factor: float | tuple[float, float] | int | tuple[int,
             raise ValueError(f"不支持的{scale_factor=}。")
 
     if PIL_mode is not None:
-        pil = arr2PIL(img, order='BGR')
+        pil = arr2PIL(img, order='RGB')  # 缩放时，RGB通道顺序无所谓。
         scaled_pil = pil.resize((scaled_w, scaled_h), resample=PIL_mode)
-        scaled_img = PIL2arr(scaled_pil, order='BGR')
+        scaled_img = PIL2arr(scaled_pil, order='RGB')
     elif not align_corner:
         scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
     else:
@@ -296,7 +298,7 @@ def scale_img_label(scale_factor: float | tuple[float, float] | int | tuple[int,
 
 class RandScale(RandMap):
 
-    def __init__(self, scale_factors: Iterable,
+    def __init__(self, scale_factors: Iterable[float | tuple[float, float] | int | tuple[int, int]],
                  aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x,
                  align_corner: bool=False, PIL_mode: int | None=None):
         """Auger to rand rescale the input img and corresponding label
@@ -312,12 +314,13 @@ class RandScale(RandMap):
         """
         super(RandScale, self).__init__()
 
-        self.rand_seeds = []
-        for factor in scale_factors:
-            factor = float(factor)
-            if factor <= 0:
-                raise ValueError(f"scale factors {scale_factors} must all larger than 0")
-            self.rand_seeds.append(factor)
+        # self.rand_seeds = []
+        # for factor in scale_factors:
+        #     factor = float(factor)
+        #     if factor <= 0:
+        #         raise ValueError(f"scale factors {scale_factors} must all larger than 0")
+        #     self.rand_seeds.append(factor)
+        self.rand_seeds = list(scale_factors)
 
         self.aligner = aligner
         self.align_corner = align_corner
@@ -386,7 +389,10 @@ class MultiScale(MultiMap):
 def pad_img_label(img: np.ndarray, label: Optional[np.ndarray] = None, pad_img_to: Union[Iterable, int] = 0,
                   pad_aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x,
                   img_pad_val: Union[int, float, Iterable] = 0.0, ignore_label: int = 255,
-                  pad_location: Union[str, int] = 'right-bottom') -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+                  pad_location: Union[str, int] = 'right-bottom',
+                  with_mask: bool=False) \
+        -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray,
+                                                                  np.ndarray, Tuple[int, int, int, int]]]:
     """Pad img to size pad_aligner(max(img_origin_size, pad_img_to))
 
     Args:
@@ -394,13 +400,14 @@ def pad_img_label(img: np.ndarray, label: Optional[np.ndarray] = None, pad_img_t
         label (np.ndarray): label to be padded
         pad_img_to (Union[None, Iterable, int]): img pad size. If value is int, the img_pad_to will be parsed as
             H=value, W=value. Else will be parsed as H=list(value)[0], W=list(value)[1]
-        pad_aligner (Union[Callable, Iterable[Callable]]): Final pad size will be refine by callable aligner. If
+        pad_aligner (Union[Callable, Iterable[Callable]]): Final pad size will be refined by callable aligner. If
             Iterable, then first and second aligners separately used to align H and W.
         img_pad_val: (Union[int, float, Iterable]): If value is int or float, return (value, value, value),
             if value is Iterable with 3 element, return totuple(value), else raise error
         ignore_label (int): value to pad the label.
         pad_location (Union[str, int]): Indicate pad location. Can be 'left-top'/0, 'right-top'/1, 'left-bottom'/2
             'right-bottom'/3, 'center'/4.
+        with_mask: If True, return mask of padded area and (i, j, h, w) of img in padded img.
 
     Returns: Padded img and label(if given)
     """
@@ -460,16 +467,24 @@ def pad_img_label(img: np.ndarray, label: Optional[np.ndarray] = None, pad_img_t
         pad_top, pad_bottom = pad_h // 2, (pad_h + 1) // 2  # floor(pad_h/2), ceil(pad_h/2)
         pad_left, pad_right = pad_w // 2, (pad_w + 1) // 2
 
+    ret = []
+
     img = cv2.copyMakeBorder(img, pad_top, pad_bottom, pad_left, pad_right,
                              borderType=cv2.BORDER_CONSTANT, value=img_pad_scalar)
+    ret.append(img)
+
     if label is not None:
         label = cv2.copyMakeBorder(label, pad_top, pad_bottom, pad_left, pad_right,
                                    borderType=cv2.BORDER_CONSTANT, value=ignore_label)
+        ret.append(label)
 
-    if label is not None:
-        return img, label
-    else:
-        return img
+    if with_mask:
+        mask = np.ones_like(img[:, :, 0], dtype=bool)
+        mask[pad_top:pad_top + img_h, pad_left:pad_left + img_w] = False
+        ret.append(mask)
+        ret.append(np.asarray((pad_top, pad_left, img_h, img_w)))  # (i, j, h, w)
+
+    return ret[0] if len(ret) == 1 else tuple(ret)
 
 
 def int_img2float32_img(img: np.ndarray, scale: bool=False) -> np.ndarray:
@@ -610,6 +625,7 @@ class FiveCrop(MultiMap):
 class RandRangeScale(RandMap):
 
     def __init__(self, low_size: int, high_size: int, short_thresh: int,
+                 aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]] = lambda x: x,
                  align_corner: bool=True, PIL_mode: int | None=None):
         """在保证短边大于阈值的情况下，尝试将长边缩放到随机尺寸。
 
@@ -624,6 +640,7 @@ class RandRangeScale(RandMap):
         self.low_size = low_size
         self.high_size = high_size
         self.short_thresh = short_thresh
+        self.aligner = aligner
         self.align_corner = align_corner
         self.PIL_mode = PIL_mode
 
@@ -640,7 +657,54 @@ class RandRangeScale(RandMap):
         return scale_ratio
 
     def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
-        return scale_img_label(self.rand_seed, img, label, align_corner=self.align_corner, PIL_mode=self.PIL_mode)
+        return scale_img_label(self.rand_seed, img, label,
+                               aligner=self.aligner, align_corner=self.align_corner, PIL_mode=self.PIL_mode)
+
+
+class RandomResizeCrop(RandMap):
+    """随机裁剪图像。"""
+
+    def __init__(
+            self,
+            size: Union[int, Iterable[int]],
+            scale: tuple[float, float]=(0.08, 1.0),
+            ratio: tuple[float, float]=(3.0 / 4.0, 4.0 / 3.0),
+            interpolation=Image.BILINEAR):
+        """封装torchvision的RandomResizedCrop，实现对image和label的同步增强。
+
+        Args:
+            size: 裁剪后的尺寸。
+            scale: 随机缩放的范围。
+            ratio: 随机裁剪的宽高比范围。
+            interpolation: 插值方式。
+        """
+        super(RandomResizeCrop, self).__init__()
+
+        self.transform = T.RandomResizedCrop(size, scale, ratio, interpolation)
+
+        self.size = size
+        self.scale = scale
+        self.ratio = ratio
+        self.interpolation = interpolation
+
+    def generate_rand_seed(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> tuple[int, int, int, int]:
+        transform = self.transform
+        pil_img = arr2PIL(img, order='RGB')  # 只用于获取尺寸，通道顺序无所谓。
+        return transform.get_params(pil_img, transform.scale, transform.ratio)
+
+    def forward(self, img: np.ndarray, label: Optional[np.ndarray] = None) -> Union[np.ndarray, Tuple[np.ndarray]]:
+        transform = self.transform
+        i, j, h, w = self.rand_seed
+
+        pil_img = arr2PIL(img, order='RGB')  # 只用于缩放，通道顺序无所谓。
+        scaled_img = TF.resized_crop(pil_img, i, j, h, w, transform.size, transform.interpolation)
+
+        if label is not None:
+            pil_label = arr2PIL(label)
+            scaled_label = TF.resized_crop(pil_label, i, j, h, w, transform.size, Image.NEAREST)
+            return PIL2arr(scaled_img, order='RGB'), PIL2arr(scaled_label)
+        else:
+            return PIL2arr(scaled_img, order='RGB')
 
 
 def identical(x):
