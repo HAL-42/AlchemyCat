@@ -19,7 +19,9 @@ kLongestParamStr = 75
 
 def param_val2str(param_val: Any, longest_param_length: int = kLongestParamStr) -> str:
     param_val_str = str(param_val).splitlines()[0].replace('.', '·')  # value中的小数点用·替代，以免影响导入。
-    if callable(param_val) and hasattr(param_val, '__name__') and len(param_val.__name__) <= longest_param_length:
+    if isinstance(param_val, dict) and '_param_val_name' in param_val:
+        ret = str(param_val['_param_val_name'])
+    elif callable(param_val) and hasattr(param_val, '__name__') and len(param_val.__name__) <= longest_param_length:
         ret = param_val.__name__
     elif len(param_val_str) <= longest_param_length:
         ret = param_val_str
