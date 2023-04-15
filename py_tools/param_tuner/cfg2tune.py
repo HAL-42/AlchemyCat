@@ -103,14 +103,32 @@ class Cfg2Tune(Config):
 
         assert '_cfgs_update_at_parser' not in self  # _cfgs_update_at_parser务必在顶层定义，不可来自导入。
 
+    def _mount2parent(self):
+        parent = object.__getattribute__(self, '__parent')
+        key = object.__getattribute__(self, '__key')
+        # root指示了是否挂载过，凡是执行过_mount2parent，root一定不为None，反之root一定为None。
+        root = root_ = object.__getattribute__(self, "_root")
+
+        # * 若还没有设置root，则找到root。
+        if root is None:  # 执行了_mount2parent，root一定不为None。
+            # ** 如果是根Dict，则root是self，否则根据parent一路找上去。
+            root = self
+            while object.__getattribute__(root, '__parent') is not None:
+                root = object.__getattribute__(root, '__parent')
+            object.__setattr__(self, '_root', root)  # 除了init，只有_mount2parent才会设置root。
+
+        # * 若Cfg2Tune刚刚由__missing__得到，则将其加入到父Cfg2Tune中。
+        if parent is not None and root_ is None:  # 若已经挂载过了，就不要重复挂载。
+            parent[key] = self
+
     def __setitem__(self, name, value):
         """重载Addict的__setitem__"""
         '''
-        setitem时，Cfg2Tune有三种状态：
+        setitem时，Cfg2Tune有以下状态：
         1. 用户刚刚用Cfg2Tune()生成，此时__parent，__key，_root均为None。此时需要设置root。
         2. 刚刚用__missing__方法生成。此时__parent，__key存在，_root为None。此时需要设置root，并将自身加入到父Cfg2Tune中。
-        3. 用户刚用Cfg2Tune()生成，但已经（1）过。此时__parent，__key为None，但_root为self。
-        4. 用__missing__方法生成，但已经（2）过。此时__parent，__key，_root均存在。
+        3. 用户刚用Cfg2Tune()生成，但已经（1）/set_whole过。此时__parent，__key为None，但_root为self。
+        4. 用__missing__方法生成，但已经（2）/set_whole过。此时__parent，__key，_root均存在。
         
         若被设置的value为Cfg2Tune，则value有三种状态：
         1. value由__missing__生成的子节点，已经找到了正确的root，且内容为空。此时只要正常setitem即可。我们不考虑该value被
@@ -124,21 +142,8 @@ class Cfg2Tune(Config):
         if self.is_frozen():  # 调用addict setitem前，检查frozen，若是，则完全禁止setitem。
             raise RuntimeError(f"{self.__class__} is frozen. ")
 
-        parent = object.__getattribute__(self, '__parent')
-        key = object.__getattribute__(self, '__key')
-        root = root_ = object.__getattribute__(self, "_root")
-
-        # * 若还没有设置root，则找到root。
-        if root is None:
-            # ** 如果是根Dict，则root是self，否则根据parent一路找上去。
-            root = self
-            while object.__getattribute__(root, '__parent') is not None:
-                root = object.__getattribute__(root, '__parent')
-            object.__setattr__(self, '_root', root)
-
-        # * 若Cfg2Tune刚刚由__missing__得到，则将其加入到父Cfg2Tune中。
-        if parent is not None and root_ is None:
-            parent[key] = self
+        self._mount2parent()
+        root = object.__getattribute__(self, "_root")
 
         # * 若值为待调参数，则将待调参数注册到root的_params2tune有序字典里。
         if isinstance(value, Param2Tune):
@@ -157,7 +162,7 @@ class Cfg2Tune(Config):
             for b in value.branches:
                 object.__setattr__(b, '_root', root)
 
-            object.__setattr__(value, '__parent', self)
+            object.__setattr__(value, '__parent', self)  # 只需重设根节点的parent、key即可。
             object.__setattr__(value, '__key', name)
 
             root_params2tune = object.__getattribute__(root, "_params2tune")
@@ -200,6 +205,9 @@ class Cfg2Tune(Config):
 
         Cfg2Tune本身不会parse，所以其_cfgs_update_at_parser只用于传递给子配置。注意子配置不支持k-v对形式的
         _cfgs_update_at_parser。
+
+        Config不会支持k-v对形式的_cfgs_update_at_parser。更新时，k-v对形式的_cfgs_update_at_parser会被覆盖（尽管不影响
+        最终结果，但会造成混乱）。
         """
         if '_cfgs_update_at_parser' in self:
             assert object.__getattribute__(self, '_cfgs_update_at_parser') == ()
@@ -213,7 +221,8 @@ class Cfg2Tune(Config):
     def _cfg_tuned(self) -> Config:
         other = Config()
 
-        object.__setattr__(other, '_cfgs_update_at_init', object.__getattribute__(self, '_cfgs_update_at_init'))
+        self.copy_cfg_attr_to(other)  # 将依赖、是否不可分等属性拷贝给other。
+        # cfgs_update_at_parser可能来自字段，需要单独解析。
         object.__setattr__(other, '_cfgs_update_at_parser', self.cfgs_update_at_parser)
 
         for k, v in self.items():

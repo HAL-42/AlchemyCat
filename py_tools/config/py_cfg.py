@@ -98,6 +98,9 @@ class Config(Dict):
         object.__setattr__(self, '_cfgs_update_at_init', cfgs)
         object.__setattr__(self, '_cfgs_update_at_parser', cfgs_update_at_parser)
 
+        # * 初始化配置属性。
+        object.__setattr__(self, '_whole', False)
+
     def update_at_parser(self):
         # * 获取解析式基配置。
         cfgs_update_at_parser = object.__getattribute__(self, '_cfgs_update_at_parser')
@@ -155,9 +158,21 @@ class Config(Dict):
             # * 将COM项增量更新到并列项上。
             for par_val in COM_parallel_vals:
                 par_val: T_Config
+                # NOTE 当_COM树本身为_whole时：1）cfg_update时，作为不可递归树覆盖；2）更新并列树时，行为不变（此时_COM树
+                # NOTE 作为根节点树，_whole无效。
+                # NOTE 当_COM树的子树为_whole时：1）cfg_update时，作为不可递归树覆盖；2）更新并列树时, 作为不可递归树覆盖。
+                # NOTE 该行为可能与预期不符（我们希望更新并列树时，不要覆盖），此时应当寻找其他workaround，如让_COM树，而非
+                # NOTE _COM树的子树为_whole。
                 par_val.dict_update(COM_val, incremental=True)
             # * 删除COM项。
             del subtree_wt_COM['COM_']
+
+    def copy_cfg_attr_to(self: T_Config, other: T_Config):
+        """将self的cfg属性(依赖、是否不可分)拷贝到other上。"""
+        object.__setattr__(other, '_cfgs_update_at_init', object.__getattribute__(self, '_cfgs_update_at_init'))
+        object.__setattr__(other, '_cfgs_update_at_parser', object.__getattribute__(self, '_cfgs_update_at_parser'))
+        # branch copy是对属性和键值的忠实拷贝。故不使用会自动解析attr、kv whole的set_whole, is_whole。
+        object.__setattr__(other, '_whole', object.__getattribute__(self, '_whole'))
 
     def branch_copy(self: T_Config) -> T_Config:
         """拷贝枝干（Config及其子Config），直接赋值叶子（Config的所有值）。
@@ -166,9 +181,8 @@ class Config(Dict):
             拷贝后的Config，枝干用当前类别重建，叶子直接赋值自self。
         """
         ret = self.__class__()  # 建立一棵本类新树。
-        # 先拷贝依赖，避免拷贝后丢失依赖。
-        object.__setattr__(ret, '_cfgs_update_at_init', object.__getattribute__(self, '_cfgs_update_at_init'))
-        object.__setattr__(ret, '_cfgs_update_at_parser', object.__getattribute__(self, '_cfgs_update_at_parser'))
+        # 先拷贝依赖和属性，避免拷贝后丢失。
+        self.copy_cfg_attr_to(ret)
 
         for k, v in self.items():
             if is_subtree(v, self):
@@ -188,6 +202,10 @@ class Config(Dict):
             return other
 
         ret = cls()  # 建立一棵本类新树。
+        # 先拷贝依赖和属性，避免拷贝后丢失。
+        if isinstance(other, Config):
+            other.copy_cfg_attr_to(ret)
+
         for k, v in other.items():
             if is_subtree(v, other):
                 ret[k] = cls.from_dict(v)  # 若v是other类别的子树，则将子树转为当前类别子树再赋给新树。
@@ -212,9 +230,13 @@ class Config(Dict):
         else:  # 若other是当前类型，则拷枝赋叶。
             other = other.branch_copy()
 
+        # NOTE dict_update只更新k-v对，不涉及更新属性（依赖、是否不可分）。
+        # NOTE 因为除了以下场景，想不到需要更新属性的情况：
+        # NOTE 1）更新依赖，但这种情况下，应当用_whole完整覆盖原来的树。本打算继承的部分可以独立出来，作为共享的导入。
         for k, v in other.items():
-            # 若人有我有，且都是子树，则子树更新子树。
-            if (k in self) and is_subtree(other[k], other) and is_subtree(self[k], self):
+            # 若人有我有，且都是子树，且人的子树不被视作整体，则子树更新子树。
+            # NOTE 若某棵树_whole=True，改树作为value时，视作不可递归的整体。
+            if (k in self) and (is_subtree(other[k], other) and (not other[k].is_whole)) and is_subtree(self[k], self):
                 self[k].dict_update(v, incremental=incremental)
             else:
                 if incremental:  # 若增量式，则人有我无，方才更新。
@@ -247,12 +269,9 @@ class Config(Dict):
             return False
         return is_frozen
 
-    def __setitem__(self, name, value):
-        if self.is_frozen():  # 调用addict setitem前，检查frozen，若是，则完全禁止setitem。
-            raise RuntimeError(f"{self.__class__} is frozen. ")
-        dict.__setitem__(self, name, value)
+    def _mount2parent(self):
         try:
-            p = object.__getattribute__(self, '__parent')
+            p = object.__getattribute__(self, '__parent')  # 若p、k不为None，挂载。反之无需挂载，或已经挂载过了。
             key = object.__getattribute__(self, '__key')
         except AttributeError:
             p = None
@@ -261,6 +280,12 @@ class Config(Dict):
             p[key] = self
             object.__delattr__(self, '__parent')
             object.__delattr__(self, '__key')
+
+    def __setitem__(self, name, value):
+        if self.is_frozen():  # 调用addict setitem前，检查frozen，若是，则完全禁止setitem。
+            raise RuntimeError(f"{self.__class__} is frozen. ")
+        dict.__setitem__(self, name, value)
+        self._mount2parent()
 
     def __missing__(self, name):  # 覆盖原有__missing__，freeze后任然允许返回一个空字典，只是不能赋值。
         return self.__class__(__parent=self, __key=name)
@@ -344,3 +369,18 @@ class Config(Dict):
             return func
 
         return decorator
+
+    def set_whole(self, is_whole: bool=True):
+        """将自身设置为不可递归的整体。"""
+        object.__setattr__(self, '_whole', is_whole)
+        self._mount2parent()  # 挂载到父节点，确保设置总是有效。
+
+    @property
+    def is_whole(self):
+        if '_whole' in self:
+            if object.__getattribute__(self, '_whole') != (kv_whole := self['_whole']):
+                warnings.warn(f"{self}拥有不一致的attr和kv _whole属性，目前以kv为准。但建议使用attr _whole属性。")
+                self.set_whole(kv_whole)
+            return kv_whole
+        else:
+            return object.__getattribute__(self, '_whole')
