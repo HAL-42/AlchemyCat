@@ -36,18 +36,20 @@ def test_none_cur_val(param):
 
 def test_iter(param):
     iter1_param = iter(param)
-    assert 0 == next(iter1_param) == param.cur_val
-    assert 2 == next(iter1_param) == param.cur_val
+    assert (0, 0) == next(iter1_param) == (param.cur_val, param.cur_val_name)
+    assert (2, 2) == next(iter1_param) == (param.cur_val, param.cur_val_name)
     with pytest.raises(StopIteration):
         next(iter1_param)
+    assert param._cur_val is None and param._cur_val_name is None
 
     iter2_param = iter(param)
-    assert 0 == next(iter2_param) == param.cur_val
-    assert 2 == next(iter2_param) == param.cur_val
+    assert (0, 0) == next(iter2_param) == (param.cur_val, param.cur_val_name)
+    assert (2, 2) == next(iter2_param) == (param.cur_val, param.cur_val_name)
     with pytest.raises(StopIteration):
         next(iter2_param)
+    assert param._cur_val is None and param._cur_val_name is None
 
 
 def test_subject_to(param):
     legal_val = list(param)
-    assert legal_val == [0, 2]
+    assert legal_val == [(0, 0), (2, 2)]

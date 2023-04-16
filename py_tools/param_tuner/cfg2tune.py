@@ -16,7 +16,7 @@ import pickle
 from collections import OrderedDict
 import os.path as osp
 
-from .utils import param_val2str
+from .utils import name_param_val
 from ..load_module import load_module_from_py
 from ..config import Config, is_subtree, auto_rslt_dir
 
@@ -25,17 +25,25 @@ __all__ = ["Param2Tune", "ParamLazy", "PL", "Cfg2Tune"]
 
 class Param2Tune(object):
 
-    def __init__(self, optional_values: Iterable, subject_to: Callable[[Any], bool] = lambda x: True):
+    def __init__(self, optional_values: Iterable, subject_to: Callable[[Any], bool]=lambda x: True,
+                 optional_value_names: Iterable[str]=None):
         """A Parameter need to be tuned
 
         Args:
             optional_values: Parameters optional value.
             subject_to: Filter used to check whether the parameter value is legal.
+            optional_value_names: Name of optional values.
         """
-        self.optional_val = optional_values
+        self.optional_val = tuple(optional_values)
+        if optional_value_names is not None:
+            self.optional_val_name = tuple(optional_value_names)
+            assert len(self.optional_val) == len(self.optional_val_name)
+        else:
+            self.optional_val_name = tuple(name_param_val(val) for val in self.optional_val)
         self.subject_to = subject_to
 
         self._cur_val = None  # Current Param Value
+        self._cur_val_name = None
 
     @property
     def cur_val(self):
@@ -44,17 +52,29 @@ class Param2Tune(object):
                                f"in it's subject_to.")
         return self._cur_val
 
+    @property
+    def cur_val_name(self):
+        if self._cur_val_name is None:
+            raise RuntimeError(f"The current value name of param {self} is None. Check if the former param call later "
+                               f"param in it's subject_to.")
+        return self._cur_val_name
+
     def reset(self):
         self._cur_val = None
+        self._cur_val_name = None
 
     def __iter__(self):
-        for opt_val in self.optional_val:
+        for opt_val, opt_val_name in zip(self.optional_val, self.optional_val_name, strict=True):
             if self.subject_to(opt_val):
                 self._cur_val = opt_val
-                yield opt_val
+                self._cur_val_name = opt_val_name
+                yield opt_val, opt_val_name
+        self.reset()  # 遍历结束后自动复位。
 
     def __repr__(self):
-        return f"{self.__class__} with optional_val = {list(self.optional_val)}"
+        return f"{self.__class__} with: \n" \
+               f"optional_val = {self.optional_val}; " \
+               f"optional_val_name = {self.optional_val_name}"
 
 
 class ParamLazy(object):
@@ -176,7 +196,7 @@ class Cfg2Tune(Config):
         dict.__setitem__(self, name, value)
 
     @staticmethod
-    def dfs_params2tune(params2tune: List[Param2Tune]):
+    def dfs_params2tune(params2tune: List[Param2Tune], is_root: bool=True):
         """协程每找到一个新的参数组合，yield一次。"""
         cur_param = params2tune[0]
 
@@ -184,16 +204,20 @@ class Cfg2Tune(Config):
             for param in params[1:]:
                 param.reset()
 
-        reset_later_params(params2tune)
+        if is_root:  # 如果为外部调用，先手动复位一次。
+            cur_param.reset()
+            reset_later_params(params2tune)
+
         for _ in cur_param:
             # 若只剩下一个参数，则每找到一个新参数值，就yield。
             if len(params2tune) == 1:
                 yield
             # 否则遍历参数组中，第一个参数的所有可选值。对剩余参数，每找到一个新参数组合，就yield一次。
             else:
-                yield from Cfg2Tune.dfs_params2tune(params2tune[1:])
+                yield from Cfg2Tune.dfs_params2tune(params2tune[1:], is_root=False)
                 # 剩余参数遍历过所有组合后，重置为初始状态。
-                reset_later_params(params2tune)
+                # NOTE 2023/4/16 增加自动复位功能后，可不用手动复位。
+                # reset_later_params(params2tune)
 
     @property
     def cfgs_update_at_parser(self):
@@ -239,7 +263,7 @@ class Cfg2Tune(Config):
         if object.__getattribute__(self, "_root") is self:
             assert 'rslt_dir' in self
 
-            rslt_dir_suffix = ",".join([f"{name}=" + param_val2str(param.cur_val)
+            rslt_dir_suffix = ",".join([f"{name}={param.cur_val_name}"
                                         for name, param in object.__getattribute__(self, "_params2tune").items()])
             other.rslt_dir = osp.join(self.rslt_dir, rslt_dir_suffix)
 

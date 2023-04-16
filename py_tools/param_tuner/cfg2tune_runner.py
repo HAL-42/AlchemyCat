@@ -24,7 +24,6 @@ from openpyxl import load_workbook
 from ..logger import Logger
 from ..str_formatters import get_local_time_str
 from .cfg2tune import Cfg2Tune
-from .utils import param_vals2pd_idx
 
 __all__ = ["Cfg2TuneRunner"]
 
@@ -61,7 +60,7 @@ class Cfg2TuneRunner(object):
             self.metric_names = metric_names
 
         # * 所有参数组合+参数组合对应的metric。
-        self.param_combs: List[dict] = []
+        self.param_combs: List[dict[str, tuple]] = []
         self.metric_frame: Optional[pd.DataFrame] = None
 
         # * 每个配置的pkl及其对应的实验文件夹。
@@ -80,10 +79,11 @@ class Cfg2TuneRunner(object):
 
         # * 得到所有参数组合[{param1: val1, ...}, {param1: val2, ...}, ...]
         for _ in Cfg2Tune.dfs_params2tune(list(params2tune.values())):
-            self.param_combs.append({k: v.cur_val for k, v in params2tune.items()})
+            self.param_combs.append({k: (v.cur_val, v.cur_val_name) for k, v in params2tune.items()})
         assert len(self.param_combs) > 0
 
-        midx = pd.MultiIndex.from_tuples([param_vals2pd_idx(param_comb.values()) for param_comb in self.param_combs],
+        midx = pd.MultiIndex.from_tuples([tuple(val[1] for val in param_comb.values())
+                                          for param_comb in self.param_combs],
                                          names=list(params2tune.keys()))
         self.metric_frame = pd.DataFrame(index=midx, columns=self.metric_names)
 
@@ -118,7 +118,7 @@ class Cfg2TuneRunner(object):
 
     def gather_metrics(self):
         for cfg_rslt_dir, run_rslt, param_comb in zip(self.cfg_rslt_dirs, self.run_rslts, self.param_combs):
-            self.metric_frame.loc[param_vals2pd_idx(param_comb.values())] = \
+            self.metric_frame.loc[tuple(val[1] for val in param_comb.values())] = \
                 self.gather_metric(cfg_rslt_dir, run_rslt, param_comb)
 
     def gather_metric(self, cfg_rslt_dir, run_rslt, param_comb) -> Dict[str, Any]:

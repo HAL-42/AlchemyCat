@@ -86,7 +86,7 @@ class Config(Dict):
             # * 将配置树更新到本配置树上。
             self.dict_update(cfg)
             # * 将配置树的parser时配置更新上来，且优先级更高。
-            if cfg_dep := object.__getattribute__(cfg, '_cfgs_update_at_parser'):
+            if isinstance(cfg, Config) and (cfg_dep := object.__getattribute__(cfg, '_cfgs_update_at_parser')):
                 # A --解析时--> B; D, B --解析时--> C 含义明确，即加载时DFS，从祖先开始增量更新到C，优先级为B、A、D。
                 # A --解析时--> B; D, B --加载时--> C 若D与A冲突，则D中键值会阻塞A，优先级为B、D、A，这是我们不希望的。
                 # 因此，最好不要混用解析时和加载时依赖。

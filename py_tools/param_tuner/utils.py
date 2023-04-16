@@ -8,16 +8,19 @@
 @Software: PyCharm
 @Desc    : 
 """
-from typing import Any, Tuple, Iterable, Union
+from typing import Any
 
 from ..type import is_int, is_float
 
-__all__ = ["param_val2str", "param_vals2pd_idx"]
+__all__ = ["name_param_val"]
 
 kLongestParamStr = 75
 
 
-def param_val2str(param_val: Any, longest_param_length: int = kLongestParamStr) -> str:
+def name_param_val(param_val: Any, longest_param_length: int=kLongestParamStr) -> str | int | float:
+    if is_int(param_val) or is_float(param_val):  # int或float保持不变，适配pandas索引。
+        return param_val
+
     param_val_str = str(param_val).splitlines()[0].replace('.', '·')  # value中的小数点用·替代，以免影响导入。
     if isinstance(param_val, dict) and '_param_val_name' in param_val:
         ret = str(param_val['_param_val_name'])
@@ -28,14 +31,3 @@ def param_val2str(param_val: Any, longest_param_length: int = kLongestParamStr) 
     else:
         ret = str(hash(param_val))[:longest_param_length]
     return ret
-
-
-def param_vals2pd_idx(vals: Iterable[Any]) -> Tuple[Union[str, Any]]:
-    pd_idx = []
-    for val in vals:
-        if is_int(val) or is_float(val):
-            pd_idx.append(val)
-        else:
-            pd_idx.append(param_val2str(val))
-
-    return tuple(pd_idx)
