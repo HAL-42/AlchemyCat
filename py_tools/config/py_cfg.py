@@ -16,7 +16,7 @@ from addict import Dict
 
 from .open_cfg import open_config
 
-__all__ = ['is_subtree', 'ItemLazy', 'IL', 'Config']
+__all__ = ['is_subtree', 'ItemLazy', 'IL', 'Config', 'ADict']
 
 T_Config = TypeVar('T_Config', bound='Config')
 T_dict = TypeVar('T_dict', bound=dict)
@@ -384,3 +384,8 @@ class Config(Dict):
             return kv_whole
         else:
             return object.__getattribute__(self, '_whole')
+
+
+class ADict(Config):
+    """完全继承自Config，用作数据容器。相比原有的addict.Dict，能够属性、支持更多方法。"""
+    pass
