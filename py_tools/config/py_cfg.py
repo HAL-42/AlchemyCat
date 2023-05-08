@@ -370,10 +370,11 @@ class Config(Dict):
 
         return decorator
 
-    def set_whole(self, is_whole: bool=True):
+    def set_whole(self: T_Config, is_whole: bool=True) -> T_Config:
         """将自身设置为不可递归的整体。"""
         object.__setattr__(self, '_whole', is_whole)
         self._mount2parent()  # 挂载到父节点，确保设置总是有效。
+        return self
 
     @property
     def is_whole(self):
@@ -384,6 +385,11 @@ class Config(Dict):
             return kv_whole
         else:
             return object.__getattribute__(self, '_whole')
+
+    def empty_leaf(self: T_Config) -> T_Config:
+        """转为本类的空且whole的字典，即空叶子。常用于表示无效/无定义项。"""
+        self.clear()
+        return self.set_whole(True)  # 设置为整体，并挂载到父节点。
 
 
 class ADict(Config):
