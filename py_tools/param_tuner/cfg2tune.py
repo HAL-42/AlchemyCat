@@ -16,7 +16,7 @@ import pickle
 from collections import OrderedDict
 import os.path as osp
 
-from .utils import name_param_val
+from .utils import name_param_val, norm_param_name
 from ..load_module import load_module_from_py
 from ..config import Config, is_subtree, auto_rslt_dir
 
@@ -36,7 +36,7 @@ class Param2Tune(object):
         """
         self.optional_val = tuple(optional_values)
         if optional_value_names is not None:
-            self.optional_val_name = tuple(optional_value_names)
+            self.optional_val_name = tuple(norm_param_name(name) for name in optional_value_names)
             assert len(self.optional_val) == len(self.optional_val_name)
         else:
             self.optional_val_name = tuple(name_param_val(val) for val in self.optional_val)
