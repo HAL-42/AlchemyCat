@@ -8,16 +8,15 @@
 @time: 2020/2/26 23:16
 @desc:
 """
+import os
+import traceback
+from typing import Optional, Iterable
+
 import numpy as np
 import pandas as pd
 from alchemy_cat.acplot import pretty_plot_confusion_matrix
-from alchemy_cat.py_tools import quick_init
+from alchemy_cat.py_tools import Statistic, Tracker, rprint, quick_init
 from matplotlib import pyplot as plt
-import os
-
-from typing import Optional, Iterable
-
-from alchemy_cat.py_tools import Statistic, Tracker
 
 __all__ = ['ClassificationMetric', 'SegmentationMetric']
 
@@ -132,8 +131,12 @@ class ClassificationMetric(Tracker):
         np.savetxt(conf_matrix_txt, self.conf_matrix, fmt="%d")
 
         # * Save confusion matrix plot
-        fig = self._plot_conf_matrix(**kwargs)
-        fig.savefig(os.path.join(save_dir, 'confusion_matrix.png'))
+        try:
+            fig = self._plot_conf_matrix(**kwargs)
+            fig.savefig(os.path.join(save_dir, 'confusion_matrix.png'))
+        except Exception:
+            rprint(f"可视化混淆矩阵失败！")
+            print(traceback.format_exc())
 
     @Statistic.getter(0)
     def samples_num(self):
