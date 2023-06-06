@@ -8,14 +8,31 @@
 @time: 2020/1/15 2:29
 @desc:
 """
-import numpy as np
-import torch
+import hashlib
 import random
-
 from typing import Union
 
-__all__ = ['set_numpy_rand_seed', 'set_py_rand_seed', 'set_torch_rand_seed', 'set_rand_seed',
+import numpy as np
+import torch
+
+__all__ = ['hash_str', 'set_numpy_rand_seed', 'set_py_rand_seed', 'set_torch_rand_seed', 'set_rand_seed',
            'set_rand_seed_according_torch']
+
+
+def hash_str(s: str, dynamic: bool=False) -> int:
+    """Hash a str to int
+
+    Args:
+        s (str): str to be hashed
+        dynamic (bool): Whether to use dynamic hash. If True, hash will be different in different processes
+
+    Returns:
+        int: Hashed int
+    """
+    if not dynamic:
+        return int(hashlib.sha1(s.encode("utf-8")).hexdigest(), 16) % (2 ** 32)
+    else:
+        return hash(s) % (2 ** 32)
 
 
 def set_numpy_rand_seed(seed: Union[int, str, np.ndarray]):
@@ -25,7 +42,7 @@ def set_numpy_rand_seed(seed: Union[int, str, np.ndarray]):
         seed (Union[int, str, np.ndarray]): int, str or np.ndarray seed, which will be hashed to get int seed
     """
     if isinstance(seed, str):
-        seed = hash(seed) % (2 ** 32)
+        seed = hash_str(seed, dynamic=False)
     elif isinstance(seed, int):
         seed = seed % (2 ** 32)
     elif not isinstance(seed, np.ndarray):
@@ -41,7 +58,7 @@ def set_torch_rand_seed(seed: Union[int, str]):
         seed (Union[int, str]): int seed or str, which will be hashed to get int seed
     """
     if isinstance(seed, str):
-        seed = hash(seed)
+        seed = hash_str(seed, dynamic=False)
     elif not isinstance(int(seed), int):
         raise ValueError(f"seed={seed} should be str or int")
     torch.manual_seed(int(seed))
@@ -56,7 +73,7 @@ def set_py_rand_seed(seed: Union[int, str]):
         seed (Union[int, str]): int seed or str, which will be hashed to get int seed
     """
     if isinstance(seed, str):
-        seed = hash(seed)
+        seed = hash_str(seed, dynamic=False)
     elif not isinstance(int(seed), int):
         raise ValueError(f"seed={seed} should be str or int")
     random.seed(int(seed))
