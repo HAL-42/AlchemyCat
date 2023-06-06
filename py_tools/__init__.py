@@ -29,3 +29,4 @@ from .load_module import *
 from .config import *
 from .cat_head import *
 from .parse_log import *
+from .file_md5 import *
