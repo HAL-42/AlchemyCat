@@ -46,7 +46,7 @@ class ClassificationMetric(Tracker):
 
         self.class_num, self.class_names = class_num, class_names
 
-        self.conf_matrix = np.zeros((class_num, class_num), dtype=np.int32)
+        self.conf_matrix = np.zeros((class_num, class_num), dtype=np.int64)
         self._last_conf_matrix = self.conf_matrix.copy()
 
     @staticmethod
@@ -70,7 +70,7 @@ class ClassificationMetric(Tracker):
 
         mask = (gt >= 0) & (gt < class_num)
         conf_matrix = np.bincount(
-            class_num * gt[mask].astype(np.int) + pred[mask].astype(np.int),
+            class_num * gt[mask].astype(np.int64) + pred[mask].astype(np.int64),
             minlength=class_num ** 2,
         ).reshape(class_num, class_num)
         return conf_matrix
