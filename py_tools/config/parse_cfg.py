@@ -26,7 +26,7 @@ def _check_emtpy_value(val: Any, memo: str='base.'):
         warnings.warn(f"{memo[:-1]} is a empty val: {val}")
     elif isinstance(val, dict):
         for k, v in val.items():
-            _check_emtpy_value(v, memo + k + '.')
+            _check_emtpy_value(v, memo + str(k) + '.')
     else:
         pass
 
