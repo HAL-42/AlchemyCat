@@ -14,7 +14,7 @@ import sys
 from pprint import pprint
 from typing import Union, Optional, Tuple
 
-from cv2 import cv2
+import cv2
 import torch
 import torch.distributed as dist
 
