@@ -18,3 +18,5 @@ from .cuda_tools import *
 from .swa import *
 from .dist_communication import *
 from .rng_cacher import *
+from .loss_items import *
+from .to_cuda import *

@@ -11,3 +11,5 @@
 from alchemy_cat.data.plugins.augers import *
 from alchemy_cat.data.plugins.file_id_dt import *
 from alchemy_cat.data.plugins.sub_augers import *
+from .few_shot_dt import *
+from .typing import *

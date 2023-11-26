@@ -11,3 +11,4 @@
 from alchemy_cat.contrib.voc.utils import *
 from alchemy_cat.contrib.voc.voc2012seg import *
 from alchemy_cat.contrib.voc.voc2012_auger import *
+from .voc2012_auger2 import *

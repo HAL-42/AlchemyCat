@@ -30,3 +30,4 @@ from .config import *
 from .cat_head import *
 from .parse_log import *
 from .file_md5 import *
+from .cache_dir import *

@@ -13,3 +13,4 @@ from alchemy_cat.data.data_auger import *
 from alchemy_cat.data.utils import *
 from alchemy_cat.data.prefetcher import Prefetcher
 from alchemy_cat.data.data_manager import DataManager
+from .inf_loader import inf_loader
