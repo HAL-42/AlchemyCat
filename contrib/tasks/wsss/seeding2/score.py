@@ -11,7 +11,7 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-from alchemy_cat.alg import size2HW, resize_cam, min_max_norm
+from alchemy_cat.alg import size2HW, resize_cam, resize_cam_cuda, min_max_norm
 
 __all__ = ['cam2score', 'cam2score_cuda', 'cat_bg_score', 'cat_bg_score_cuda', 'idx2seed', 'idx2seed_cuda']
 
