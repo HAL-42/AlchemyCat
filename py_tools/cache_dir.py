@@ -20,7 +20,10 @@ __all__ = ['CacheDir']
 
 class CacheDir(os.PathLike):
 
-    def __init__(self, save_at: str='/dev/null', cache_dir: str='/tmp/cache_dir', exist: str='error',
+    def __init__(self,
+                 save_at: str | os.PathLike='/dev/null',
+                 cache_dir: str | os.PathLike='/tmp/cache_dir',
+                 exist: str='error',
                  save_when_del: bool=False,
                  save_when_exit: bool=False,
                  enabled: bool=True):
@@ -35,6 +38,7 @@ class CacheDir(os.PathLike):
             enabled: 是否启用CacheDir，如果不启用，初始化后，就处于_saved状态。此时等价于save_at。
         """
         super().__init__()
+        save_at, cache_dir = str(save_at), str(cache_dir)
 
         self.save_dir = osp.dirname(save_at)
         self.save_at = save_at
