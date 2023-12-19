@@ -64,7 +64,7 @@ def welcome():
 
 
 def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_train: bool = True,
-             config_path: Optional[str] = None, config_root: str='./configs',
+             config_path: str | dict = None, config_root: str='./configs',
              experiments_root: str = "experiment", rand_seed: Union[bool, str, int] = False,
              cv2_num_threads: int = -1, verbosity: bool = True, log_stdout: Union[bool, str] = False,
              local_rank: Optional[int] = None, silence_non_master_rank: Optional[bool] = False,
@@ -78,7 +78,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
             int, set GPU:i as default device.
         is_benchmark (bool): If True, set torch.backends.cudnn.benchmark = True
         is_train (bool): If False, disable grad
-        config_path (Optional[str]): The path of yaml config
+        config_path (str | Config): The path to config
         config_root: Root dictionary of configs, for auto_rslt_dir only.
         experiments_root (str): The path where experiments result are stored
         rand_seed (Union[bool, str, int]) : If True, fix random of torch, numpy, python's random module from

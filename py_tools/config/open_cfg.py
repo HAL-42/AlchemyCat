@@ -8,11 +8,11 @@
 @Software: PyCharm
 @Desc    : 
 """
-from typing import Tuple
-
-from os import path as osp
+import glob
 import json
 import pickle
+from os import path as osp
+from typing import Tuple
 
 import yaml
 from yamlinclude import YamlIncludeConstructor
@@ -22,7 +22,7 @@ from ..load_module import load_module_from_py
 __all__ = ['open_config']
 
 
-def open_config(config_path: str, is_yaml: bool = False) -> Tuple[dict, bool]:
+def open_config(config_path: str | dict, is_yaml: bool = False) -> Tuple[dict, bool]:
     """根据文件路径载入配置树所在模块，并读取名为config的配置树。
 
     Args:
@@ -35,8 +35,18 @@ def open_config(config_path: str, is_yaml: bool = False) -> Tuple[dict, bool]:
     if is_yaml:
         raise DeprecationWarning("is_yaml parameter is deprecated. ")
 
+    # * 若config_path是dict，则直接返回。
+    if isinstance(config_path, dict):
+        return config_path, True
+
     # * Get extension
     name, ext = osp.splitext(config_path)
+    # ** auto ext
+    if ext == '':
+        cfg_path_found = glob.glob(f'{name}.*', recursive=False)
+        assert len(cfg_path_found) == 1, f"Found {len(cfg_path_found)} config files with {name=}: {cfg_path_found}"
+        config_path = cfg_path_found[0]
+        _, ext = osp.splitext(config_path)
 
     # * Check for existence
     if (ext != '.py') and (not osp.isfile(config_path)):  # py文件找不到，可能是从其他路径导入。

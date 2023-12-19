@@ -111,7 +111,7 @@ def _process_py_config(config: dict, config_path: str, experiments_root: str, co
     return config
 
 
-def parse_config(config_path: str, experiments_root: str=None, config_root: str='./configs',
+def parse_config(config_path: str | dict, experiments_root: str=None, config_root: str='./configs',
                  create_rslt_dir: bool=True) -> Config:
     """Parse config from config path.
 
