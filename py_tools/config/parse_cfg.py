@@ -136,6 +136,14 @@ def parse_config(config_path: str | dict, experiments_root: str=None, config_roo
     config, is_py = open_config(config_path, is_yaml=False)
     if config is None:
         raise RuntimeError(f"Failed to parse config at {config_path}")
+    if isinstance(config_path, dict):
+        # NOTE 当config_path是dict时，auto_rslt_dir不可为...——因为无法获取真正的config_path。
+        # NOTE 此时，需要确保config['rslt_dir']已经被赋值。
+        if not config.get('rslt_dir'):
+            raise RuntimeError(f"config should indicate result save dir at "
+                               f"config['rslt_dir'] = {config.get('rslt_dir')}")
+        if config['rslt_dir'] is ...:
+            raise RuntimeError(f"When config_path is dict, config['rslt_dir'] should not be ...")
 
     # * Create experiment dirs according to CONFIG
     if not is_py:
