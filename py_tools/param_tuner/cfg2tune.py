@@ -106,7 +106,7 @@ PL = ParamLazy
 class Cfg2Tune(Config):
     """Config to be tuned with parameters to be tuned."""
 
-    def __init__(self, *cfgs, cfgs_update_at_parser: tuple=(), **kwargs):
+    def __init__(self, *cfgs, cfgs_update_at_parser: tuple | str=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
@@ -284,9 +284,9 @@ class Cfg2Tune(Config):
         for _ in self.dfs_params2tune(list(params2tune.values())):
             yield self.cfg_tuned
 
-    def dump_cfgs(self, cfg_dir='configs') -> List[str]:
+    def dump_cfgs(self, cfg_dir='configs') -> tuple[list[str], list[Config]]:
         """遍历待调参数的所有组合，将每个组合对应的配置，以json（如果可以）和pkl格式保存到cfg_dir下。"""
-        cfg_files = []
+        cfg_files, cfgs = [], []
         for cfg in self.get_cfgs():
             cfg_save_dir = osp.join(cfg_dir, cfg.rslt_dir)
             os.makedirs(cfg_save_dir, exist_ok=True)
@@ -302,8 +302,9 @@ class Cfg2Tune(Config):
                 with open(cfg_file, 'wb') as pkl_f:
                     pickle.dump(cfg, pkl_f)
             cfg_files.append(cfg_file)
+            cfgs.append(cfg)
 
-        return cfg_files
+        return cfg_files, cfgs
 
     @staticmethod
     def load_cfg2tune(cfg2tune_py: str, config_root: str='./configs') -> 'Cfg2Tune':
