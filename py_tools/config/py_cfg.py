@@ -64,7 +64,7 @@ IL = ItemLazy
 class Config(Dict):
     """配置字典。继承自Dict，从类型上和Addict区分，以便分离配置项和配置树。"""
 
-    def __init__(self, *cfgs, cfgs_update_at_parser: tuple=(), **kwargs):
+    def __init__(self, *cfgs, cfgs_update_at_parser: tuple | str=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
@@ -74,6 +74,10 @@ class Config(Dict):
         """
         # * 初始化。
         super().__init__(**kwargs)
+
+        # * 同一cfgs_update_at_parser格式。
+        if isinstance(cfgs_update_at_parser, str):
+            cfgs_update_at_parser = (cfgs_update_at_parser,)
 
         # * 遍历配置树，更新到当前配置树上。
         for i, cfg in enumerate(cfgs):
@@ -127,6 +131,15 @@ class Config(Dict):
             self.dict_update(base_cfg)
         # * 将主配置树更新回当前配置树。
         self.dict_update(main_cfg)
+
+    def parse(self: T_Config, experiments_root: str=None, config_root: str='./configs',
+              create_rslt_dir: bool=True) -> T_Config:
+        # TODO 避免循环导入。Ugly，更好的办法是将parse_cfg.py中的parse_config放到py_cfg.py中。
+        from .parse_cfg import parse_config
+        return parse_config(self, experiments_root, config_root, create_rslt_dir)
+
+    def compute_item_lazy(self: T_Config) -> T_Config:
+        return ItemLazy.compute_item_lazy(self)
 
     @property
     def subtrees_wt_COM(self: T_Config) -> list[T_Config]:
