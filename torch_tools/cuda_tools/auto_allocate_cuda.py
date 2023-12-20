@@ -16,7 +16,7 @@ from .cuda_block import cuda_block_util_no_process_on
 
 
 def allocate_cuda_by_group_rank(group_rank: int, group_cuda_num: int, block: bool=True,
-                                verbosity: bool=True) -> tuple[list[str], dict[str, str]]:
+                                verbosity: bool=True) -> tuple[list[int], dict[str, str]]:
     """依据任务组编号，分配cuda设备。
 
     Args:
@@ -29,7 +29,7 @@ def allocate_cuda_by_group_rank(group_rank: int, group_cuda_num: int, block: boo
         分配给当前任务的cuda设备，以及指定了当前设备的环境变量。
     """
     # * 确定组数。
-    cudas = os.environ['CUDA_VISIBLE_DEVICES'].split(',')  # 可用CUDA设备。
+    cudas = [int(c) for c in os.environ['CUDA_VISIBLE_DEVICES'].split(',')]  # 可用CUDA设备。
     cuda_num = len(cudas)  # 卡数。
     assert cuda_num % group_cuda_num == 0
     group_num = cuda_num // group_cuda_num  # 组数。
@@ -44,7 +44,7 @@ def allocate_cuda_by_group_rank(group_rank: int, group_cuda_num: int, block: boo
 
     # * 获取当前指定了当前设备的环境变量。
     env_with_current_cuda = os.environ.copy()
-    env_with_current_cuda['CUDA_VISIBLE_DEVICES'] = ','.join(current_cudas)
+    env_with_current_cuda['CUDA_VISIBLE_DEVICES'] = ','.join([str(c) for c in current_cudas])
 
     # * 返回分配的cuda设备。
     return current_cudas, env_with_current_cuda
