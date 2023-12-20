@@ -114,10 +114,11 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
             raise ValueError(f"When set local rank, cuda is needed. However, is_cuda = {is_cuda}")
         if (isinstance(is_cuda, int) and not isinstance(is_cuda, bool)) and (is_cuda != local_rank):  # bool是int的子类。
             raise ValueError(f"local_rank = {local_rank} must equal to is_cuda = {is_cuda}")
-        is_cuda = local_rank
+
+        if isinstance(is_cuda, bool):
+            is_cuda = local_rank  # 若is_cuda为bool，则将其设置为local_rank，即默认使用local_rank作为cuda_id。
 
         # ** set device & init_process_group
-        torch.cuda.set_device(local_rank)
         dist.init_process_group(
             backend='nccl',
             init_method="env://",
@@ -190,6 +191,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
         device = get_device(is_cuda=True, cuda_id=is_cuda, verbosity=verbosity)
     else:
         raise ValueError(f"Parameter is_cuda = {is_cuda} must be str or int")
+    torch.cuda.set_device(device)
 
     # * Set benchmark
     torch.backends.cudnn.benchmark = is_benchmark
