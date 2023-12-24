@@ -106,16 +106,18 @@ PL = ParamLazy
 class Cfg2Tune(Config):
     """Config to be tuned with parameters to be tuned."""
 
-    def __init__(self, *cfgs, cfgs_update_at_parser: tuple | str=(), **kwargs):
+    def __init__(self, *cfgs, cfgs_update_at_parser: tuple | str=(), caps: tuple | str=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
             *cfgs: List[配置树所在模块|配置树]
+            cfgs_update_at_parser: 解析时用于更新的基配置。
+            caps: cfgs_update_at_parser的别名。
             **kwargs: 传递给Dict，不应该使用。
         """
         object.__setattr__(self, '_params2tune', OrderedDict())
         object.__setattr__(self, '_root', None)
-        super(Cfg2Tune, self).__init__(*cfgs, cfgs_update_at_parser=cfgs_update_at_parser, **kwargs)
+        super(Cfg2Tune, self).__init__(*cfgs, cfgs_update_at_parser=cfgs_update_at_parser, caps=caps, **kwargs)
 
         for leaf in self.leaves:
             if isinstance(leaf, Param2Tune):

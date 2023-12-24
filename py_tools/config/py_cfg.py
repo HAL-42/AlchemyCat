@@ -64,16 +64,22 @@ IL = ItemLazy
 class Config(Dict):
     """配置字典。继承自Dict，从类型上和Addict区分，以便分离配置项和配置树。"""
 
-    def __init__(self, *cfgs, cfgs_update_at_parser: tuple | str=(), **kwargs):
+    def __init__(self, *cfgs, cfgs_update_at_parser: tuple | str=(), caps: tuple | str=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
             *cfgs: List[配置树所在模块|配置树]
             cfgs_update_at_parser: 解析时用于更新的基配置。
+            caps: cfgs_update_at_parser的别名。
             **kwargs: 传递给Dict，不应该使用。
         """
         # * 初始化。
         super().__init__(**kwargs)
+
+        # * 检查caps。
+        if caps:
+            assert not cfgs_update_at_parser, f"{caps=}和{cfgs_update_at_parser=}不能同时使用。"
+            cfgs_update_at_parser = caps
 
         # * 同一cfgs_update_at_parser格式。
         if isinstance(cfgs_update_at_parser, str):
