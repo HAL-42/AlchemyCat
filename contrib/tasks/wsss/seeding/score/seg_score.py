@@ -20,5 +20,5 @@ __all__ = ["get_seg_score_by_cam_mean"]
 def get_seg_score_by_cam_mean(cam: np.ndarray, segment: np.ndarray, cls_in_label: np.ndarray) \
         -> Tuple[np.ndarray, np.ndarray]:
     fore_in_label = cls_in_label[1:]
-    segment_cam, segment_area = gather_segment(cam[fore_in_label.astype(np.bool)], segment)
+    segment_cam, segment_area = gather_segment(cam[fore_in_label.astype(np.bool_)], segment)
     return cam_clip_norm_score(segment_cam), segment_area

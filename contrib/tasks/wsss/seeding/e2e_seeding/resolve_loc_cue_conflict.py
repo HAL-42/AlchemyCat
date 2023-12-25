@@ -42,7 +42,7 @@ def resolve_loc_cue_conflict_by_priority(loc_cue: np.ndarray, priority: List[np.
 
 def resolve_loc_cue_conflict_by_area_order(loc_cue_proposal, ignore_label, train_boat=False):
     """This function generate seed with priority strategy"""
-    seed = np.ones(loc_cue_proposal.shape[:2], dtype=np.int) * ignore_label
+    seed = np.ones(loc_cue_proposal.shape[:2], dtype=np.int64) * ignore_label
 
     # generate background seed
     seed[loc_cue_proposal[:, :, 0] == 1] = 0

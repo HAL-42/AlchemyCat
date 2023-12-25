@@ -48,7 +48,7 @@ def get_online_seed_from_cam_sal_seg(cam: torch.Tensor, sal: torch.Tensor,
 
         loc_cue = cam_sal_to_seed(np_comb_cam, np_sal, np_cls_in_label, cam_thresh, sal_thresh, ignore_label)
 
-        seed = np.zeros(seg_prob.shape[1:], dtype=np.int)
+        seed = np.zeros(seg_prob.shape[1:], dtype=np.int64)
         non_ignore_indices = np.nonzero(loc_cue != ignore_label)
         seed[loc_cue[non_ignore_indices], non_ignore_indices[0], non_ignore_indices[1]] = 1
 

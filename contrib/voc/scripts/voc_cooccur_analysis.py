@@ -24,7 +24,7 @@ def cls_in_label2tag(cls_in_label: np.ndarray):
 
 
 def label2cls_in_label(label: np.ndarray, cls_num, ignore_label) -> np.ndarray:
-    return (np.bincount(label.ravel(), minlength=ignore_label + 1) != 0).astype(np.int)[:cls_num]
+    return (np.bincount(label.ravel(), minlength=ignore_label + 1) != 0).astype(np.int64)[:cls_num]
 
 
 def get_permutations(elem_set: list, permutation_len: int, current_permutation: Optional[list]=None):
@@ -61,7 +61,7 @@ def tag2cooccur_idx(tag: np.ndarray):
 
 
 if __name__ == "__main__":
-    cooccur_matrix = np.zeros((kForeClsNum, kForeClsNum), dtype=np.int)
+    cooccur_matrix = np.zeros((kForeClsNum, kForeClsNum), dtype=np.int64)
 
     dt = VOCAug(split=kVOCSplit)
 

@@ -25,7 +25,7 @@ def cw_pred_entropy_thresh(score: np.ndarray, cls_in_label: np.ndarray, alpha: f
                            score_refiner: Callable[[np.ndarray], np.ndarray]=lambda x: x) -> np.ndarray:
     bg_fg_score = score_refiner(get_bg_fg_score(score, alpha))
 
-    pred = np.ones(score.shape[1:], dtype=np.int) * ignore_label
+    pred = np.ones(score.shape[1:], dtype=np.int64) * ignore_label
 
     comp_entropy = complement_entropy_with_shift(bg_fg_score[None, ...], shift)[0]
     confident_loc = comp_entropy > thresh

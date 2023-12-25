@@ -31,7 +31,7 @@ def cam_sal_to_seed(cam, sal, cls_in_label, cam_thresh, sal_thresh, ignore_label
     Returns:
         (H, W) seed
     """
-    loc_cue_proposal = np.zeros(shape=(cam.shape[0], cam.shape[1], cam.shape[2] + 1), dtype=np.int)  # (H, W, num_class)
+    loc_cue_proposal = np.zeros(shape=(cam.shape[0], cam.shape[1], cam.shape[2] + 1), dtype=np.int64)  # (H, W, num_class)
     for cls_idx in range(1, len(cls_in_label)):
         if cls_in_label[cls_idx] == 1:
             heat_map = cam[:, :, cls_idx - 1]

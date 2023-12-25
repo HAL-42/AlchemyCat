@@ -29,7 +29,7 @@ __all__ = ['VOCTrainAuger', 'VOCClsTrainAuger', 'VOCTestAuger', 'VOCClsTestAuger
 
 def attach_cls(example):
     img_id, img, label = example
-    cls_in_label = (np.bincount(label.ravel(), minlength=VOC.ignore_label + 1) != 0).astype(np.int)[:len(VOC_CLASSES)]
+    cls_in_label = (np.bincount(label.ravel(), minlength=VOC.ignore_label + 1) != 0).astype(np.int64)[:len(VOC_CLASSES)]
     return img_id, img, label, cls_in_label
 
 

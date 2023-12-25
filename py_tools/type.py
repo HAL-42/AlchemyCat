@@ -14,29 +14,31 @@ import numpy as np
 import torch
 
 
-__all__ = ["is_intarr", "is_int", "is_floatarr", "is_float", "tolist", "totuple", "dict_with_arr_is_eq"]
+__all__ = ["is_intarr", "is_int", "is_floatarr", "is_float", "is_boolarr", "is_bool",
+           "tolist", "totuple", "dict_with_arr_is_eq"]
 
 
 def is_int(elem) -> bool:
     """
     Args:
-        elem (UnKnown): element need to be judged
+        elem (UnKnown): element need to be judged. Note in this func, bool is not int.
 
     Returns:
         Is the elem is an int type(int, np.int*, torch.int*)
     """
-    if isinstance(elem, int):
+    if isinstance(elem, torch.Tensor):
+        if elem.ndim != 0:
+            return False
+        elif (not torch.is_floating_point(elem)) and (not torch.is_complex(elem)) and (elem.dtype is not torch.bool):
+            return True
+        else:
+            return False
+
+    if isinstance(elem, np.integer):
         return True
 
-    if isinstance(elem, torch.Tensor):
-        elem = elem.numpy()
-
-    if not isinstance(elem, np.ndarray) and \
-            (isinstance(elem, np.int0) or isinstance(elem, np.int8) or
-             isinstance(elem, np.int16) or isinstance(elem, np.int32) or
-             isinstance(elem, np.uint0) or isinstance(elem, np.uint8) or
-             isinstance(elem, np.uint16) or isinstance(elem, np.uint32)):
-            return True
+    if isinstance(elem, int) and (not isinstance(elem, bool)):
+        return True
 
     return False
 
@@ -44,20 +46,18 @@ def is_int(elem) -> bool:
 def is_intarr(arr) -> bool:
     """
     Args:
-        elem (UnKnown): arr need to be judged
+        arr (UnKnown): arr need to be judged. Note for torch, tensor(1) is both int and intarr.
 
     Returns:
         Is the arr is an int type(np.int*, torch.int*)
     """
-    if isinstance(arr, torch.Tensor):
-        arr = arr.numpy()
+    if (isinstance(arr, torch.Tensor) and (not torch.is_floating_point(arr)) and (not torch.is_complex(arr))
+            and (arr.dtype is not torch.bool)
+            and arr.ndim > 0):
+        return True
 
-    if isinstance(arr, np.ndarray) and \
-            (arr.dtype == np.int0 or arr.dtype == np.int8 or
-             arr.dtype == np.int16 or arr.dtype == np.int32 or
-             arr.dtype == np.uint0 or arr.dtype == np.uint8 or
-             arr.dtype == np.uint16 or arr.dtype == np.uint32):
-            return True
+    if isinstance(arr, np.ndarray) and np.issubdtype(arr.dtype, np.integer):
+        return True
 
     return False
 
@@ -68,18 +68,21 @@ def is_float(elem) -> bool:
         elem (UnKnown): element need to be judged
 
     Returns:
-        Is the elem is an int type(float, np.float*, torch.float*)
+        Is the elem is a float type(float, np.float*, torch.float*)
     """
-    if isinstance(elem, float):
+    if isinstance(elem, torch.Tensor):
+        if elem.ndim != 0:
+            return False
+        elif torch.is_floating_point(elem):
+            return True
+        else:
+            return False
+
+    if isinstance(elem, np.floating):
         return True
 
-    if isinstance(elem, torch.Tensor):
-        elem = elem.numpy()
-
-    if not isinstance(elem, np.ndarray) and \
-            (isinstance(elem, np.float16) or isinstance(elem, np.float32) or
-             isinstance(elem, np.float64) or isinstance(elem, np.float)):
-            return True
+    if isinstance(elem, float):
+        return True
 
     return False
 
@@ -87,18 +90,58 @@ def is_float(elem) -> bool:
 def is_floatarr(arr) -> bool:
     """
     Args:
-        elem (UnKnown): arr need to be judged
+        arr (UnKnown): arr need to be judged.
 
     Returns:
-        Is the arr is an int type(np.float*, torch.float*)
+        Is the arr is a float type(np.float*, torch.float*)
     """
-    if isinstance(arr, torch.Tensor):
-        arr = arr.numpy()
+    if isinstance(arr, torch.Tensor) and torch.is_floating_point(arr) and arr.ndim > 0:
+        return True
 
-    if isinstance(arr, np.ndarray) and \
-            (arr.dtype == np.float or arr.dtype == np.float32 or
-             arr.dtype == np.float64 or arr.dtype == np.float16):
+    if isinstance(arr, np.ndarray) and np.issubdtype(arr.dtype, np.floating):
+        return True
+
+    return False
+
+
+def is_bool(elem) -> bool:
+    """
+    Args:
+        elem (UnKnown): element need to be judged
+
+    Returns:
+        Is the elem is a bool type(int, np.int*, torch.int*)
+    """
+    if isinstance(elem, torch.Tensor):
+        if elem.ndim != 0:
+            return False
+        elif elem.dtype is torch.bool:
             return True
+        else:
+            return False
+
+    if isinstance(elem, np.bool_):
+        return True
+
+    if isinstance(elem, bool):
+        return True
+
+    return False
+
+
+def is_boolarr(arr) -> bool:
+    """
+    Args:
+        arr (UnKnown): arr need to be judged.
+
+    Returns:
+        Is the arr is a bool type(np.float*, torch.float*)
+    """
+    if isinstance(arr, torch.Tensor) and (arr.dtype is torch.bool) and arr.ndim > 0:
+        return True
+
+    if isinstance(arr, np.ndarray) and (arr.dtype == np.bool_):
+        return True
 
     return False
 
@@ -168,10 +211,10 @@ def dict_with_arr_is_eq(dict1: dict, dict2: dict, request_order: bool=False, rto
 
         val2 = dict2[key1]
 
-        val1 = val1.numpy() if isinstance(val1, torch.Tensor) else val1
-        val2 = val2.numpy() if isinstance(val2, torch.Tensor) else val2
+        val1 = val1.detach().cpu().numpy() if isinstance(val1, torch.Tensor) else val1
+        val2 = val2.detach().cpu().numpy() if isinstance(val2, torch.Tensor) else val2
 
-        if type(val1) != type(val2):
+        if type(val1) is not type(val2):
             return False
 
         if isinstance(val1, np.ndarray):

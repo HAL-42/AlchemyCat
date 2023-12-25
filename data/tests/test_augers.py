@@ -453,8 +453,8 @@ def test_rand_color_jitter(voc_dataset):
         img[:, :, 0] = cv2.convertScaleAbs(img[:, :, 0], alpha=1, beta=(- delta_hue))
         return cv2.cvtColor(img, cv2.COLOR_HSV2BGR_FULL)
 
-    sum_order = np.zeros(4, dtype=np.int)
-    sum_activated = np.zeros(4, dtype=np.int)
+    sum_order = np.zeros(4, dtype=np.int64)
+    sum_activated = np.zeros(4, dtype=np.int64)
 
     distortion_ratios = []
     reversible_ratios = []
@@ -463,10 +463,10 @@ def test_rand_color_jitter(voc_dataset):
 
         rand_seed = auger.rand_seeds[jitter_node.id]
         jitter_order = rand_seed['jitter_order']
-        sum_order += np.array(jitter_order, dtype=np.int)
+        sum_order += np.array(jitter_order, dtype=np.int64)
 
         # * Dejitter
-        distortion = np.zeros(img.shape[:2], dtype=np.bool)
+        distortion = np.zeros(img.shape[:2], dtype=np.bool_)
         dejitter_img = jitter_img
         delta_bright, mul_contract, mul_saturate, delta_hue = \
             map(lambda k: rand_seed.get(k), ['delta_bright', 'mul_contract', 'mul_saturate', 'delta_hue'])
@@ -545,7 +545,8 @@ def test_centralize(voc_dataset):
     centralized_img = centralize(float_img, voc_dataset.mean_bgr, std=(2.2, 3.5, 4.5))
 
     decentralized_img = \
-        centralized_img * np.array([2.2, 3.5, 4.5], dtype=np.float) + np.array(voc_dataset.mean_bgr, dtype=np.float)
+        (centralized_img * np.array([2.2, 3.5, 4.5], dtype=np.float32)
+         + np.array(voc_dataset.mean_bgr, dtype=np.float32))
 
     assert np.all(decentralized_img.astype(np.uint8) == pytest.approx(img, abs=1.0))
 
@@ -582,13 +583,13 @@ def test_pad_img_label(voc_dataset):
             assert np.all(padded_label[:label.shape[0], :label.shape[1]] == label)
 
         # * padded value is correct
-        img_pad_right = np.zeros(padded_img.shape[:2], dtype=np.bool)
+        img_pad_right = np.zeros(padded_img.shape[:2], dtype=np.bool_)
         img_pad_right[:img.shape[0], :img.shape[1]] = True
         img_pad_right |= np.all(np.isclose(padded_img, padded_val), axis=2)
         assert np.all(img_pad_right)
 
         if label is not None:
-            label_pad_right = np.zeros(padded_label.shape[:2], dtype=np.bool)
+            label_pad_right = np.zeros(padded_label.shape[:2], dtype=np.bool_)
             label_pad_right[:label.shape[0], :label.shape[1]] = True
             label_pad_right |= padded_label == 255
             assert np.all(label_pad_right)
@@ -688,8 +689,8 @@ def test_rand_crop(voc_dataset):
     _, img, label = voc_dataset[0]
     padded_img, padded_label = pad_img_label(img, label, kPadSize, img_pad_val=128)
 
-    offset_h_sum, offset_w_sum = np.zeros(padded_img.shape[0] - kCropSize[0] + 1, dtype=np.int), \
-                                 np.zeros(padded_img.shape[1] - kCropSize[1] + 1, dtype=np.int)
+    offset_h_sum, offset_w_sum = np.zeros(padded_img.shape[0] - kCropSize[0] + 1, dtype=np.int64), \
+                                 np.zeros(padded_img.shape[1] - kCropSize[1] + 1, dtype=np.int64)
     for i in range(kLoopTimes):
         cropped_img, cropped_label = auger[0]
         offset_h, offset_w = auger.rand_seeds[rand_node.id]
@@ -746,7 +747,7 @@ def test_five_crop(voc_dataset):
     auger = FiveCropAuger(voc_dataset, verbosity=0, slim=True)
     multi_node: Node = auger.multi_nodes[0]
 
-    index_num = np.zeros(5, dtype=np.int)
+    index_num = np.zeros(5, dtype=np.int64)
     for auger_index, outputs in enumerate(auger):
         dataset_index = auger_index // 5
 
@@ -826,7 +827,7 @@ def test_rand_scale(voc_dataset):
         label_pair = map(label_map2color_map, [label, scaled_label, recovered_label])
         plot_img_label_pair(img_pair, label_pair)
 
-    scale_num = np.zeros(len(kScaleFactors), dtype=np.int)
+    scale_num = np.zeros(len(kScaleFactors), dtype=np.int64)
     img_recover_ratios, label_recover_ratios = [], []
     for index, outputs in enumerate(auger):
         scaled_img, scaled_label = outputs

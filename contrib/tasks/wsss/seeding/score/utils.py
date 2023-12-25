@@ -41,7 +41,7 @@ def gather_segment(arr: np.ndarray, segment: np.ndarray,
         segment_areas.append(vec_in_segment.shape[1])
         segment_vecs.append(gather_func(vec_in_segment))
 
-    return np.stack(segment_vecs, axis=1), np.array(segment_areas, dtype=np.int)
+    return np.stack(segment_vecs, axis=1), np.array(segment_areas, dtype=np.int64)
 
 
 def scatter_segment(segment_vec: np.ndarray, segment: np.ndarray) -> np.ndarray:
@@ -71,4 +71,4 @@ def cam_clip_norm_score(cam: np.ndarray) -> np.ndarray:
 
 def get_fg_cam(cam: np.ndarray, cls_in_label: np.ndarray):
     fore_in_label = cls_in_label[1:]
-    return cam[fore_in_label.astype(np.bool)]
+    return cam[fore_in_label.astype(bool)]

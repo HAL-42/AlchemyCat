@@ -31,7 +31,7 @@ def solve_conflict_by_area(loc_cue: np.ndarray, cls_in_label: np.ndarray, area: 
     Returns:
         (...) numeric pred.
     """
-    pred = np.ones(loc_cue.shape[1:], dtype=np.int) * ignore_label
+    pred = np.ones(loc_cue.shape[1:], dtype=np.int64) * ignore_label
 
     bg_loc_cue, fg_loc_cue = loc_cue[0], loc_cue[1:]
     fg_tag = cls_in_label2tag_always_bg(cls_in_label)[1:]
@@ -41,7 +41,7 @@ def solve_conflict_by_area(loc_cue: np.ndarray, cls_in_label: np.ndarray, area: 
 
     # * Generate foreground seed in the order of their area
     # ** Compute fg area
-    area = area if area is not None else np.ones(loc_cue.shape[1:], dtype=np.int)
+    area = area if area is not None else np.ones(loc_cue.shape[1:], dtype=np.int64)
     fg_area = np.sum((fg_loc_cue * area).reshape(fg_loc_cue.shape[0], -1), axis=-1)
     # ** Plot cue on pred
     argsort_idx = np.argsort(fg_area)[::-1]  # area in descending order
@@ -70,7 +70,7 @@ def solve_conflict_on_channel(loc_cue: np.ndarray, cls_in_label: np.ndarray,
     Returns:
         (...) numeric pred.
     """
-    pred = np.ones(loc_cue.shape[1:], dtype=np.int) * ignore_label
+    pred = np.ones(loc_cue.shape[1:], dtype=np.int64) * ignore_label
 
     loc_cue_sum = np.sum(loc_cue, axis=0)
     confident_loc = loc_cue_sum == 1

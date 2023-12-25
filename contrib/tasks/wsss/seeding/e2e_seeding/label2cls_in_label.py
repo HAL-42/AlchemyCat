@@ -26,4 +26,4 @@ def label2cls_in_label(label: np.ndarray, cls_num=len(VOC_CLASSES), ignore_label
     Returns:
         图像级标签。
     """
-    return (np.bincount(label.ravel(), minlength=ignore_label + 1) != 0).astype(np.int)[:cls_num]
+    return (np.bincount(label.ravel(), minlength=ignore_label + 1) != 0).astype(np.int64)[:cls_num]
