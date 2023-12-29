@@ -35,7 +35,8 @@ def _pad_imgs(imgs: torch.Tensor, padded_h: int, padded_w: int) -> Tuple[torch.T
 def slide_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Tensor], num_class: int,
                     window_sizes: Union[Iterable, int], strides: Union[Iterable, int],
                     pad: bool=False,
-                    win_size_checker: Callable[[int], bool]=lambda x: find_nearest_odd_size(x, min_n=4) == x)\
+                    win_size_checker: Callable[[int], bool]=lambda x: find_nearest_odd_size(x, min_n=4) == x,
+                    align_corners: bool=True)\
         -> torch.Tensor:
     """滑动窗口法推理图片。
 
@@ -47,6 +48,7 @@ def slide_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Te
         strides: 滑动窗口步长。若为可迭代对象，表(stride_h, stride_w)；若为int，表步长之于高宽上一致者。
         pad: 是否在推理前，将输入图片填充到滑动窗口尺寸。注意，若没有pad，当确保输入图片尺寸为模型支持的尺寸。
         win_size_checker: 检查最后真实切出的窗口，其尺寸是否符合要求。默认检查是否为n=4的奇尺寸。
+        align_corners: 是否对齐角点。
 
     Returns:
         与输入imgs等大的(N, num_class, H, W)得分。
@@ -63,9 +65,9 @@ def slide_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Te
 
     # * 初始化得分和累加次数。
     logits = torch.zeros((padded_imgs.shape[0], num_class, padded_imgs.shape[2], padded_imgs.shape[3]),
-                         dtype=torch.float32, device=padded_imgs.device)
+                         dtype=padded_imgs.dtype, device=padded_imgs.device)
     add_count = torch.zeros((padded_imgs.shape[2], padded_imgs.shape[3]),
-                            dtype=torch.int32, device=padded_imgs.device)
+                            dtype=torch.int64, device=padded_imgs.device)
 
     # * 计算滑动窗口。
     h_grids = ceil(max(padded_imgs.shape[2] - win_size_h, 0) / stride_h) + 1
@@ -88,7 +90,7 @@ def slide_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Te
             assert win_size_checker(cropped_imgs.shape[3])
 
             cropped_logits = F.interpolate(model(cropped_imgs), size=(cropped_imgs.shape[2], cropped_imgs.shape[3]),
-                                           mode='bilinear', align_corners=True)
+                                           mode='bilinear', align_corners=align_corners)
 
             logits[:, :, y1:y2, x1:x2] += cropped_logits
             add_count[y1:y2, x1:x2] += 1
