@@ -9,7 +9,7 @@
 @Desc    : 第二版的VOC增强器，抛弃了第一版中的静态图Auger。
 """
 from functools import partial
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 import alchemy_cat.data.plugins.augers as au
 import numpy as np
@@ -29,9 +29,10 @@ __all__ = ['VOCAuger']
 
 
 def _scale_short_size_to(target_size: int, img: np.ndarray, lb: np.ndarray | None=None,
+                         aligner: Callable[[int], int] | Iterable[Callable[[int], int]] = lambda x: x,
                          align_corner: bool=False, PIL_mode: int=kPILMode):
     return au.scale_img_label(target_size / min(*img.shape[:2]),
-                              img, lb,
+                              img, lb, aligner=aligner,
                               align_corner=align_corner, PIL_mode=PIL_mode)
 
 
@@ -94,6 +95,11 @@ class VOCAuger(Dataset):
                     partial(_scale_short_size_to, crop_size),
                     au.RandCrop(crop_size)
                 ])
+            case {'method': 'fix_short_no_crop', 'target_size': target_size, **others}:
+                if others.get('aligner') is not None:
+                    self.scale_crop = partial(_scale_short_size_to, target_size, aligner=others['aligner'])
+                else:
+                    self.scale_crop = partial(_scale_short_size_to, target_size)
             case _:
                 raise ValueError(f"不支持的{scale_crop_method=}。")
 
