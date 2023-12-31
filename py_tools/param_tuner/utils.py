@@ -11,7 +11,7 @@
 from typing import Any
 import os.path as osp
 
-from ..type import is_int, is_float
+from ..type import is_int
 
 __all__ = ['norm_param_name', 'name_param_val']
 
@@ -23,7 +23,8 @@ def norm_param_name(name: str) -> str:
 
 
 def name_param_val(param_val: Any, longest_param_length: int=kLongestParamStr) -> str | int | float:
-    if is_int(param_val) or is_float(param_val):  # int或float保持不变，适配pandas索引。
+    # if is_int(param_val) or is_float(param_val):  # int或float保持不变，适配pandas索引。
+    if is_int(param_val):  # NOTE 只有int保持不变，适配pandas索引。float中的小数点会影响导入，还是需要替换。
         return param_val
 
     param_val_str = str(param_val).splitlines()[0]
