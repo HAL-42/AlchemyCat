@@ -24,15 +24,17 @@ def bisection(n: int):
     return n // 2, n // 2 + n % 2
 
 
-def _pad_imgs(imgs: torch.Tensor, padded_h: int, padded_w: int) -> Tuple[torch.Tensor, List[int]]:
-    pad_top, pad_bottom = bisection(max(padded_h - imgs.shape[2], 0))
-    pad_left, pad_right = bisection(max(padded_w - imgs.shape[3], 0))
+def _pad_imgs(imgs: torch.Tensor, padded_h: int, padded_w: int, pad_val: ...=0) -> Tuple[torch.Tensor, List[int]]:
+    pad_top, pad_bottom = bisection(max(padded_h - imgs.shape[-2], 0))
+    pad_left, pad_right = bisection(max(padded_w - imgs.shape[-1], 0))
 
-    return F.pad(imgs, [pad_left, pad_right, pad_top, pad_bottom], mode='constant', value=0.0), [pad_top, pad_bottom,
-                                                                                                 pad_left, pad_right]
+    return (F.pad(imgs, [pad_left, pad_right, pad_top, pad_bottom], mode='constant', value=pad_val),
+            [pad_top, pad_bottom, pad_left, pad_right])
 
 
-def slide_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Tensor], num_class: int,
+def slide_inference(imgs: torch.Tensor, *others: torch.Tensor,
+                    model: Callable[[torch.Tensor, ...], torch.Tensor],
+                    num_class: int,
                     window_sizes: Union[Iterable, int], strides: Union[Iterable, int],
                     pad: bool=False,
                     win_size_checker: Callable[[int], bool]=lambda x: find_nearest_odd_size(x, min_n=4) == x,
@@ -42,6 +44,7 @@ def slide_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Te
 
     Args:
         imgs: 待推理的(N, 3, H, W)图片。
+        others: 其他输入，如标签，形状为(..., H, W)。
         model: 推理函数，输入(N, 3, H, W)图片，输出得分。
         num_class: 模型logit输出通道数。
         window_sizes: 滑动窗口尺寸。若为可迭代对象，表(win_h, win_w)；若为int，则正方形窗口的边长。
@@ -53,6 +56,9 @@ def slide_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Te
     Returns:
         与输入imgs等大的(N, num_class, H, W)得分。
     """
+    # * others的形状必须与imgs的形状一致。
+    assert all([imgs.shape[2:] == other.shape[-2:] for other in others])
+
     # * 解析输入参数。
     win_size_h, win_size_w = size2HW(window_sizes)
     stride_h, stride_w = size2HW(strides)
@@ -60,8 +66,10 @@ def slide_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Te
     # * 填充图片。
     if pad:
         padded_imgs, margin = _pad_imgs(imgs, win_size_h, win_size_w)
+        padded_others = [_pad_imgs(other, win_size_h, win_size_w)[0] for other in others]
     else:
         padded_imgs, margin = imgs, [0] * 4
+        padded_others = others
 
     # * 初始化得分和累加次数。
     logits = torch.zeros((padded_imgs.shape[0], num_class, padded_imgs.shape[2], padded_imgs.shape[3]),
@@ -83,13 +91,15 @@ def slide_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch.Te
             x2 = min(x1 + win_size_w, padded_imgs.shape[3])
             x1 = max(x2 - win_size_w, 0)
             cropped_imgs = padded_imgs[:, :, y1:y2, x1:x2]
+            cropped_others = [other[..., y1:y2, x1:x2] for other in padded_others]
 
             # assert find_nearest_odd_size(cropped_imgs.shape[2], min_n=4) == cropped_imgs.shape[2]
             # assert find_nearest_odd_size(cropped_imgs.shape[3], min_n=4) == cropped_imgs.shape[3]
             assert win_size_checker(cropped_imgs.shape[2])
             assert win_size_checker(cropped_imgs.shape[3])
 
-            cropped_logits = F.interpolate(model(cropped_imgs), size=(cropped_imgs.shape[2], cropped_imgs.shape[3]),
+            cropped_logits = F.interpolate(model(cropped_imgs, *cropped_others),
+                                           size=(cropped_imgs.shape[2], cropped_imgs.shape[3]),
                                            mode='bilinear', align_corners=align_corners)
 
             logits[:, :, y1:y2, x1:x2] += cropped_logits
