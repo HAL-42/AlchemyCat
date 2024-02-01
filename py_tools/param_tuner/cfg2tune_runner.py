@@ -203,4 +203,4 @@ class Cfg2TuneRunner(object):
 
             print(Fore.GREEN + "-----------------Save Metrics-----------------" + Style.RESET_ALL)
             self.save_metric()
-            print(f"Saving Metric Frame at f{osp.join(self.rslt_dir, 'metric_frame.xlsx')}")
+            print(f"Saving Metric Frame at {osp.join(self.rslt_dir, 'metric_frame.xlsx')}")
