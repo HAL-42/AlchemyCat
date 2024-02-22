@@ -31,3 +31,4 @@ from .cat_head import *
 from .parse_log import *
 from .file_md5 import *
 from .cache_dir import *
+from .loguru_exts import *

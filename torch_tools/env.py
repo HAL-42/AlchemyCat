@@ -18,7 +18,8 @@ import cv2
 import torch
 import torch.distributed as dist
 
-from ..py_tools import get_process_info, get_local_time_str, set_rand_seed, Logger, parse_config, Config, ItemLazy, meow
+from ..py_tools import (get_process_info, get_local_time_str, set_rand_seed, Logger, parse_config, Config, ItemLazy,
+                        meow, init_loguru)
 
 __all__ = ['get_device', 'init_env']
 
@@ -63,10 +64,11 @@ def welcome():
           end="\n\n")
 
 
-def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_train: bool = True,
+def init_env(*, is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_train: bool = True,
              config_path: str | dict = None, config_root: str='./configs',
              experiments_root: str = "experiment", rand_seed: Union[bool, str, int] = False,
-             cv2_num_threads: int = -1, verbosity: bool = True, log_stdout: Union[bool, str] = False,
+             cv2_num_threads: int = -1,
+             verbosity: bool = True, log_stdout: Union[bool, str] = False, loguru_ini: bool | dict=True,
              local_rank: Optional[int] = None, silence_non_master_rank: Optional[bool] = False,
              reproducibility: Optional[bool] = False,
              is_debug: bool=False) \
@@ -90,6 +92,7 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
         log_stdout (Union[bool, str]): If True, the stdout will be logged to corresponding experiment dir. If False, the
             stdout will not be logged. If log_stdout is str, it will be recognized as a path and stdout will be logged
             to that path. (Default: False)
+        loguru_ini (dict): init loguru with loguru_ini. (Default: True)
         local_rank (Optional[int]): If not None, init distributed parallel env with rank = local_rank with
             init_method = "env://".  Default device will also be set as "cuda:local_rank" .Make sure environment
             is pre-set.
@@ -155,13 +158,17 @@ def init_env(is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_tr
     if stdout_log_file is not None:
         if local_rank is not None:
             silence = silence_non_master_rank and (dist.get_rank() > 0)
-            Logger(stdout_log_file, real_time=True, silence=silence)
+            Logger(stdout_log_file, real_time=False, silence=silence)
             if verbosity:
                 print(f"标准输出重定向到：{stdout_log_file}，Silence = {silence}。", end="\n\n")
         else:
-            Logger(stdout_log_file, real_time=True)
+            Logger(stdout_log_file, real_time=False)
             if verbosity:
                 print(f"标准输出重定向到：{stdout_log_file}。", end="\n\n")
+
+    # -* loguru初始化。
+    if loguru_ini:
+        init_loguru(**({} if isinstance(loguru_ini, bool) else loguru_ini))
 
     # * Welcome & Show system info
     if verbosity:
