@@ -20,10 +20,22 @@ __all__ = ['AverageValueTracker', 'MovingAverageValueTracker']
 class AverageValueTracker(Tracker):
     def __init__(self):
         super(AverageValueTracker, self).__init__()
+        self._n = None
+        self._sum = None
+        self._var = None
+        self._val = None
+        self._mean =  None
+        self._mean_old = None
+        self._m_s = None
+        self._std = None
+        self._last = None
+
         self.reset()
         self._val = 0
 
     def _add(self, value, n=1):
+        self._last = value
+
         self._val = value
         self._sum += value
         self._var += value * value
@@ -54,6 +66,11 @@ class AverageValueTracker(Tracker):
         self._mean_old = 0.0
         self._m_s = 0.0
         self._std = np.nan
+        self._last = None
+
+    @property
+    def last(self):
+        return self._last
 
     def update(self, value, n=1):
         super(AverageValueTracker, self).update(value, n)
@@ -72,22 +89,35 @@ class MovingAverageValueTracker(Tracker):
     def __init__(self, window_size):
         super(MovingAverageValueTracker, self).__init__()
         self.window_size = window_size
+
+        self._var = None
+        self._n = None
+        self._sum = None
+        self._last = None
         self._value_queue = torch.zeros(window_size)
+
         self.reset()
 
     def reset(self):
         self._sum = 0.0
         self._n = 0
         self._var = 0.0
+        self._last = None
         self._value_queue.fill_(0)
 
     def _add(self, value):
+        self._last = value
+
         queue_id = (self._n % self.window_size)
         old_value = self._value_queue[queue_id]
         self._sum += value - old_value
         self._var += value * value - old_value * old_value
         self._value_queue[queue_id] = value
         self._n += 1
+
+    @property
+    def last(self):
+        return self._last
 
     def value(self):
         n = min(self._n, self.window_size)
