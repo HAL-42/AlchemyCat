@@ -58,7 +58,7 @@ class ItemLazy(object):
             return config
 
 
-IL = ItemLazy
+DEP = IL = ItemLazy
 
 
 class Config(Dict):

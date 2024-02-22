@@ -100,7 +100,7 @@ class ParamLazy(object):
         return cfg_tuned
 
 
-PL = ParamLazy
+P_DEP = PL = ParamLazy
 
 
 class Cfg2Tune(Config):
