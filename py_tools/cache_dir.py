@@ -146,7 +146,7 @@ class CacheDir(os.PathLike):
             print(f"{type(self)}: CacheDir状态为{self.saved}，save无效。")
             return
 
-        print(f"{type(self)}: 正在将 {self.cache_at} 同步到 {self.save_at} ...")
+        print(f"{type(self)}: 正在将 {self.cache_at} 保存到 {self.save_at} ...")
 
         # * 进行最后一次同步。
         if not no_flush:
