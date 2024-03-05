@@ -20,7 +20,7 @@ from .utils import name_param_val, norm_param_name
 from ..load_module import load_module_from_py
 from ..config import Config, is_subtree, auto_rslt_dir
 
-__all__ = ["Param2Tune", "ParamLazy", "PL", "Cfg2Tune"]
+__all__ = ["Param2Tune", "ParamLazy", "PL", "Cfg2Tune", "P_DEP"]
 
 
 class Param2Tune(object):

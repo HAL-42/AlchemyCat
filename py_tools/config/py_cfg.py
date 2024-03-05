@@ -16,7 +16,7 @@ from addict import Dict
 
 from .open_cfg import open_config
 
-__all__ = ['is_subtree', 'ItemLazy', 'IL', 'Config', 'ADict']
+__all__ = ['is_subtree', 'ItemLazy', 'IL', 'Config', 'ADict', 'DEP']
 
 T_Config = TypeVar('T_Config', bound='Config')
 T_dict = TypeVar('T_dict', bound=dict)
@@ -367,6 +367,8 @@ class Config(Dict):
             return func
 
         return decorator
+
+    set_DEP = set_IL
 
     def set_func(self, name: str | None=None):
         """返回装饰器，装饰器将被装饰函数注册为当前配置树的项目。
