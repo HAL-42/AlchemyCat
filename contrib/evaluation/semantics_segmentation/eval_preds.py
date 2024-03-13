@@ -25,8 +25,8 @@ __all__ = ['eval_preds']
 
 
 def eval_preds(class_num: int, class_names: Optional[Iterable[str]],
-               preds_dir: str, preds_ignore_label: int,
-               gts_dir: str, gts_ignore_label: int,
+               preds_dir: str | list[str], gts_dir: str,
+               preds_ignore_label: int=255, gts_ignore_label: int=255,
                result_dir: Optional[str]=None,
                pred_preprocess: Callable[[np.ndarray], np.ndarray]=lambda x: x,
                gt_preprocess: Callable[[np.ndarray], np.ndarray]=lambda x: x,
@@ -40,9 +40,9 @@ def eval_preds(class_num: int, class_names: Optional[Iterable[str]],
     Args:
         class_num: Num of classes
         class_names: Name of classes
-        preds_dir: Dictionary where preds stored
-        preds_ignore_label: Ignore label for predictions
+        preds_dir: Dictionary where preds stored, if list, each element is a pred file path.
         gts_dir: Dictionary where ground truths stored
+        preds_ignore_label: Ignore label for predictions
         gts_ignore_label: Ignore label for ground truths
         result_dir: If not None, eval result will be saved to result_dir. (Default: None)
         pred_preprocess: Preprocess function for prediction read in
@@ -67,13 +67,16 @@ def eval_preds(class_num: int, class_names: Optional[Iterable[str]],
         sample_metrics = OrderedDict()
 
     print("\n================================== Eval ==================================")
-    pred_file_suffixes = os.listdir(preds_dir)
-    for pred_file_suffix in tqdm(pred_file_suffixes,
-                                 total=len(pred_file_suffixes),
-                                 desc='eval progress', unit='sample', dynamic_ncols=True):
+    if isinstance(preds_dir, list) or isinstance(preds_dir, tuple):
+        pred_files = preds_dir
+    else:
+        pred_files = [osp.join(preds_dir, file) for file in os.listdir(preds_dir)]
+    for pred_file in tqdm(pred_files,
+                          total=len(pred_files),
+                          desc='eval progress', unit='sample', dynamic_ncols=True):
         # Set files
+        pred_file_suffix = osp.basename(pred_file)
         id = pred_file_suffix.split('.')[0]
-        pred_file = osp.join(preds_dir, pred_file_suffix)
         gt_file = osp.join(gts_dir, pred_file_suffix)
 
         # Read files
