@@ -10,14 +10,15 @@
 """
 import os.path as osp
 import pickle
+from math import ceil
 
 import cv2
+import imagesize
 import numpy as np
 from PIL import Image
 from addict import Dict
 from alchemy_cat.acplot.shuffle_ch import BGR2RGB, RGB2BGR
 from alchemy_cat.data.dataset import Dataset, Subset
-from math import ceil
 
 from .utils import label_map2color_map, VOC_CLASSES
 
@@ -34,18 +35,21 @@ class _VOCBase(Dataset):
     std_bgr = [57.375, 57.12, 58.395]
     ignore_label = 255
 
-    def __init__(self, root: str="./contrib/datasets", year="2012", split: str="train", PIL_read: bool=False):
+    def __init__(self, root: str="./contrib/datasets", year="2012", split: str="train", PIL_read: bool=False,
+                 ret_img_file: bool=False):
         """
         Args:
             root (str): The parent dir of VOC dataset
             year (str): "2012"
             split (str): "train"/"val"/"trainval"
             PIL_read (bool): If True, use PIL to read image, else use cv2
+            ret_img_file (bool): If True, return image file path
         """
         self.root = root
         self.year = year
         self.split = split
         self.PIL_read = PIL_read
+        self.ret_img_file = ret_img_file
         self.files = []
         self.image_ids = []
 
@@ -94,7 +98,9 @@ class VOC(_VOCBase):
 
         # * Load imgs
         image_path = osp.join(self.image_dir, image_id + ".jpg")
-        if self.PIL_read:
+        if self.ret_img_file:
+            image = image_path
+        elif self.PIL_read:
             image = RGB2BGR(np.asarray(Image.open(image_path), dtype=np.uint8))
         else:
             image = cv2.imread(image_path, cv2.IMREAD_COLOR)
@@ -105,7 +111,8 @@ class VOC(_VOCBase):
             label = np.asarray(Image.open(label_path), dtype=np.uint8)
         else:
             # If no label, then giving a all ignore ground truth
-            label = np.zeros(image.shape[:2], dtype=np.uint8) + self.ignore_label
+            img_size = imagesize.get(image)[::-1] if isinstance(image, str) else image.shape[:2]
+            label = np.zeros(img_size, dtype=np.uint8) + self.ignore_label
 
         return image_id, image, label
 
@@ -114,7 +121,8 @@ class VOCAug(_VOCBase):
     """
     PASCAL VOC Aug Segmentation dataset
     """
-    def __init__(self, root: str = "./contrib/datasets", year="2012", split: str = "train", PIL_read: bool=False):
+    def __init__(self, root: str = "./contrib/datasets", year="2012", split: str = "train", PIL_read: bool=False,
+                 ret_img_file: bool=False):
         """
         Args:
             root (str): The parent dir of VOC dataset
@@ -123,7 +131,7 @@ class VOCAug(_VOCBase):
             PIL_read (bool): If True, use PIL to read image, else use cv2
         """
         self.labels = []
-        super(VOCAug, self).__init__(root, year, split, PIL_read)
+        super(VOCAug, self).__init__(root, year, split, PIL_read, ret_img_file)
 
     def _set_files(self):
         self.root = osp.join(self.root, f"VOC{self.year}")
@@ -152,7 +160,9 @@ class VOCAug(_VOCBase):
         # * Load image
         image_id = self.files[index].split("/")[-1].split(".")[0]
         image_path = osp.join(self.root, self.files[index][1:])
-        if self.PIL_read:
+        if self.ret_img_file:
+            image = image_path
+        elif self.PIL_read:
             image = RGB2BGR(np.asarray(Image.open(image_path), dtype=np.uint8))
         else:
             image = cv2.imread(image_path, cv2.IMREAD_COLOR)
@@ -163,7 +173,8 @@ class VOCAug(_VOCBase):
             label = np.asarray(Image.open(label_path), dtype=np.uint8)
         else:
             # If no label, then giving a all ignore ground truth
-            label = np.zeros(image.shape[:2], dtype=np.uint8) + self.ignore_label
+            img_size = imagesize.get(image)[::-1] if isinstance(image, str) else image.shape[:2]
+            label = np.zeros(img_size, dtype=np.uint8) + self.ignore_label
 
         return image_id, image, label
 
@@ -179,8 +190,9 @@ class VOCAug2(VOCAug):
     def __init__(self, root: str = "./contrib/datasets", year="2012", split: str = "train",
                  cls_labels_type: str='seg_cls_labels',
                  ps_mask_dir: str=None,
-                 rgb_img: bool=False):
-        super().__init__(root, year, split, PIL_read=True)
+                 rgb_img: bool=False,
+                 ret_img_file: bool=False):
+        super().__init__(root, year, split, PIL_read=True, ret_img_file=ret_img_file)
         # * 参数检查与记录。
         assert cls_labels_type in ('seg_cls_labels', 'det_cls_labels', 'ignore_diff_cls_labels')
         self.cls_labels_type = cls_labels_type

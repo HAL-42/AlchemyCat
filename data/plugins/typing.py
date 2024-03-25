@@ -25,6 +25,7 @@ class SegDataset(t.Protocol[T_ret]):
     ignore_label: int
     image_ids: t.Sequence
     split: str
+    ret_img_file: bool
 
     def __getitem__(self, index: slice | list | np.ndarray | torch.Tensor | int) -> T_ret:
         ...
