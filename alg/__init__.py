@@ -20,5 +20,6 @@ from .slide_inference import *
 from .window_slides import *
 from .masked_softmax import *
 from .resize import *
+from .sampling import *
 # NOTE 同densecrf情况，eval_cam的导入会触发data模块的循环导入。
 # from .eval_cams import *
