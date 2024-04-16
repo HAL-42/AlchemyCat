@@ -198,7 +198,8 @@ def init_env(*, is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is
         device = get_device(is_cuda=True, cuda_id=is_cuda, verbosity=verbosity)
     else:
         raise ValueError(f"Parameter is_cuda = {is_cuda} must be str or int")
-    torch.cuda.set_device(device)
+    if device != torch.device('cpu'):
+        torch.cuda.set_device(device)
 
     # * Set benchmark
     torch.backends.cudnn.benchmark = is_benchmark
