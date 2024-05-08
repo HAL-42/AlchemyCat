@@ -14,7 +14,7 @@ import math
 
 import torch
 
-__all__ = ['samp_idx_with_1d_mask', 'samp_idxes_with_2d_mask', 'top_k_on_mask', 'samp_on_2d_mask']
+__all__ = ['shuffle_cat', 'samp_idx_with_1d_mask', 'samp_idxes_with_2d_mask', 'top_k_on_mask', 'samp_on_2d_mask']
 
 
 def _get_rank_argsort_argsort(val: torch.Tensor, reverse: bool=False, dim: int=1) -> torch.Tensor:
@@ -36,26 +36,29 @@ def _get_rank_with_split(val: torch.Tensor, reverse: bool=False, split_size: int
     return rank
 
 
-def _shuffle_cat(tensor: torch.Tensor, shuffled_len: int, shuffle_all: bool=False,
-                 g: Optional[torch.Generator]=None) -> torch.Tensor:
+def shuffle_cat(tensor: torch.Tensor, shuffled_len: int=None, shuffle_all: bool=False,
+                g: Optional[torch.Generator]=None) -> torch.Tensor:
     """将张量沿着0维多次洗牌后拼接到shuffled_len长度。
 
     Args:
         tensor: 被洗牌、拼接的的(N, ...)张量。
-        shuffled_len: 洗牌、拼接后的长度。
+        shuffled_len: 洗牌、拼接后的长度。若为None，则为tensor.shape[0]。
         shuffle_all: 是否要完全洗牌，即于洗牌、拼接后的张量上，再做一次整体洗牌。
         g: torch的随机序列生成器。注意若不为None，则要和tensor在同一设备上。
 
     Returns:
         洗牌、拼接后的(shuffled_len, ...)张量。
     """
+    if shuffled_len is None:
+        shuffled_len = tensor.shape[0]
+
     weights = torch.ones((math.ceil(shuffled_len / tensor.shape[0]), tensor.shape[0]),
                          dtype=torch.float32, device=tensor.device)
     shuffled_idxes = torch.multinomial(weights, tensor.shape[0], replacement=False, generator=g)
     shuffled_idxes = shuffled_idxes.view(-1)[:shuffled_len]
 
     if shuffle_all:
-        shuffled_idxes = _shuffle_cat(shuffled_idxes, shuffled_idxes.shape[0], shuffle_all=False, g=g)
+        shuffled_idxes = shuffle_cat(shuffled_idxes, shuffled_idxes.shape[0], shuffle_all=False, g=g)
 
     return tensor[shuffled_idxes]
 
@@ -83,7 +86,7 @@ def samp_idx_with_1d_mask(mask: torch.Tensor, samp_num: int, resamp_lim: int=1,
     max_final_samp_num = idx.shape[0] * resamp_lim
     final_samp_num = min(samp_num, max_final_samp_num)
     # * 将可采索引洗牌拼接到洗牌拼接到实采数长度并返回。
-    return _shuffle_cat(idx, final_samp_num, shuffle_all=False, g=g)
+    return shuffle_cat(idx, final_samp_num, shuffle_all=False, g=g)
 
 
 def samp_idxes_with_2d_mask(mask: torch.Tensor, samp_nums: Union[int, torch.Tensor], resamp_lim: int=1,
