@@ -8,6 +8,8 @@
 @Software: PyCharm
 @Desc    : 
 """
+import typing as t
+
 import argparse
 import multiprocessing as mp
 import os
@@ -23,12 +25,15 @@ from alchemy_cat.data.plugins import arr2PIL
 from tqdm import tqdm
 
 
-def 上色_label_file(label_file: str, source: str, target: str):
+def colorize_label_file(label_file: str, source: str, target: str, l2c: t.Callable[[np.ndarray], np.ndarray]=None):
     if not label_file.endswith('.png'):
         return
 
+    if l2c is None:
+        l2c = label_map2color_map
+
     label = np.array(Image.open(osp.join(source, label_file)))
-    color_label = label_map2color_map(label).astype(np.uint8)
+    color_label = l2c(label).astype(np.uint8)
     arr2PIL(color_label, order='RGB').save(osp.join(target, label_file))
 
 
@@ -37,11 +42,12 @@ def ignore2bg(lb: np.ndarray):
     return lb
 
 
-def colorize_voc(source: str, target: str, num_workers: int=0, is_eval: bool=False):
+def colorize_voc(source: str, target: str, num_workers: int=0, is_eval: bool=False,
+                 l2c: t.Callable[[np.ndarray], np.ndarray]=None):
     os.makedirs(target, exist_ok=True)
 
     label_files = os.listdir(source)
-    worker = partial(上色_label_file, source=source, target=target)
+    worker = partial(colorize_label_file, source=source, target=target, l2c=l2c)
 
     if num_workers > 0:
         with mp.Pool(num_workers) as p:

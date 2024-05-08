@@ -47,3 +47,7 @@ class SegDataset(t.Protocol[T_ret]):
 
     def __iter__(self):
         ...
+
+    @staticmethod
+    def label_map2color_map(label_map: np.ndarray) -> np.ndarray:
+        ...
