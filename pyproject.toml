@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 # -* 项目基本信息。
 name = "alchemy_cat"
-version = "0.0.2"
+version = "0.0.3"
 authors = [
   { name="HAL_42", email="hal_42@zju.edu.cn" },
 ]
@@ -62,6 +62,6 @@ Issues = "https://github.com/HAL-42/AlchemyCat/issues"
 # -* 找包。
 [tool.setuptools.packages.find]
 where = ["."]  # list of folders that contain the packages (["."] by default)
-include = ["alchemy_cat"]  # package names should match these glob patterns (["*"] by default)
+include = ["*"]  # package names should match these glob patterns (["*"] by default)
 exclude = ["Temp"]  # exclude packages matching these glob patterns (empty by default)
 namespaces = true  # to disable scanning PEP 420 namespaces (true by default)
