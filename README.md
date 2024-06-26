@@ -1,3 +1,3 @@
 # Alchemy Cat
 
-A powerful lib for Semantic Segmentation.
+A powerful lib for deep learning.

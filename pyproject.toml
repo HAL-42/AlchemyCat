@@ -3,8 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
+# -* 项目基本信息。
 name = "alchemy_cat"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="HAL_42", email="hal_42@zju.edu.cn" },
 ]
@@ -18,11 +19,9 @@ classifiers = [
 ]
 keywords = ["config", "deep learning", "parameter tuning", "hyperparameter"]
 
-[project.urls]
-Homepage = "https://github.com/HAL-42/AlchemyCat"
-Issues = "https://github.com/HAL-42/AlchemyCat/issues"
-
+# -* 依赖。
 requires-python = ">=3.11"
+
 dependencies = [
     "numpy",
     "torch",
@@ -34,6 +33,7 @@ dependencies = [
     "loguru",
     "psutil",
 ]
+
 [project.optional-dependencies]
 full = [
     "PyYAML>=6.0",
@@ -53,3 +53,15 @@ full = [
     "xlwings>=0.30.10",
     "gpustat>=0.6.0",
 ]
+
+# -* 项目的URL。
+[project.urls]
+Homepage = "https://github.com/HAL-42/AlchemyCat"
+Issues = "https://github.com/HAL-42/AlchemyCat/issues"
+
+# -* 找包。
+[tool.setuptools.packages.find]
+where = ["."]  # list of folders that contain the packages (["."] by default)
+include = ["alchemy_cat"]  # package names should match these glob patterns (["*"] by default)
+exclude = ["Temp"]  # exclude packages matching these glob patterns (empty by default)
+namespaces = true  # to disable scanning PEP 420 namespaces (true by default)
