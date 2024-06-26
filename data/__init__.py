@@ -8,9 +8,9 @@
 @time: 2020/1/7 17:12
 @desc:
 """
-from alchemy_cat.data.dataset import *
-from alchemy_cat.data.data_auger import *
-from alchemy_cat.data.utils import *
-from alchemy_cat.data.prefetcher import Prefetcher
-from alchemy_cat.data.data_manager import DataManager
+from .dataset import *
+from .data_auger import *
+from .utils import *
+from .prefetcher import Prefetcher
+from .data_manager import DataManager
 from .inf_loader import inf_loader

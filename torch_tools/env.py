@@ -286,7 +286,7 @@ def init_env(*, is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is
     # * Print config's delaying verbosity
     if verbosity and config is not None:
         print("\033[32m-------------------------------------- 配置项开始 --------------------------------------\033[0m")
-        pprint(config.to_dict(), sort_dicts=False)
+        print(config.to_txt(prefix="cfg."))
         print("\033[32m-------------------------------------- 配置项结束 --------------------------------------\033[0m",
               end="\n\n")
 

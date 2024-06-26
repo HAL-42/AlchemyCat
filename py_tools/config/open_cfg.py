@@ -63,7 +63,16 @@ def open_config(config_path: str | dict, is_yaml: bool = False) -> Tuple[dict, b
     elif ext == '.py':
         is_py = True
         # * Return config
-        config: dict = load_module_from_py(config_path).config
+        cfg_module = load_module_from_py(config_path)
+        if hasattr(cfg_module, 'config'):
+            config: dict = cfg_module.config
+            if hasattr(cfg_module, 'cfg') and (cfg_module.cfg is not cfg_module.config):
+                raise RuntimeError(f"Both 'config' and 'cfg' are defined in {cfg_module.__path__} but not the same.")
+        elif hasattr(cfg_module, 'cfg'):
+            config: dict = cfg_module.cfg
+        else:
+            raise ValueError(f"config module {cfg_module.__path__} must have 'config' or 'cfg' defined.")
+
     elif ext == '.json':
         is_py = True
         with open(config_path, 'r') as json_f:

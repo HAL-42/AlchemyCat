@@ -29,7 +29,7 @@ def lazy_get(c):
 
 # * Param on same Cfg2Tune
 cfg.foo0.foo1.a = Param2Tune([0, 1, 2])
-cfg.foo0.foo1.b = Param2Tune([ItemLazy(b_get1), ItemLazy(b_get2)])
+cfg.foo0.foo1.b = Param2Tune([ItemLazy(b_get1, rel=False), ItemLazy(b_get2, rel=False)])
 # * Param on diff Cfg2Tune
 cfg.foo0.fix = Param2Tune(['0'])
 # * Param on root Cfg2Tune

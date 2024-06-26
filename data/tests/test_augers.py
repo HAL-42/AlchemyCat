@@ -20,7 +20,7 @@ from alchemy_cat.data import DataAuger
 from alchemy_cat.data.plugins.augers import RandMirror, MultiMirror, RandColorJitter, RandUpDown, MultiUpDown, \
     int_img2float32_img, centralize, pad_img_label, RandCrop, FiveCrop, RandScale, MultiScale
 from alchemy_cat.dag import Node
-from alchemy_cat.acplot import RowFigureWall, ColumnFigureWall
+from alchemy_cat.acplot.figure_wall import RowFigureWall, ColumnFigureWall
 from alchemy_cat.py_tools import set_numpy_rand_seed
 from alchemy_cat.alg import find_nearest_odd_size, find_nearest_even_size
 

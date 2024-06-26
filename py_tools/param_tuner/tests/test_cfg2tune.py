@@ -8,23 +8,24 @@
 @Software: PyCharm
 @Desc    : 
 """
-from typing import Optional
-
-import pickle
-
-import pytest
+import os
 import os.path as osp
+import pickle
 import shutil
 import sys
-import os
+from typing import Optional
+
+import pytest
 from addict import Dict
 
-from alchemy_cat.py_tools import Cfg2Tune, open_config, ItemLazy, Config, is_subtree
+sys.path = ['', 'py_tools/param_tuner/tests'] + sys.path  # noqa: E402
+
+from alchemy_cat.py_tools import Cfg2Tune, open_config, ItemLazy, Config
 
 
 @pytest.fixture(scope="function")
 def cfg_dir():
-    cfg_dir = osp.join('..', '..', '..', 'Temp', 'param_tuner_test_cache')
+    cfg_dir = osp.join('Temp', 'param_tuner_test_cache')
     yield cfg_dir
     shutil.rmtree(cfg_dir, ignore_errors=True)
 
@@ -100,25 +101,13 @@ def init_with_update_config():
     return Cfg2Tune.load_cfg2tune(osp.join('configs', 'init_with_update', 'cfg.py'))
 
 
-def test_update(easy_config):
-    with pytest.warns(UserWarning, match="update may give unexpected results. Try use addict_update."):
-        easy_config.update(dict())
-
-
 def test_root_child_params2tune(easy_config):
-    def dfs_check_child(cfg: Cfg2Tune):
-        for v in cfg.values():
-            if isinstance(v, Cfg2Tune):
-                assert len(object.__getattribute__(v, "_params2tune")) == 0
-                dfs_check_child(v)
-
-    assert len(object.__getattribute__(easy_config, "_params2tune")) == 4
-    dfs_check_child(easy_config)
+    assert len(easy_config.ordered_params2tune) == 4
 
 
 def test_dump_reload(easy_config, cfg_dir):
     cfgs = [cfg.to_dict() for cfg in easy_config.get_cfgs()]
-    cfg_pkls = easy_config.dump_cfgs(cfg_dir)
+    cfg_pkls, _ = easy_config.dump_cfgs(cfg_dir)
 
     load_cfgs = []
     for cfg_pkl in cfg_pkls:
@@ -131,7 +120,7 @@ def test_dump_reload(easy_config, cfg_dir):
 def test_dump_reload_cfg2tune_with_function_imported_outside(imported_outside_config, cfg_dir):
     """测试生成的cfg_tuned中含有函数的情况。函数从外部库导入，或者在本项目中定义。"""
     cfgs = [cfg.to_dict() for cfg in imported_outside_config.get_cfgs()]
-    cfg_pkls = imported_outside_config.dump_cfgs(cfg_dir)
+    cfg_pkls, _ = imported_outside_config.dump_cfgs(cfg_dir)
 
     load_cfgs = []
     for cfg_pkl in cfg_pkls:
@@ -144,7 +133,7 @@ def test_dump_reload_cfg2tune_with_function_imported_outside(imported_outside_co
 def test_dump_reload_with_function_define_inside(def_inside_config, cfg_dir):
     """测试生成的cfg_tuned中含有函数的情况。函数在Cfg2Tune所在py文件内定义。"""
     cfgs = [cfg.to_dict() for cfg in def_inside_config.get_cfgs()]
-    cfg_pkls = def_inside_config.dump_cfgs(cfg_dir)
+    cfg_pkls, _ = def_inside_config.dump_cfgs(cfg_dir)
 
     load_cfgs = []
     for cfg_pkl in cfg_pkls:
@@ -240,7 +229,7 @@ def test_no_legal_val_config(no_legal_val_config):
 
 def test_same_name_config():
     with pytest.raises(RuntimeError, match="for param2tune repeated."):
-        Cfg2Tune.load_cfg2tune(osp.join('configs', 'same_name_config', 'cfg.py'))
+        Cfg2Tune.load_cfg2tune(osp.join('py_tools/param_tuner/tests', 'configs', 'same_name_config', 'cfg.py'))
 
 
 def test_no_param_config(no_param_config):
@@ -301,7 +290,7 @@ def test_itemlazy_config(itemlazy_config, cfg_dir):
         [2, 1, '0', True, {'a': 1, 'b': 2}, 4],
     ]
 
-    cfgs = [open_config(cfg_pkl)[0] for cfg_pkl in itemlazy_config.dump_cfgs(cfg_dir)]
+    cfgs = [open_config(cfg_pkl)[0] for cfg_pkl in itemlazy_config.dump_cfgs(cfg_dir)[0]]
 
     att_val = [get_att_val(ItemLazy.compute_item_lazy(cfg)) for cfg in cfgs]
     assert wanted_att_val == att_val
@@ -310,21 +299,16 @@ def test_itemlazy_config(itemlazy_config, cfg_dir):
 def is_self_consistent(cfg: Config, p: Optional[Config]=None, n: Optional[str]=None):
     parent = object.__getattribute__(cfg, '__parent')
     key = object.__getattribute__(cfg, '__key')
-    root = object.__getattribute__(cfg, "_root")
-    params2tune = object.__getattribute__(cfg, "_params2tune")
 
     if p is None:
         assert parent is None
         assert key is None
-        assert root is cfg
     else:
         assert parent is p
         assert n == key
-        assert root is object.__getattribute__(p, "_root")
-        assert len(params2tune) == 0
 
     for k, v in cfg.items():
-        if is_subtree(v, cfg):
+        if cfg.is_subtree(v, cfg):
             is_self_consistent(v, cfg, k)
 
 
@@ -334,12 +318,12 @@ def test_init_with_config(init_with_config_config):
 
     assert len(list(init_with_config_config.branches)) == 4
     for b in init_with_config_config.branches:
-        assert type(b) == Cfg2Tune
+        assert type(b) is Cfg2Tune
 
     assert len(list(init_with_config_config.leaves)) == len(leaves)
     for l1, l2 in zip(init_with_config_config.leaves, leaves):
         assert l1 == l2
-        assert type(l1) == type(l2)
+        assert type(l1) is type(l2)
 
     is_self_consistent(init_with_config_config)
 
@@ -350,12 +334,12 @@ def test_init_with_cfg2tune(init_with_cfg2tune_config):
 
     assert len(list(init_with_cfg2tune_config.branches)) == 4
     for b in init_with_cfg2tune_config.branches:
-        assert type(b) == Cfg2Tune
+        assert type(b) is Cfg2Tune
 
     assert len(list(init_with_cfg2tune_config.leaves)) == len(leaves)
     for l1, l2 in zip(init_with_cfg2tune_config.leaves, leaves):
         assert l1 == l2
-        assert type(l1) == type(l2)
+        assert type(l1) is type(l2)
 
     is_self_consistent(init_with_cfg2tune_config)
 
@@ -387,13 +371,13 @@ def test_init_with_update(init_with_update_config):
     assert len(list(init_with_update_config.branches)) == len(list(cfg_wanted.branches))
     for b1, b2 in zip(init_with_update_config.branches, cfg_wanted.branches):
         assert b1 == b2
-        assert type(b1) == type(b2)
+        assert type(b1) is type(b2)
 
     # * 检查叶子和结构相同。
     assert len(list(init_with_update_config.leaves)) == len(list(cfg_wanted.leaves))
     for l1, l2 in zip(init_with_update_config.leaves, cfg_wanted.leaves):
         assert l1 == l2
-        assert type(l1) == type(l2)
+        assert type(l1) is type(l2)
 
     is_self_consistent(init_with_update_config)
 

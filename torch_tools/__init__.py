@@ -8,12 +8,12 @@
 @time: 2020/1/16 4:46
 @desc:
 """
-from alchemy_cat.torch_tools.env import *
-from alchemy_cat.torch_tools.average_value_tracker import *
-from alchemy_cat.torch_tools.intermediate_value_getter import *
-from alchemy_cat.torch_tools.network import *
-from alchemy_cat.torch_tools.val_env import *
-from alchemy_cat.torch_tools.set_network import *
+from .env import *
+from .average_value_tracker import *
+from .intermediate_value_getter import *
+from .network import *
+from .val_env import *
+from .set_network import *
 from .cuda_tools import *
 from .swa import *
 from .dist_communication import *

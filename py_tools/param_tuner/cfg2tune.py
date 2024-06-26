@@ -8,25 +8,23 @@
 @Software: PyCharm
 @Desc    : 
 """
-from typing import Iterable, Callable, Any, List, Generator
-
-import json
 import os
-import pickle
-from collections import OrderedDict
 import os.path as osp
+import pickle
+from typing import Iterable, Callable, Any, Generator, cast
 
 from .utils import name_param_val, norm_param_name
-from ..load_module import load_module_from_py
-from ..config import Config, is_subtree, auto_rslt_dir
+from ..config import Config, auto_rslt_dir, ItemLazy, open_config
 
 __all__ = ["Param2Tune", "ParamLazy", "PL", "Cfg2Tune", "P_DEP"]
+
+kExplicitCapsKey = 'cfgs_update_at_parser'
 
 
 class Param2Tune(object):
 
     def __init__(self, optional_values: Iterable, subject_to: Callable[[Any], bool]=lambda x: True,
-                 optional_value_names: Iterable[str]=None):
+                 optional_value_names: Iterable[str]=None, priority: int=None):
         """A Parameter need to be tuned
 
         Args:
@@ -45,25 +43,41 @@ class Param2Tune(object):
         self._cur_val = None  # Current Param Value
         self._cur_val_name = None
 
+        self._priority = priority
+
     @property
-    def cur_val(self):
+    def is_priority_set(self) -> bool:
+        return self._priority is not None
+
+    @property
+    def priority(self) -> int:
+        assert self._priority is not None
+        return self._priority
+
+    @priority.setter
+    def priority(self, priority: int) -> None:
+        assert self._priority is None
+        self._priority = priority
+
+    @property
+    def cur_val(self) -> Any:
         if self._cur_val is None:
             raise RuntimeError(f"The current value of param {self} is None. Check if the former param call later param"
                                f"in it's subject_to.")
         return self._cur_val
 
     @property
-    def cur_val_name(self):
+    def cur_val_name(self) -> str:
         if self._cur_val_name is None:
             raise RuntimeError(f"The current value name of param {self} is None. Check if the former param call later "
                                f"param in it's subject_to.")
         return self._cur_val_name
 
-    def reset(self):
+    def reset(self) -> None:
         self._cur_val = None
         self._cur_val_name = None
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[tuple[Any, str], None, None]:
         for opt_val, opt_val_name in zip(self.optional_val, self.optional_val_name, strict=True):
             if self.subject_to(opt_val):
                 self._cur_val = opt_val
@@ -71,33 +85,14 @@ class Param2Tune(object):
                 yield opt_val, opt_val_name
         self.reset()  # 遍历结束后自动复位。
 
-    def __repr__(self):
-        return f"{self.__class__} with: \n" \
-               f"optional_val = {self.optional_val}; " \
-               f"optional_val_name = {self.optional_val_name}"
+    def __repr__(self) -> str:
+        return f"{self.__class__} with priority={self._priority}: \n" \
+               f"optional_val={self.optional_val}, optional_val_name={self.optional_val_name}, \n" \
+               f"cur_val={self._cur_val}, cur_val_name={self._cur_val_name}"
 
 
-class ParamLazy(object):
-
-    def __init__(self, func: Callable[[Config], Any]):
-        """Cfg2Tune's ParamLazy value will be computed after Cfg2Tune is transferred to cfg_tuned."""
-        self.func = func
-
-    def __call__(self, cfg: Config) -> Any:
-        return self.func(cfg)
-
-    @staticmethod
-    def compute_param_lazy(cfg_tuned: Config) -> Config:
-        def compute(cfg: Config):
-            for k, v in cfg.items():
-                if is_subtree(v, cfg):
-                    compute(v)
-                elif isinstance(v, ParamLazy):
-                    cfg[k] = v(cfg_tuned)
-                else:
-                    pass
-        compute(cfg_tuned)
-        return cfg_tuned
+class ParamLazy(ItemLazy):
+    pass
 
 
 P_DEP = PL = ParamLazy
@@ -115,100 +110,56 @@ class Cfg2Tune(Config):
             caps: cfgs_update_at_parser的别名。
             **kwargs: 传递给Dict，不应该使用。
         """
-        object.__setattr__(self, '_params2tune', OrderedDict())
-        object.__setattr__(self, '_root', None)
         super(Cfg2Tune, self).__init__(*cfgs, cfgs_update_at_parser=cfgs_update_at_parser, caps=caps, **kwargs)
 
-        for leaf in self.leaves:
+        for leaf in self.leaves:  # 禁止从集成中获取待调参数，可以简化逻辑、令配置简单易懂。
             if isinstance(leaf, Param2Tune):
                 raise RuntimeError(f"Cfg2Tune can't init by leaf with type = f{type(leaf)}")
 
-        assert '_cfgs_update_at_parser' not in self  # _cfgs_update_at_parser务必在顶层定义，不可来自导入。
+        assert kExplicitCapsKey not in self  # cfgs_update_at_parser若定义则必用于调参，故务必在顶层定义，不可来自导入。
 
-    def _mount2parent(self):
-        parent = object.__getattribute__(self, '__parent')
-        key = object.__getattribute__(self, '__key')
-        # root指示了是否挂载过，凡是执行过_mount2parent，root一定不为None，反之root一定为None。
-        root = root_ = object.__getattribute__(self, "_root")
+    @property
+    def ordered_params2tune(self) -> dict[str, Param2Tune]:
+        # 按照优先级排序p2t，未被设置优先级的p2t，优先级默认为最高。
+        ret = dict(sorted_params2tune := sorted(((k, l) for c, k, l in self.ckl if isinstance(l, Param2Tune)),
+                                                key=lambda x: x[1].priority if x[1].is_priority_set else float('-inf')))
+        if len(sorted_params2tune) != len(ret):  # 找到重复键并报错。
+            keys, dup_key = set(), None
+            for k, _ in sorted_params2tune:
+                if k in keys:
+                    dup_key = k
+                    break
+                keys.add(k)
+            raise RuntimeError(f"key = {dup_key} for param2tune repeated.")
 
-        # * 若还没有设置root，则找到root。
-        if root is None:  # 执行了_mount2parent，root一定不为None。
-            # ** 如果是根Dict，则root是self，否则根据parent一路找上去。
-            root = self
-            while object.__getattribute__(root, '__parent') is not None:
-                root = object.__getattribute__(root, '__parent')
-            object.__setattr__(self, '_root', root)  # 除了init，只有_mount2parent才会设置root。
+        return ret
 
-        # * 若Cfg2Tune刚刚由__missing__得到，则将其加入到父Cfg2Tune中。
-        if parent is not None and root_ is None:  # 若已经挂载过了，就不要重复挂载。
-            parent[key] = self
+    def _setitem(self, key: Any, value: Any, /) -> None:
+        super()._setitem(key, value)  # frozen检查、挂载、dict.__setitem__、子树自洽、IL设置。
+        value = self[key]  # 重新获取value，不能保证value在设置后不变。
 
-    def __setitem__(self, name, value):
-        """重载Addict的__setitem__"""
-        '''
-        setitem时，Cfg2Tune有以下状态：
-        1. 用户刚刚用Cfg2Tune()生成，此时__parent，__key，_root均为None。此时需要设置root。
-        2. 刚刚用__missing__方法生成。此时__parent，__key存在，_root为None。此时需要设置root，并将自身加入到父Cfg2Tune中。
-        3. 用户刚用Cfg2Tune()生成，但已经（1）/set_whole过。此时__parent，__key为None，但_root为self。
-        4. 用__missing__方法生成，但已经（2）/set_whole过。此时__parent，__key，_root均存在。
-        
-        若被设置的value为Cfg2Tune，则value有三种状态：
-        1. value由__missing__生成的子节点，已经找到了正确的root，且内容为空。此时只要正常setitem即可。我们不考虑该value被
-           再次挂载。
-        2. value是由Cfg2Tune()生成的根节点，根节点root为自己或None（若为空配置树）。
-        3. value是update时，从原配置树上摘下来的子树，该子树的root和parent均不在新树上。
-        4. self的子树，重新用新的名字绑定。
-        2、3共性是value的root、parent、key不匹配，4则key不匹配。子树内部都是自洽的（P2T在根节点上，parent，key正确）。
-        对2、3、4，需要调整子树再挂载，即重设value的root、根节点的parent，合并P2T，确保新树自洽。
-        '''
-        if self.is_frozen():  # 调用addict setitem前，检查frozen，若是，则完全禁止setitem。
-            raise RuntimeError(f"{self.__class__} is frozen. ")
-
-        self._mount2parent()
-        root = object.__getattribute__(self, "_root")
-
-        # * 若值为待调参数，则将待调参数注册到root的_params2tune有序字典里。
+        # -* 若值为待调参数，检查重复。
         if isinstance(value, Param2Tune):
-            root_params2tune = object.__getattribute__(root, "_params2tune")
-            if name in root_params2tune:
-                raise RuntimeError(f"name = {name} for param2tune repeated.")
+            root_params2tune = self.find_root()[0].ordered_params2tune  # 若p2t的key重复，会在这里报错。
 
-            root_params2tune[name] = value
-
-        # * 若值不是__missing__生成的子节点，则将该待调配置树的所有节点设置正确的root，根节点设置正确的parent、key，
-        # * 并合并其params2tune。
-        if isinstance(value, Cfg2Tune) and \
-                (object.__getattribute__(value, "_root") is not root or
-                 object.__getattribute__(value, "__parent") is not self or
-                 object.__getattribute__(value, "__key") != name):
-            for b in value.branches:
-                object.__setattr__(b, '_root', root)
-
-            object.__setattr__(value, '__parent', self)  # 只需重设根节点的parent、key即可。
-            object.__setattr__(value, '__key', name)
-
-            root_params2tune = object.__getattribute__(root, "_params2tune")
-            value_params2tune = object.__getattribute__(value, "_params2tune")
-            for value_param_name, value_param in value_params2tune.items():
-                if value_param_name in root_params2tune:
-                    raise RuntimeError(f"value_param_name = {value_param_name} for param2tune repeated.")
-                root_params2tune[value_param_name] = value_param
-            value_params2tune.clear()
-
-        dict.__setitem__(self, name, value)
+            if not value.is_priority_set:  # 待调参数只要挂上了Cfg2Tune，（若没有手动设置）必被设置待调的优先级。
+                cur_max_priority_p2t = next(reversed(root_params2tune.values()))
+                if cur_max_priority_p2t is value:
+                    assert len(root_params2tune) == 1
+                    value.priority = 0
+                else:
+                    value.priority = cur_max_priority_p2t.priority + 1
 
     @staticmethod
-    def dfs_params2tune(params2tune: List[Param2Tune], is_root: bool=True):
+    def dfs_params2tune(params2tune: list[Param2Tune], is_root: bool=True):
         """协程每找到一个新的参数组合，yield一次。"""
-        cur_param = params2tune[0]
-
-        def reset_later_params(params: List[Param2Tune]):
-            for param in params[1:]:
-                param.reset()
+        assert len(params2tune) > 0, "The params2tune must have more than 1 Param2Tune."
 
         if is_root:  # 如果为外部调用，先手动复位一次。
-            cur_param.reset()
-            reset_later_params(params2tune)
+            for param in params2tune:
+                param.reset()
+
+        cur_param = params2tune[0]
 
         for _ in cur_param:
             # 若只剩下一个参数，则每找到一个新参数值，就yield。
@@ -217,9 +168,19 @@ class Cfg2Tune(Config):
             # 否则遍历参数组中，第一个参数的所有可选值。对剩余参数，每找到一个新参数组合，就yield一次。
             else:
                 yield from Cfg2Tune.dfs_params2tune(params2tune[1:], is_root=False)
-                # 剩余参数遍历过所有组合后，重置为初始状态。
-                # NOTE 2023/4/16 增加自动复位功能后，可不用手动复位。
-                # reset_later_params(params2tune)
+
+    @property
+    def param_combs(self) -> list[dict[str, tuple[Any, str]]]:
+        params2tune = self.ordered_params2tune
+        assert len(params2tune) > 0, "The Cfg2Tune must have more than 1 Param2Tune."
+
+        # * 得到所有参数组合[{param1: (val1, val1_name), ...}, {param1: (val2, val2_name), ...}, ...]
+        param_combs = []
+        for _ in self.dfs_params2tune(list(params2tune.values()), is_root=True):
+            param_combs.append({k: (v.cur_val, v.cur_val_name) for k, v in params2tune.items()})
+        assert len(param_combs) > 0, "The param_combs must have more than 1 legal param comb."
+
+        return param_combs
 
     @property
     def cfgs_update_at_parser(self):
@@ -235,56 +196,54 @@ class Cfg2Tune(Config):
         Config不会支持k-v对形式的_cfgs_update_at_parser。更新时，k-v对形式的_cfgs_update_at_parser会被覆盖（尽管不影响
         最终结果，但会造成混乱）。
         """
-        if '_cfgs_update_at_parser' in self:
-            assert object.__getattribute__(self, '_cfgs_update_at_parser') == ()
-            if isinstance(cfgs_update_at_parser := self['_cfgs_update_at_parser'], Param2Tune):
+        if kExplicitCapsKey in self:
+            assert self.get_attribute('_cfgs_update_at_parser') == ()
+            if isinstance(cfgs_update_at_parser := self[kExplicitCapsKey], Param2Tune):
                 return cfgs_update_at_parser.cur_val
             else:
                 return cfgs_update_at_parser
         else:
-            return object.__getattribute__(self, '_cfgs_update_at_parser')
+            return self.get_attribute('_cfgs_update_at_parser')
 
     def _cfg_tuned(self) -> Config:
+        """根据当前待调参数的值，返回一个Addict配置。"""
         other = Config()
 
         self.copy_cfg_attr_to(other)  # 将依赖、是否不可分等属性拷贝给other。
         # cfgs_update_at_parser可能来自字段，需要单独解析。
-        object.__setattr__(other, '_cfgs_update_at_parser', self.cfgs_update_at_parser)
+        other.set_attribute('_cfgs_update_at_parser', self.cfgs_update_at_parser)
 
         for k, v in self.items():
-            if k == '_cfgs_update_at_parser':
+            if k == kExplicitCapsKey:
                 continue  # k-v对形式的_cfgs_update_at_parser总是以attr形式传递给子配置。
 
-            if is_subtree(v, self):
+            if self.is_subtree(v, self):
                 other[k] = v._cfg_tuned()
             elif isinstance(v, Param2Tune):
                 other[k] = v.cur_val
             else:
                 other[k] = v
 
-        if object.__getattribute__(self, "_root") is self:
-            assert 'rslt_dir' in self
-
-            rslt_dir_suffix = ",".join([f"{name}={param.cur_val_name}"
-                                        for name, param in object.__getattribute__(self, "_params2tune").items()])
-            other.rslt_dir = osp.join(self.rslt_dir, rslt_dir_suffix)
-
         return other
 
-    @property
-    def cfg_tuned(self) -> Config:
+    def cfg_tuned(self, rslt_dir_suffix: str) -> Config:
         """根据当前待调参数的值，返回一个Addict配置。"""
-        return ParamLazy.compute_param_lazy(self._cfg_tuned())
+        ret = self._cfg_tuned()
+        ret.rslt_dir = osp.join(ret.rslt_dir, rslt_dir_suffix)
+        return ParamLazy.compute_item_lazy(ret)
 
     def get_cfgs(self) -> Generator[Config, None, None]:
         """遍历待调参数的所有可能组合，对每个组合，返回其对应的配置。"""
-        params2tune = object.__getattribute__(self, "_params2tune")
+        assert 'rslt_dir' in self
+
+        params2tune = self.ordered_params2tune
 
         if len(params2tune) == 0:
             raise RuntimeError(f"The {self} must have more than 1 Param2Tune")
 
-        for _ in self.dfs_params2tune(list(params2tune.values())):
-            yield self.cfg_tuned
+        for _ in self.dfs_params2tune(list(params2tune.values()), is_root=True):
+            rslt_dir_suffix = ",".join([f"{name}={param.cur_val_name}" for name, param in params2tune.items()])
+            yield self.cfg_tuned(rslt_dir_suffix)
 
     def dump_cfgs(self, cfg_dir='configs') -> tuple[list[str], list[Config]]:
         """遍历待调参数的所有组合，将每个组合对应的配置，以json（如果可以）和pkl格式保存到cfg_dir下。"""
@@ -293,18 +252,18 @@ class Cfg2Tune(Config):
             cfg_save_dir = osp.join(cfg_dir, cfg.rslt_dir)
             os.makedirs(cfg_save_dir, exist_ok=True)
 
-            try:
-                cfg_file = osp.join(cfg_save_dir, 'cfg.json')
-                with open(cfg_file, 'w') as json_f:
-                    json.dump(cfg.to_dict(), json_f)
-            except Exception:
-                pass
-            finally:
-                cfg_file = osp.join(cfg_save_dir, 'cfg.pkl')
-                with open(cfg_file, 'wb') as pkl_f:
-                    pickle.dump(cfg, pkl_f)
+            cfg_txt_file = osp.join(cfg_save_dir, 'cfg.txt')
+            with open(cfg_txt_file, 'w') as txt_f:
+                txt_f.write(cfg.to_txt(prefix='cfg.'))
+
+            cfg_file = osp.join(cfg_save_dir, 'cfg.pkl')
+            with open(cfg_file, 'wb') as pkl_f:
+                pickle.dump(cfg, pkl_f)
+
             cfg_files.append(cfg_file)
             cfgs.append(cfg)
+
+        assert len(cfg_files) > 0, "No cfg files saved."
 
         return cfg_files, cfgs
 
@@ -319,18 +278,9 @@ class Cfg2Tune(Config):
             2）load是也能import cfg2tune_import_path。
         注意，subject_to函数、ParamLazy函数不会被pickle，二者只在生成Addict时被执行。
         '''
-        cfg2tune = load_module_from_py(cfg2tune_py).config
+        cfg2tune, _ = cast(tuple[Cfg2Tune, bool], open_config(cfg2tune_py))
 
-        if not cfg2tune.rslt_dir:
-            raise RuntimeError(f"cfg2tune should indicate result save dir at {cfg2tune.rslt_dir=}")
-
-        if cfg2tune.rslt_dir is ...:
-            cfg2tune.rslt_dir = auto_rslt_dir(cfg2tune_py, config_root)
+        if cfg2tune.get('rslt_dir', ...) is ...:
+            cfg2tune['rslt_dir'] = auto_rslt_dir(cfg2tune_py, config_root)
 
         return cfg2tune
-
-    def __getstate__(self):
-        # TODO 令Cfg2Tune支持pickle：当前Cfg2Tune不支持pickle——在“恢复高祖数据”时，__setitem__会在没有__init__的情况下
-        #      被调用。__setitem__会尝试获取root、parent、key等不存在的属性（其实之后就会恢复），并报错。
-        #      解决办法：setitem时判断是否在unpickle（没有init过），若时，则执行dict的setitem。
-        raise NotImplementedError(f"{self.__class__} currently not support pickle. ")

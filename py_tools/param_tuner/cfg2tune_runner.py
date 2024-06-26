@@ -10,7 +10,6 @@
 """
 import os.path as osp
 import subprocess
-from collections import OrderedDict
 from functools import wraps
 from multiprocessing import Pool
 from pprint import pprint
@@ -65,7 +64,7 @@ class Cfg2TuneRunner(object):
             self.metric_names = metric_names
 
         # * 所有参数组合+参数组合对应的metric。
-        self.param_combs: List[dict[str, tuple[..., str]]] = []
+        self.param_combs: List[dict[str, tuple[..., str]]] = self.cfg2tune.param_combs
         self.metric_frame: Optional[pd.DataFrame] = None
 
         # * 每个配置的pkl及其对应的实验文件夹。
@@ -76,21 +75,11 @@ class Cfg2TuneRunner(object):
         # * 保存每个配置的运行结果。
         self.run_rslts: List[subprocess.CompletedProcess] = []
 
-    def set_params(self):
+    def build_metrics(self):
         """得到参数组合与metric frame。"""
-        # TODO This part should be Cfg2Tune's function.
-        # TODO Cfg2Tune should check whether len(param_comb) > 0
-        params2tune: OrderedDict = object.__getattribute__(self.cfg2tune, "_params2tune")
-        assert len(params2tune) > 0
-
-        # * 得到所有参数组合[{param1: (val1, val1_name), ...}, {param1: (val2, val2_name), ...}, ...]
-        for _ in Cfg2Tune.dfs_params2tune(list(params2tune.values())):
-            self.param_combs.append({k: (v.cur_val, v.cur_val_name) for k, v in params2tune.items()})
-        assert len(self.param_combs) > 0
-
         midx = pd.MultiIndex.from_tuples([tuple(val[1] for val in param_comb.values())
                                           for param_comb in self.param_combs],
-                                         names=list(params2tune.keys()))
+                                         names=list(self.param_combs[0].keys()))
         self.metric_frame = pd.DataFrame(index=midx, columns=self.metric_names)
 
     def set_cfgs(self):
@@ -128,7 +117,9 @@ class Cfg2TuneRunner(object):
 
     @staticmethod
     def work(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir: tuple[int, tuple[Config, str, str]]):
-        """pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir, then run the config pkl with subprocess.
+        """pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir,
+        then run the config pkl with subprocess.
+
         Return subprocess.CompletedProcess. """
         raise NotImplementedError()
 
@@ -165,7 +156,7 @@ class Cfg2TuneRunner(object):
         self.gather_metric_fn = gather_metric_fn
         return gather_metric_fn
 
-    def save_metric(self):
+    def save_metrics(self):
         exp_short_id = osp.basename(osp.dirname(self.cfg2tune_py)).split('@')[-1]
         # 美观起见，excel选择merge cells。需要时可以手动解除merge。
         self.metric_frame.to_excel(osp.join(self.rslt_dir, f'{exp_short_id}.xlsx'), sheet_name='MetricFrame',
@@ -183,24 +174,23 @@ class Cfg2TuneRunner(object):
 
         print(Fore.GREEN + "-----------------Setting Configs-----------------" + Style.RESET_ALL)
         self.set_cfgs()
+
         print("Saving Config pkls at: ")
         pprint(self.cfg_pkls)
 
-        if self.metric_names:
-            print(Fore.GREEN + "-----------------Setting Params-----------------" + Style.RESET_ALL)
-            self.set_params()
-            print("Param Combines: ")
-            pprint(self.param_combs, sort_dicts=False)
+        print("Param Combines: ")
+        pprint(self.param_combs, sort_dicts=False)
 
         print(Fore.GREEN + "-----------------Running Configs-----------------" + Style.RESET_ALL)
         self.run_cfgs()
 
         if self.metric_names:
             print(Fore.GREEN + "-----------------Gather Metrics-----------------" + Style.RESET_ALL)
+            self.build_metrics()
             self.gather_metrics()
             print("Metric Frame: ")
             pprint(self.metric_frame)
 
             print(Fore.GREEN + "-----------------Save Metrics-----------------" + Style.RESET_ALL)
-            self.save_metric()
+            self.save_metrics()
             print(f"Saving Metric Frame at {osp.join(self.rslt_dir, 'metric_frame.xlsx')}")

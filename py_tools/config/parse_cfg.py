@@ -15,18 +15,19 @@ from pathlib import Path
 from typing import Any
 
 from .open_cfg import open_config
-from .py_cfg import Config
+from .py_cfg import Config, ItemLazy
 
-__all__ = ['auto_rslt_dir', 'parse_config']
+__all__ = ['auto_rslt_dir', 'parse_config', 'load_config']
 
 
 def _check_emtpy_value(val: Any, memo: str='base.'):
     """Recursively detect empty val in dict"""
+    warnings.warn("COM feature is deprecated", DeprecationWarning)
     if (not val) and not isinstance(val, (int, bool)):  # 若val被判否，且不是布尔（False）或int（0）类型，则是一个空Value。
         warnings.warn(f"{memo[:-1]} is a empty val: {val}")
     elif isinstance(val, dict):
         for k, v in val.items():
-            _check_emtpy_value(v, memo + str(k) + '.')
+            _check_emtpy_value(v, memo + str(k) + '.')  # noqa
     else:
         pass
 
@@ -96,12 +97,9 @@ def _process_py_config(config: dict, config_path: str, experiments_root: str, co
         # NOTE 2）归并可能令叶子间共享容器、IL函数（COM_会更新多个并形项）。故要确保
         # NOTE      a. 不直接修改叶子容器，而是覆盖叶子。
         # NOTE      b. IL函数无记忆，即多次调用，结果相同。
-        config.reduce_COM()
+        # config.reduce_COM()
 
-    if not config.get('rslt_dir'):
-        raise RuntimeError(f"config should indicate result save dir at config['rslt_dir'] = {config.get('rslt_dir')}")
-
-    if config['rslt_dir'] is ...:
+    if config.get('rslt_dir', ...) is ...:
         config['rslt_dir'] = auto_rslt_dir(config_path, config_root)
 
     config['rslt_dir'] = osp.join(experiments_root, config['rslt_dir'])
@@ -154,5 +152,24 @@ def parse_config(config_path: str | dict, experiments_root: str=None, config_roo
                                     create_rslt_dir=create_rslt_dir)
 
     # * Check empty value and return
-    _check_emtpy_value(config, memo='config.')
+    # _check_emtpy_value(config, memo='cfg.')  # NOTE 似乎无此必要。
     return Config.from_dict(config)
+
+
+def load_config(config_path: str | dict, experiments_root: str=None, config_root: str='./configs',
+                create_rslt_dir: bool=True) -> Config:
+    """Parse config then compute lazy items and freeze.
+
+    Args:
+        config_path: See `parse_config`.
+        experiments_root: See `parse_config`.
+        config_root: See `parse_config`.
+        create_rslt_dir: See `parse_config`.
+
+    Returns:
+        Frozen config with lazy items computed.
+    """
+    config = parse_config(config_path, experiments_root, config_root, create_rslt_dir)
+    config = ItemLazy.compute_item_lazy(config)
+    config.freeze()
+    return config
