@@ -12,7 +12,7 @@ from copy import copy
 
 import pytest
 
-from py_tools import Config, ADict, DEP
+from alchemy_cat.py_tools import Config, ADict, DEP
 
 from .test_adict import *
 

@@ -13,7 +13,7 @@ from copy import deepcopy
 
 import pytest
 
-from py_tools import ADict
+from alchemy_cat.py_tools import ADict
 
 __all__ = ['d', 'ref_d', 'dic', 'ref_dic', 'to_update', 'dic_can_exec']
 

@@ -12,7 +12,7 @@ from setuptools import setup, find_packages
 
 setup(
         name='alchemy_cat',
-        version='0.0.0',
+        version='0.0.1',
         description='AlchemyCat alpha version.',
         author='HAL_42',
         author_email='hal_42@zju.edu.cn',
