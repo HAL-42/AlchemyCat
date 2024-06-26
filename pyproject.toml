@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alchemy_cat"
+version = "0.0.1"
+authors = [
+  { name="HAL_42", email="hal_42@zju.edu.cn" },
+]
+description = "AlchemyCat alpha version."
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+keywords = ["config", "deep learning", "parameter tuning", "hyperparameter"]
+
+[project.urls]
+Homepage = "https://github.com/HAL-42/AlchemyCat"
+Issues = "https://github.com/HAL-42/AlchemyCat/issues"
+
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "torch",
+    "tqdm",
+    "colorama",
+    "addict>=2.4.0",
+    "pandas",
+    "openpyxl",
+    "loguru",
+    "psutil",
+]
+[project.optional-dependencies]
+full = [
+    "PyYAML>=6.0",
+    "setuptools>=68.0.0",
+    "pytest>=7.4.0",
+    "opencv-python>=4.8.0.74",
+    "pydensecrf>=1.0rc3",
+    "Pillow>=9.4.0",
+    "scipy>=1.10.1",
+    "matplotlib>=3.7.1",
+    "torchvision>=0.15.2",
+    "lmdb>=1.4.1",
+    "seaborn>=0.12.2",
+    "imagesize>=1.4.1",
+    "scikit-image>=0.20.0",
+    "scikit-learn>=1.2.2",
+    "xlwings>=0.30.10",
+    "gpustat>=0.6.0",
+]

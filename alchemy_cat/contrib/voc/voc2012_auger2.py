@@ -17,7 +17,8 @@ from PIL import Image
 from alchemy_cat.acplot import BGR2RGB
 from alchemy_cat.alg import size2HW
 from alchemy_cat.data import Dataset
-from alchemy_cat.py_tools import PackCompose, Compose, ADict
+from alchemy_cat.py_tools import PackCompose, Compose
+from alchemy_cat.dl_config import ADict
 from math import ceil
 from torchvision.transforms import ToTensor, Normalize, ToPILImage
 

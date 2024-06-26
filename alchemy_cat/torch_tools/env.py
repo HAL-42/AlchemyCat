@@ -18,8 +18,8 @@ import cv2
 import torch
 import torch.distributed as dist
 
-from ..py_tools import (get_process_info, get_local_time_str, set_rand_seed, Logger, parse_config, Config, ItemLazy,
-                        meow, init_loguru)
+from ..dl_config import parse_config, Config, ItemLazy
+from ..py_tools import get_process_info, get_local_time_str, set_rand_seed, Logger, meow, init_loguru
 
 __all__ = ['get_device', 'init_env']
 

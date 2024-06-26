@@ -17,7 +17,7 @@ from PIL import Image
 from addict import Dict
 from alchemy_cat.acplot import BGR2RGB, RGB2BGR
 from alchemy_cat.data import Dataset, Subset
-from alchemy_cat.py_tools import ADict
+from alchemy_cat.dl_config import ADict
 from math import ceil
 
 __all__ = ['COCO_NAMES', 'COCO_COLOR', 'COCO91to81', 'COCO81to91', 'COCO']

@@ -8,11 +8,12 @@
 @Software: PyCharm
 @Desc    : 
 """
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
 
 from dataclasses import dataclass
 
-from .config import Config
+if TYPE_CHECKING:
+    from alchemy_cat.dl_config.config import Config
 
 __all__ = ['喵', 'meow']
 
@@ -20,7 +21,7 @@ __all__ = ['喵', 'meow']
 @dataclass
 class CatHead(object):
     """该类型实例「喵」可作为全局变量使用。"""
-    cfg: Optional[Config] = None
+    cfg: Optional['Config'] = None
     is_debug: bool = False
     rand_seed_final: Union[str, int, None] = None
 

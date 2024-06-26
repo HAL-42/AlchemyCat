@@ -14,12 +14,12 @@ import os
 import os.path as osp
 
 import numpy as np
-from alchemy_cat.alg import ParDenseCRF
+from alchemy_cat.alg.dense_crf import ParDenseCRF
 from alchemy_cat.contrib.evaluation.semantics_segmentation import eval_preds
 from alchemy_cat.contrib.tasks.wsss.seeding2 import idx2seed
 from alchemy_cat.contrib.voc import VOCAug2
 from alchemy_cat.data.plugins import identical, arr2PIL
-from alchemy_cat.py_tools import Config
+from alchemy_cat.dl_config import Config
 from tqdm import tqdm
 
 

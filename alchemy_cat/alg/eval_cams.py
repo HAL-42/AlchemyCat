@@ -24,7 +24,8 @@ from PIL import Image
 from alchemy_cat.contrib.metrics import SegmentationMetric
 from alchemy_cat.acplot import RGB2BGR
 from alchemy_cat.data.plugins import identical
-from alchemy_cat.py_tools import OneOffTracker, Config
+from alchemy_cat.py_tools import OneOffTracker
+from alchemy_cat.dl_config import Config
 from frozendict import frozendict as fd
 from tqdm import tqdm
 
