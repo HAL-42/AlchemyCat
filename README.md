@@ -1,8 +1,14 @@
 # Alchemy Cat
 
+[![PyPI version](https://badge.fury.io/py/alchemy-cat.svg)](https://badge.fury.io/py/alchemy-cat)
+
 ![banner](docs/figs/dl_config_logo.svg)
 
-AlchemyCat 为深度学习提供了一套先进的配置系统。下表对比了 AlchemyCat 和其他配置系统（😡不支持，🤔有限支持，🥳支持）：
+<p align="center">
+  AlchemyCat 为深度学习提供了一套先进的配置系统。<br> 语法<strong>简单优雅</strong>，支持继承、组合、依赖以<strong>最小化配置冗余</strong>，并支持<strong>自动调参</strong>。
+</p>
+
+下表对比了 AlchemyCat 和其他配置系统（😡不支持，🤔有限支持，🥳支持）：
 
 | 功能    | argparse | yaml | YACS | mmcv | AlchemyCat |
 |-------|----------|------|------|------|------------|
@@ -28,7 +34,7 @@ AlchemyCat 的独到之处在于：
 pip install alchemy-cat
 ```
 
-# 可复现
+# 简单使用
 AlchemyCat 确保一份配置对应唯一一个实验记录，二者间的双射关系保证了实验的可复现性。
 ```text
 config C + algorithm code A ——> reproducible experiment E(C, A)
@@ -59,7 +65,7 @@ config C + algorithm code A ——> reproducible experiment E(C, A)
 ```
 **最佳实践：在`cfg.py`旁边创建一个`__init__.py`（一般IDE会自动创建），并避免路径中含有'.'。遵守该最佳实践有助于 IDE 调试，且能够在`cfg.py`中使用相对导入。**
 
-# 简单使用
+
 让我们从一个不完整的例子开始，了解如何书写配置文件并在代码中加载它。我们首先书写[配置文件](alchemy_cat/dl_config/examples/configs/mnist/plain_usage/cfg.py):
 ```python
 # -- [INCOMPLETE] configs/mnist/plain_usage/cfg.py --
@@ -651,7 +657,7 @@ batch_size epochs  child_configs
 ```
 
 ## 运行自动调参机
-我还需要写一小段脚本来运行自动调参机：
+我们还需要写一小段脚本来运行自动调参机：
 ```python
 # -- tune_train.py --
 import argparse, json, os, subprocess, torch, sys
@@ -713,28 +719,164 @@ Saving Metric Frame at /tmp/experiment/tune/tune_bs_epoch/metric_frame.xlsx
 <summary> 展开进阶 </summary>
 
 ## 美化打印
-eval
+`Config`的`__str__`方法被重载，以`.`分隔的键名，美观地打印树结构：
 
-## init_env
+```text
+>>> cfg = Config()
+>>> cfg.foo.bar.a = 1
+>>> cfg.bar.foo.b = ['str1', 'str2']
+>>> cfg.whole.set_whole()
+>>> print(cfg)
+cfg = Config()
+cfg.whole.set_whole(True)
+# ------- ↓ LEAVES ↓ ------- #
+cfg.foo.bar.a = 1
+cfg.bar.foo.b = ['str1', 'str2']
+```
 
-## 遍历配置树
+如果所有叶节点都是内置类型，`Config`的美观打印输出可直接作为 python 代码执行，并得到相同的配置：
+```text
+>>> exec(cfg.to_txt(prefix='new_cfg.'), globals(), (l_dict := {}))
+>>> l_dict['new_cfg'] == cfg
+True
+```
 
-## ADict
+## 自动捕获实验日志
+对深度学习任务，我们建议用`init_env`代替`load_config`，在加载配置之余，`init_env`还可以初始化深度学习环境，譬如设置 torch 设备、梯度、随机种子、分布式训练：
+
+```python
+from alchemy_cat.torch_tools import init_env
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', type=str)
+    parser.add_argument('--local_rank', type=int, default=-1)
+    args = parser.parse_args()
+    
+    device, cfg = init_env(config_path=args.config,             # config file path，read to `cfg`
+                           is_cuda=True,                        # if True，`device` is cuda，else cpu
+                           is_benchmark=bool(args.benchmark),   # torch.backends.cudnn.benchmark = is_benchmark
+                           is_train=True,                       # torch.set_grad_enabled(is_train)
+                           experiments_root="experiment",       # root of experiment dir
+                           rand_seed=True,                      # set python, numpy, torch rand seed. If True, read cfg.rand_seed as seed, else use actual parameter as rand seed. 
+                           cv2_num_threads=0,                   # set cv2 num threads
+                           verbosity=True,                      # print more env init info
+                           log_stdout=True,                     # where fork stdout to log file
+                           loguru_ini=True,                     # config a pretty loguru format
+                           reproducibility=False,               # set pytorch to reproducible mode
+                           local_rank=...,                      # dist.init_process_group(..., local_rank=local_rank)
+                           silence_non_master_rank=True,        # if True, non-master rank will not print to stdout, but only log to file
+                           is_debug=bool(args.is_debug))        # is debug mode
+```
+如果设置`log_stdout=True`，`init_env`还会将`sys.stdout`、`sys.stderr` fork 一份到日志文件`cfg.rslt_dir/{local-time}.log`中。这不会干扰正常的`print`，但所有屏幕输出都会同时被记录到日志。因此，不再需要手动写入日志，屏幕所见即日志所得。
+
+更详细用法可参见`init_env`的 docstring。
+
+## 属性字典
+如果您是 [addict](https://github.com/mewwts/addict) 的用户，我们的`ADict`可以作为`addict.Dict`的 drop-in replacement：`from alchemy_cat.dl_config import ADict as Dict`。
+
+`ADict` 实现了 `addict.Dict` 的所有接口，但重新实现了所有方法，优化了执行效率，覆盖了更多 corner case（如循环引用）。`Config`其实就是`ADict`的子类。
+
+如果您没有使用过`addict`，可以考虑阅读这份[文档](https://github.com/mewwts/addict)。研究型代码常常会传递复杂的字典结构，`addict.Dict`或`ADict`支持属性读写字典，非常适合处理嵌套字典。
 
 ## 循环引用
+`ADict`和`Config`的初始化、继承、组合需要用到一种名为`branch_copy`的操作，其介于浅拷贝和深拷贝之间，即拷贝树结构，但不拷贝叶节点。`ADict.copy`，`Config.copy`，`copy.copy(cfg)`均会调用`branch_copy`，而非`dict`的`copy`方法。
 
-## 惰性依赖
+理论上`ADict.branch_copy`能够处理循环引用情况，譬如：
+```text
+>>> dic = {'num': 0,
+           'lst': [1, 'str'],
+           'sub_dic': {'sub_num': 3}}
+>>> dic['lst'].append(dic['sub_dic'])
+>>> dic['sub_dic']['parent'] = dic
+>>> dic
+{'num': 0,
+ 'lst': [1, 'str', {'sub_num': 3, 'parent': {...}}],
+ 'sub_dic': {'sub_num': 3, 'parent': {...}}}
 
-## ParamLazy
+>>> adic = ADict(dic)
+>>> adic.sub_dic.parent is adic is not dic
+True
+>>> adic.lst[-1] is adic.sub_dic is not dic['sub_dic']
+True
+```
+对`ADict`不同，`Config`的数据结构是双向树，而循环引用将成环。为避免成环，若子配置树被多次挂载到不同父配置，子配置树会先拷贝得到一棵独立的配置树，再进行挂载。正常使用下，配置树中不会出现循环引用。
+
+总而言之，尽管循环引用是被支持的，不过即没有必要，也不推荐使用。
+
+## 遍历配置树
+`Config.named_branches`和`Config.named_ckl`分别遍历配置树的所有分支和叶节点（所在的分支、键名和值）：
+```text
+>>> list(cfg.named_branches) 
+[('', {'foo': {'bar': {'a': 1}},  
+       'bar': {'foo': {'b': ['str1', 'str2']}},  
+       'whole': {}}),
+ ('foo', {'bar': {'a': 1}}),
+ ('foo.bar', {'a': 1}),
+ ('bar', {'foo': {'b': ['str1', 'str2']}}),
+ ('bar.foo', {'b': ['str1', 'str2']}),
+ ('whole', {})]
+ 
+>>> list(cfg.ckl)
+[({'a': 1}, 'a', 1), ({'b': ['str1', 'str2']}, 'b', ['str1', 'str2'])]
+```
+
+## 惰性继承
+```text
+>>> from alchemy_cat.dl_config import Config
+>>> cfg = Config(caps='configs/mnist/base,sched_from_addon/cfg.py')
+>>> cfg.loader.ini.batch_size = 256
+>>> cfg.sched.epochs = 15
+>>> print(cfg)
+
+cfg = Config()
+cfg.set_whole(False).set_attribute('_cfgs_update_at_parser', ('configs/mnist/base,sched_from_addon/cfg.py',))
+# ------- ↓ LEAVES ↓ ------- #
+cfg.loader.ini.batch_size = 256
+cfg.sched.epochs = 15
+```
+继承时，父配置`caps`不会被立即更新过来，而是等到`load_config`时才会被加载。惰性继承使得配置系统可以鸟瞰整条继承链，少数功能有赖于此。
 
 ## 协同Git
+由于`config C + algorithm code A ——> reproducible experiment E(C, A)`，意味着当配置`C`和算法代码`A`确定时，总是能复现实验`E`。因此，建议将配置文件和算法代码一同提交到 Git 仓库中，以便日后复现实验。
 
-### 关于继承的更多技巧
+我们还提供了一个[脚本](alchemy_cat/torch_tools/scripts/tag_exps.py)，运行`pyhon -m alchemy_cat.torch_tools.scripts.tag_exps -s commit_ID -a commit_ID`，将交互式地列出该 commit 新增的配置，并按照配置路径给 commit 打上标签。这有助于快速回溯历史上某个实验的配置和算法。
 
-## empty_leaf
-`Config.empty_leaf`结合了`dict.clear`和`Config.set_whole`，可以在新配置中建立一棵空且 "whole" 的子树。这常用于删除基配置中的某些配置项。
+## 为子任务分配显卡
+`Cfg2TuneRunner`的`work`函数有时需要给子进程分配显卡。`allocate_cuda_by_group_rank`可按照`pkl_idx`，分配空闲的显卡：
+```python
+from alchemy_cat.torch_tools import allocate_cuda_by_group_rank
 
-## 增量式更新
-TODO
+# ... Code before
+
+@runner.register_work_fn  # How to run config
+def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str) -> ...:
+    current_cudas, env_with_current_cuda = allocate_cuda_by_group_rank(group_rank=pkl_idx, group_cuda_num=2, block=True, verbosity=True)
+    subprocess.run([sys.executable, 'train.py', '-c', cfg_pkl], env=env_with_current_cuda)
+
+# ... Code after
+```
+`group_rank`一般为`pkl_idx`，`group_cuda_num`为子任务所需显卡数量。`block`为`True`时，若分配的显卡被占用，会阻塞直到有空闲。`verbosity`为`True`时，会打印阻塞情况。
+
+返回值`current_cudas`是一个列表，包含了分配的显卡号。`env_with_current_cuda`是设置了`CUDA_VISIBLE_DEVICES`的环境变量字典，可直接传入`subprocess.run`的`env`参数。
+
+## 匿名函数无法 pickle 问题
+`Cfg2Tune`生成的子配置会被 pickle 保存。然而，若`Cfg2Tune`定义了形似`DEP(lambda c: ...)`的依赖项，所存储的匿名函数无法被 pickle。变通方法有：
+* 配合装饰器`@Config.set_DEP`，将依赖项的计算函数定义为一个全局函数。
+* 将依赖项的计算函数定义在一个独立的模块中，然后再传递给`DEP`。
+* 在父配置`caps`中定义依赖项。由于继承的处理是惰性的，`Cfg2Tune`生成的子配置暂时不包含依赖项。
+* 如果依赖源是可调参数，可使用特殊的依赖项`P_DEP`，它将于`Cfg2Tune`生成子配置后、保存为 pickle 前解算。
+
+## 关于继承的更多技巧
+
+### 继承时删除
+`Config.empty_leaf()`结合了`Config.clear()`和`Config.set_whole()`，可以得到一棵空且 "whole" 的子树。这常用于在继承时表示『删除』语义，即用一个空配置，覆盖掉基配置的某颗子配置树。
+
+### `update`方法
+`cfg`是一个`Config`实例，`base_cfg`是一个`dict`实例，`cfg.dict_update(base_cfg)`、`cfg.update(base_cfg)`、`cfg |= base_cfg`的效果与让`Config(base_cfg)`继承`cfg`类似。
+
+`cfg.dict_update(base_cfg, incremental=True)`则确保只做增量式更新——即只会增加`cfg`中不存在的键，而不会覆盖已有键。
 
 </details>
