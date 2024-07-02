@@ -102,7 +102,9 @@ def _process_py_config(config: dict, config_path: str, experiments_root: str, co
     if config.get('rslt_dir', ...) is ...:
         config['rslt_dir'] = auto_rslt_dir(config_path, config_root)
 
-    config['rslt_dir'] = osp.join(experiments_root, config['rslt_dir'])
+    if experiments_root != '':
+        config['rslt_dir'] = osp.join(experiments_root, config['rslt_dir'])
+
     if create_rslt_dir:
         os.makedirs(config['rslt_dir'], exist_ok=True)
 
@@ -169,6 +171,8 @@ def load_config(config_path: str | dict, experiments_root: str=None, config_root
     Returns:
         Frozen config with lazy items computed.
     """
+    if isinstance(config_path, Config):
+        config_path.unfreeze()  # 如果是load，接下来需要parse和compute_item_lazy，故解冻。反正最后总是会freeze。
     config = parse_config(config_path, experiments_root, config_root, create_rslt_dir)
     config = ItemLazy.compute_item_lazy(config)
     config.freeze()

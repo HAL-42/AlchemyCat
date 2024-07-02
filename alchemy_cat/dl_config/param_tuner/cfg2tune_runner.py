@@ -138,8 +138,17 @@ class Cfg2TuneRunner(object):
     def gather_metrics(self):
         for cfg, cfg_rslt_dir, run_rslt, param_comb in zip(self.cfgs, self.cfg_rslt_dirs,
                                                            self.run_rslts, self.param_combs):
-            self.metric_frame.loc[tuple(val[1] for val in param_comb.values())] = \
-                self.gather_metric(cfg, cfg_rslt_dir, run_rslt, param_comb)
+            metric = self.gather_metric(cfg, cfg_rslt_dir, run_rslt, param_comb)
+
+            if self.metric_frame is None:
+                if self.metric_names is None:
+                    self.metric_names = list(metric.keys())
+                self.build_metrics()
+            else:
+                assert set(metric.keys()) == set(self.metric_names), \
+                    f"metric.keys()={metric.keys()} != self.metric_names={self.metric_names}"
+
+            self.metric_frame.loc[tuple(val[1] for val in param_comb.values())] = metric
 
     def gather_metric(self, cfg: Config, cfg_rslt_dir: str, run_rslt: Any, param_comb: dict[str, tuple[..., str]]) \
             -> dict[str, Any]:
@@ -184,9 +193,8 @@ class Cfg2TuneRunner(object):
         print(Fore.GREEN + "-----------------Running Configs-----------------" + Style.RESET_ALL)
         self.run_cfgs()
 
-        if self.metric_names:
+        if self.gather_metric_fn is not None:
             print(Fore.GREEN + "-----------------Gather Metrics-----------------" + Style.RESET_ALL)
-            self.build_metrics()
             self.gather_metrics()
             print("Metric Frame: ")
             pprint(self.metric_frame)

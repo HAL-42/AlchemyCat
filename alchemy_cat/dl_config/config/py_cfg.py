@@ -688,7 +688,6 @@ class Config(ADict):
              create_rslt_dir: bool=True) -> 'Config':
         # TODO 避免循环导入。Ugly，更好的办法是将parse_cfg.py中的load_config放到py_cfg.py中。
         from .parse_cfg import load_config
-        self.unfreeze()  # 如果是load，接下来需要parse和compute_item_lazy，故解冻。反正最后总是会freeze。
         return load_config(self, experiments_root, config_root, create_rslt_dir)
 
     @property
