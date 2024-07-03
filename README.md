@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/alchemy-cat.svg)](https://badge.fury.io/py/alchemy-cat)
 
-![banner](docs/figs/dl_config_logo.svg)
+![banner](docs/figs/dl_config_logo.png)
 
 <p align="center">
   AlchemyCat 为深度学习提供了一套先进的配置系统。<br> 语法<strong>简单优雅</strong>，支持继承、组合、依赖以<strong>最小化配置冗余</strong>，并支持<strong>自动调参</strong>。
@@ -705,7 +705,9 @@ batch_size epochs
 Saving Metric Frame at /tmp/experiment/tune/tune_bs_epoch/metric_frame.xlsx
 ```
 正如提示信息所言，调参结果还会被保存到 `/tmp/experiment/tune/tune_bs_epoch/metric_frame.xlsx` 表格中：
-![metric_frame](docs/figs/readme-cfg2tune-excel.png)
+<p align = "center">
+<img  src="docs/figs/readme-cfg2tune-excel.png" width="400" />
+</p>
 
 **最佳实践：自动调参机与标准的工作流是正交的。因此，在写配置和代码时，先不要考虑自动调参机。需要调参时，再写一点点额外的代码，定义参数空间，指定算法的调用方式和结果的获取方式。调参完毕后，可以剥离调参机，只发布最优结果的配置和算法。**
 
