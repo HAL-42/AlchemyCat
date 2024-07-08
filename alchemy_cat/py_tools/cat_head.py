@@ -12,8 +12,7 @@ from typing import Optional, Union, TYPE_CHECKING
 
 from dataclasses import dataclass
 
-if TYPE_CHECKING:
-    from alchemy_cat.dl_config.config import Config
+from .config import Config
 
 __all__ = ['喵', 'meow']
 
