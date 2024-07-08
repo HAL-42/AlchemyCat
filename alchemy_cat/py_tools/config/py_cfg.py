@@ -9,9 +9,16 @@
 @Desc    : 
 """
 import copy
+import sys
 import warnings
 from keyword import iskeyword
-from typing import Callable, Any, TypeVar, Type, Generator, Self, final, cast, Iterable, Never, TypeAlias
+from typing import Callable, Any, TypeVar, Type, Generator, final, cast, Iterable, Union
+if sys.version_info >= (3, 11):
+    from typing import Self, Never, TypeAlias
+else:  # 兼容Python<3.11。
+    Self = TypeVar('Self', bound='ADict')
+    from typing import NoReturn as Never
+    TypeAlias = Any
 
 from addict import Dict
 
@@ -59,13 +66,13 @@ class ItemLazy(object):
         """
         self.func = func
         self.priority = priority
-        self._level: int | float | None = None
+        self._level: Union[int, float, None] = None
 
         if not rel:  # 如果使用绝对根，则level为无穷。
             self._level = float('inf')
 
     @property
-    def level(self) -> int | float:
+    def level(self) -> Union[int, float]:
         return self._level
 
     @level.setter
@@ -238,7 +245,10 @@ class ADict(Dict):
         return tuple()
 
     def __getstate__(self) -> Any:  # CHANGE 返回self.__dict__，而非自身作为state。
-        return object.__getstate__(self)
+        if sys.version_info >= (3, 11):
+            return object.__getstate__(self)
+        else:
+            return vars(self)
 
     def __setstate__(self, state: dict) -> None:  # CHANGE: 恢复object默认的__setstate__。
         vars(self).update(state)  # 用户自定义的类，哪怕没有__init__过，其实例总是有__dict__。
@@ -539,7 +549,7 @@ class ADict(Dict):
 
     # -* 快捷方式。
 
-    def set_func(self, name: str | None=None) -> Callable[[Callable], Callable]:
+    def set_func(self, name: Union[str, None]=None) -> Callable[[Callable], Callable]:
         """返回装饰器，装饰器将被装饰函数注册为当前配置树的项目。
 
         Args:
@@ -602,7 +612,7 @@ class Config(ADict):
 
     # -* Config的初始化与解析。
 
-    def __init__(self, *cfgs, cfgs_update_at_parser: tuple | str=(), caps: tuple | str=(), **kwargs):
+    def __init__(self, *cfgs, cfgs_update_at_parser: Union[tuple, str]=(), caps: Union[tuple, str]=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
@@ -763,7 +773,7 @@ class Config(ADict):
         self.set_attribute('__parent', None)
         self.set_attribute('__key', None)
 
-    def find_root(self, level: int | float=float('inf')) -> tuple[Self, int]:
+    def find_root(self, level: Union[int, float]=float('inf')) -> tuple[Self, int]:
         """寻找树根。"""
         root = self
         count = level
@@ -853,7 +863,7 @@ class Config(ADict):
 
     # -* 快捷方式。
 
-    def set_IL(self, name: str | None=None, priority: int=1, rel: bool = True) -> Callable[[T_IL_Func], T_IL_Func]:
+    def set_IL(self, name: Union[str, None]=None, priority: int=1, rel: bool = True) -> Callable[[T_IL_Func], T_IL_Func]:
         """返回装饰器，装饰器将被装饰函数注册为当前配置树的惰性项。
 
         Args:

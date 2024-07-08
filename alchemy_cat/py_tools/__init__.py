@@ -27,7 +27,7 @@ from .load_module import *
 from .cat_head import *
 from .parse_log import *
 from .file_md5 import *
-from .cache_dir import *
+# from .cache_dir import *  # python 3.9不兼容，暂时不导入。
 from .loguru_exts import *
 from .config import *
 from .param_tuner import *

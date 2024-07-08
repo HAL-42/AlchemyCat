@@ -11,7 +11,7 @@
 import os
 import os.path as osp
 import pickle
-from typing import Iterable, Callable, Any, Generator, cast
+from typing import Iterable, Callable, Any, Generator, cast, Union
 
 from .utils import name_param_val, norm_param_name
 from ..config import Config, auto_rslt_dir, ItemLazy, open_config
@@ -78,7 +78,7 @@ class Param2Tune(object):
         self._cur_val_name = None
 
     def __iter__(self) -> Generator[tuple[Any, str], None, None]:
-        for opt_val, opt_val_name in zip(self.optional_val, self.optional_val_name, strict=True):
+        for opt_val, opt_val_name in zip(self.optional_val, self.optional_val_name):
             if self.subject_to(opt_val):
                 self._cur_val = opt_val
                 self._cur_val_name = opt_val_name
@@ -101,7 +101,7 @@ P_DEP = PL = ParamLazy
 class Cfg2Tune(Config):
     """Config to be tuned with parameters to be tuned."""
 
-    def __init__(self, *cfgs, cfgs_update_at_parser: tuple | str=(), caps: tuple | str=(), **kwargs):
+    def __init__(self, *cfgs, cfgs_update_at_parser: Union[tuple, str]=(), caps: Union[tuple, str]=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:

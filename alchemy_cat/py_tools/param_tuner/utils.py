@@ -8,7 +8,7 @@
 @Software: PyCharm
 @Desc    : 
 """
-from typing import Any
+from typing import Any, Union
 import os.path as osp
 
 __all__ = ['norm_param_name', 'name_param_val']
@@ -53,7 +53,7 @@ def _is_int(elem: Any) -> bool:
     return False
 
 
-def name_param_val(param_val: Any, longest_param_length: int=kLongestParamStr) -> str | int | float:
+def name_param_val(param_val: Any, longest_param_length: int=kLongestParamStr) -> Union[str, int, float]:
     # if is_int(param_val) or is_float(param_val):  # int或float保持不变，适配pandas索引。
     if _is_int(param_val):  # NOTE 只有int保持不变，适配pandas索引。float中的小数点会影响导入，还是需要替换。
         return param_val

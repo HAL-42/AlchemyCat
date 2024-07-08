@@ -129,7 +129,8 @@ def test_cfg_all():
     assert cfg.f1.__key == 'f1'
 
     # 测试branch_copy
-    for b1, b2 in zip(cfg.branches, new_cfg.branches, strict=True):  # branch数目不变，但是branch的id变了。
+    assert len(list(cfg.branches)) == len(list(new_cfg.branches))
+    for b1, b2 in zip(cfg.branches, new_cfg.branches):  # branch数目不变，但是branch的id变了。
         assert b1 is not b2
 
     for b in new_cfg.branches:  # 所有branch均挂载。
@@ -144,7 +145,8 @@ def test_cfg_all():
             assert b.__parent[b.__key] is b
     assert root_num == 1
 
-    for l1, l2 in zip(cfg.leaves, new_cfg.leaves, strict=True):  # 叶子不变。DEP不受影响。
+    assert len(list(cfg.leaves)) == len(list(new_cfg.leaves))
+    for l1, l2 in zip(cfg.leaves, new_cfg.leaves):  # 叶子不变。DEP不受影响。
         if not isinstance(l2, DEP):
             assert l1 is l2
 

@@ -8,13 +8,14 @@
 @Software: PyCharm
 @Desc    : 
 """
+from typing import Union
 import hashlib
 from os import PathLike
 
 __all__ = ['file_md5']
 
 
-def file_md5(file: str | PathLike) -> str:
+def file_md5(file: Union[str, PathLike]) -> str:
     """Get md5 of file"""
 
     with open(file, 'rb') as f:

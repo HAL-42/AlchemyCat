@@ -12,14 +12,14 @@ import glob
 import json
 import pickle
 from os import path as osp
-from typing import Tuple
+from typing import Tuple, Union
 
 from ..load_module import load_module_from_py
 
 __all__ = ['open_config']
 
 
-def open_config(config_path: str | dict, is_yaml: bool = False) -> Tuple[dict, bool]:
+def open_config(config_path: Union[str, dict], is_yaml: bool = False) -> Tuple[dict, bool]:
     """根据文件路径载入配置树所在模块，并读取名为config的配置树。
 
     Args:

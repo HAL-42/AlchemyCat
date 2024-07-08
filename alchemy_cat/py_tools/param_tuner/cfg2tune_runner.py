@@ -32,8 +32,8 @@ class Cfg2TuneRunner(object):
     """Running cfg2tune"""
     def __init__(self, cfg2tune_py: str, config_root: str='./configs', experiment_root="experiment", pool_size: int=0,
                  metric_names: Optional[List[str]]=None,
-                 gather_metric_fn: Callable[[Config, str, ..., dict[str, tuple[..., str]]], dict[str, Any]]=None,
-                 work_fn: Callable[[tuple[int, tuple[Config, str, str]]], ...]=None):
+                 gather_metric_fn: Callable[[Config, str, Any, dict[str, tuple[Any, str]]], dict[str, Any]]=None,
+                 work_fn: Callable[[tuple[int, tuple[Config, str, str]]], Any]=None):
         """Running a cfg2tune.
 
         Args:
@@ -64,7 +64,7 @@ class Cfg2TuneRunner(object):
             self.metric_names = metric_names
 
         # * 所有参数组合+参数组合对应的metric。
-        self.param_combs: List[dict[str, tuple[..., str]]] = self.cfg2tune.param_combs
+        self.param_combs: List[dict[str, tuple[Any, str]]] = self.cfg2tune.param_combs
         self.metric_frame: Optional[pd.DataFrame] = None
 
         # * 每个配置的pkl及其对应的实验文件夹。
@@ -123,8 +123,8 @@ class Cfg2TuneRunner(object):
         Return subprocess.CompletedProcess. """
         raise NotImplementedError()
 
-    def register_work_fn(self, work_fn: Callable[[int, Config, str, str], ...]) \
-            -> Callable[[tuple[int, tuple[Config, str, str]]], ...]:
+    def register_work_fn(self, work_fn: Callable[[int, Config, str, str], Any]) \
+            -> Callable[[tuple[int, tuple[Config, str, str]]], Any]:
         """Register work_fn. Use as a decorator."""
         @wraps(work_fn)
         def wrapper(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir: tuple[int, tuple[Config, str, str]]):
@@ -150,7 +150,7 @@ class Cfg2TuneRunner(object):
 
             self.metric_frame.loc[tuple(val[1] for val in param_comb.values())] = metric
 
-    def gather_metric(self, cfg: Config, cfg_rslt_dir: str, run_rslt: Any, param_comb: dict[str, tuple[..., str]]) \
+    def gather_metric(self, cfg: Config, cfg_rslt_dir: str, run_rslt: Any, param_comb: dict[str, tuple[Any, str]]) \
             -> dict[str, Any]:
         """Given cfg_rslt_dir, run_stdout, param_comb, return {metric_name: metric}"""
         if self.gather_metric_fn is not None:
@@ -159,7 +159,7 @@ class Cfg2TuneRunner(object):
             raise NotImplementedError("gather_metric not implemented")
 
     def register_gather_metric_fn(self,
-                                  gather_metric_fn: Callable[[Config, str, ..., dict[str, tuple[..., str]]],
+                                  gather_metric_fn: Callable[[Config, str, Any, dict[str, tuple[Any, str]]],
                                                              dict[str, Any]]):
         """Register gather_metric_fn. Use as a decorator."""
         self.gather_metric_fn = gather_metric_fn

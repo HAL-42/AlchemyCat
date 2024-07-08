@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 # -* 项目基本信息。
 name = "alchemy_cat"
-version = "0.0.4"
+version = "0.0.5"
 authors = [
   { name="HAL_42", email="hal_42@zju.edu.cn" },
 ]
@@ -20,7 +20,7 @@ classifiers = [
 keywords = ["config", "deep learning", "parameter tuning", "hyperparameter"]
 
 # -* 依赖。
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 
 dependencies = [
     "numpy",
