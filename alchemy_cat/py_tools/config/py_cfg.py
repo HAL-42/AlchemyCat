@@ -476,6 +476,8 @@ class ADict(Dict):
         self._mount2parent()  # 挂载到父节点，确保设置总是有效。
         return self
 
+    override = set_whole
+
     @property
     def is_whole(self) -> bool:
         return self.get_attribute_default('_whole', False)
@@ -588,7 +590,7 @@ class ADict(Dict):
             # 若为_whole或有caps，则为ADict特殊树。特殊树要打印特殊属性。
             if ((isinstance(b, ADict) and b.is_whole) or
                     (isinstance(b, Config) and b.get_attribute('_cfgs_update_at_parser'))):
-                line = f"{name}.set_whole({b.is_whole})"  # 打印ADict的_whole属性，该操作还会确保树的存在。
+                line = f"{name}.override({b.is_whole})"  # 打印ADict的_whole属性，该操作还会确保树的存在。
                 # 若为Config且存在依赖，还要打印_cfgs_update_at_parser。
                 if isinstance(b, Config) and (caps := b.get_attribute('_cfgs_update_at_parser')):
                     line = line + f".set_attribute('_cfgs_update_at_parser', {caps})"

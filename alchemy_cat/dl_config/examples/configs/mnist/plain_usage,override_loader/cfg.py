@@ -4,6 +4,6 @@ from alchemy_cat.dl_config import Config
 
 cfg = Config(caps='configs/mnist/plain_usage/cfg.py')
 
-cfg.loader.ini.set_whole()
+cfg.loader.ini.override()
 cfg.loader.ini.shuffle = False
 cfg.loader.ini.drop_last = False
