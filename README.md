@@ -579,7 +579,7 @@ Run `python train.py --config 'configs/mnist/base,sched_from_addon,2xbs,2÷epo/c
 # Auto Parameter Tuning
 In the [example above](#full-example), running `python train.py --config path/to/cfg.py` each time yields an experimental result for a set of parameters.
 
-However, we often need to perform grid search over the parameter space to find the optimal parameter combination. Writing a config for each combination is laborious and error-prone. Can we define the entire parameter space in an "tunable config"? Then let the program automatically traverse all combinations, generate configs, run them, and summarize results for comparison.
+However, we often need to perform grid search over the parameter space to find the optimal parameter combination. Writing a config for each combination is laborious and error-prone. Can we define the entire parameter space in a "tunable config"? Then let the program automatically traverse all combinations, generate configs, run them, and summarize results for comparison.
 
 The auto-tuner traverses through tunable config's parameter combinations, generates `N` sub-configs, runs them to obtain `N` experimental records, and summarizes all experimental results into an Excel sheet:
 
@@ -694,7 +694,7 @@ The script performs these operations:
   - `cfg_pkl`: pickle save path for this sub-config
   - `cfg_rslt_dir`: experiment directory.
   Commonly, we only need to pass `cfg_pkl` as the config file into the training script, since `load_cfg` supports reading config in pickle format. For deep learning tasks, different `CUDA_VISIBLE_DEVICE` are needed for each task.
-* Registers a summary function that returns a experimental result as a `{metric_name: metric_value}` dictionary. The auto-tunner will traverse all experimental results and summary into a table. The summary function accepts these parameters:
+* Registers a summary function that returns an experimental result as a `{metric_name: metric_value}` dictionary. The auto-tunner will traverse all experimental results and summary into a table. The summary function accepts these parameters:
   - `cfg`: the sub-configuration
   - `cfg_rslt_dir`: experiment directory
   - `run_rslt`: returned from working functions
@@ -790,7 +790,7 @@ If `log_stdout=True`, `init_env` will fork `sys.stdout` and `sys.stderr` to the 
 Details can be found in the docstring of `init_env`.
 
 ## Attribute Dict
-If you are an user of [addict](https://github.com/mewwts/addict), our `ADict` can be used as a drop-in replacement for `addict.Dict`: `from alchemy_cat.dl_config import ADict as Dict`.
+If you are a user of [addict](https://github.com/mewwts/addict), our `ADict` can be used as a drop-in replacement for `addict.Dict`: `from alchemy_cat.dl_config import ADict as Dict`.
 
 `ADict` has all the interfaces of `addict.Dict`. However, all methods are re-implemented to optimize execution efficiency and cover more corner cases (such as circular references). `Config` is actually a subclass of `ADict`.
 
