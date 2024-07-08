@@ -11,7 +11,6 @@
 from .const import Const
 from .process_bar import ProcessBar
 from .quick_init import quick_init
-from .type import *
 from .timer import *
 from .func_tools import *
 from .str_formatters import *

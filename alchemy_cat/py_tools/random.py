@@ -13,7 +13,12 @@ import random
 from typing import Union
 
 import numpy as np
-import torch
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    torch = None
+    TORCH_AVAILABLE = False
 
 __all__ = ['hash_str', 'set_numpy_rand_seed', 'set_py_rand_seed', 'set_torch_rand_seed', 'set_rand_seed',
            'set_rand_seed_according_torch']
@@ -57,6 +62,8 @@ def set_torch_rand_seed(seed: Union[int, str]):
     Args:
         seed (Union[int, str]): int seed or str, which will be hashed to get int seed
     """
+    if not TORCH_AVAILABLE:
+        return
     if isinstance(seed, str):
         seed = hash_str(seed, dynamic=False)
     elif not isinstance(int(seed), int):
@@ -95,6 +102,8 @@ def set_rand_seed_according_torch():
     The rand seed of non-torch libs may duplicate in several dataloader worker processes.
     Use this function as dataloader's worker init function can solve this problem.
     """
+    if not TORCH_AVAILABLE:
+        raise ImportError("torch is not available")
     seed = torch.initial_seed()
     set_py_rand_seed(seed)
     set_numpy_rand_seed(seed)
