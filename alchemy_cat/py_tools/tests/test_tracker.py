@@ -18,7 +18,8 @@ from colorama import Style, Fore
 from alchemy_cat.contrib.voc import VOCAug, VOC_CLASSES
 from alchemy_cat.data.plugins.augers import scale_img_label
 from alchemy_cat.contrib.metrics import SegmentationMetric
-from alchemy_cat.py_tools import Tracker, Statistic, dict_with_arr_is_eq
+from alchemy_cat.py_tools.tracker import Tracker, Statistic
+from alchemy_cat.py_tools.type import dict_with_arr_is_eq
 
 kScaleFactor = 0.125
 

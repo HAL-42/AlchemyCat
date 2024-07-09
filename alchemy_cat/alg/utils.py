@@ -12,7 +12,7 @@ from collections.abc import Iterator
 
 from typing import Any, Tuple, Iterable, Callable, Union
 
-from alchemy_cat.py_tools import is_int, is_float, totuple
+from alchemy_cat.py_tools.type import is_int, is_float, totuple
 
 
 __all__ = ['accumulate', 'size2HW', 'color2scalar']

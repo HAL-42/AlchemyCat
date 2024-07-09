@@ -18,7 +18,8 @@ from torch.utils import data as torch_data
 
 from alchemy_cat.dag import Graph
 from alchemy_cat.data import Dataset
-from alchemy_cat.py_tools import is_int, indent
+from alchemy_cat.py_tools.str_formatters import indent
+from alchemy_cat.py_tools.type import is_int
 from alchemy_cat.alg import accumulate
 
 __all__ = ["RandMap", "MultiMap", "DataAuger"]

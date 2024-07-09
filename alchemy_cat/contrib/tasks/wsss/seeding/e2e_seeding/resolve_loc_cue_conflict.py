@@ -11,7 +11,7 @@
 from typing import List
 import numpy as np
 
-from alchemy_cat.py_tools import is_intarr
+from alchemy_cat.py_tools.type import is_intarr
 
 __all__ = ['resolve_loc_cue_conflict_by_priority', 'resolve_loc_cue_conflict_by_area_order']
 

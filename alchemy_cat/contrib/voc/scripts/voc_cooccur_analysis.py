@@ -13,7 +13,7 @@ from typing import Optional
 import numpy as np
 
 from alchemy_cat.contrib.voc import VOCAug, VOC_CLASSES
-from alchemy_cat.py_tools import tolist
+from alchemy_cat.py_tools.type import tolist
 
 kVOCSplit = 'train_aug'
 kForeClsNum = len(VOC_CLASSES[1:])
