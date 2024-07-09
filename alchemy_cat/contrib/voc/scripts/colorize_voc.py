@@ -52,11 +52,11 @@ def colorize_voc(source: str, target: str, num_workers: int=0, is_eval: bool=Fal
     if num_workers > 0:
         with mp.Pool(num_workers) as p:
             for _ in tqdm(p.imap_unordered(worker, label_files, chunksize=10), total=len(label_files),
-                          dynamic_ncols=True, desc="上色VOC", unit="张"):
+                          dynamic_ncols=True, desc="上色VOC", unit="张", miniters=len(label_files)//10):
                 pass
     else:
         for _ in tqdm(map(worker, label_files), total=len(label_files),
-                      dynamic_ncols=True, desc="上色VOC", unit="张"):
+                      dynamic_ncols=True, desc="上色VOC", unit="张", miniters=len(label_files)//10):
             pass
 
     if is_eval:
