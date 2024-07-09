@@ -26,7 +26,6 @@ dependencies = [
     "numpy",
     "tqdm",
     "colorama",
-    "addict>=2.4.0",
     "pandas",
     "openpyxl",
     "loguru",

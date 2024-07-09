@@ -20,7 +20,12 @@ else:  # 兼容Python<3.11。
     from typing import NoReturn as Never
     TypeAlias = Any
 
-from addict import Dict
+try:
+    from addict import Dict
+    DICT_AVAILABLE = True
+except ImportError:
+    Dict = dict
+    DICT_AVAILABLE = False
 
 from .open_cfg import open_config
 
@@ -228,7 +233,7 @@ class ADict(Dict):
             ret = memo[id(item)]
         elif isinstance(item, ADict):
             ret = item.to_dict(memo=memo)
-        elif isinstance(item, Dict):
+        elif DICT_AVAILABLE and isinstance(item, Dict):
             ret = item.to_dict()  # 兼容addict.Dict，但memo无法传递。
         elif cls._go_in_list and isinstance(item, list):  # 保持对称，若from_dict时list被视为普通值，则to_dict时也应该如此。
             ret = []
@@ -426,7 +431,7 @@ class ADict(Dict):
 
     def freeze(self, shouldFreeze=True) -> Self:
         for b in self.branches:
-            if isinstance(b, Dict):  # 将所有子树也冻结。
+            if isinstance(b, Dict if DICT_AVAILABLE else ADict):  # 将所有子树也冻结。
                 object.__setattr__(b, '__frozen', shouldFreeze)
         return self
 

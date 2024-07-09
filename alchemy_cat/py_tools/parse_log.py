@@ -14,7 +14,6 @@ from dataclasses import dataclass
 import re
 
 import numpy as np
-from addict import Dict
 
 __all__ = ['Field', 'find_fields_in_log']
 
@@ -27,7 +26,7 @@ class Field(object):
     val: Optional[list] = None
 
 
-def find_fields_in_log(log_file: str, fields: Dict, np_val: bool=False):
+def find_fields_in_log(log_file: str, fields: dict, np_val: bool=False):
     """在日志中找到指定字段的值。
 
     Args:
