@@ -8,12 +8,12 @@
 @Software: PyCharm
 @Desc    : 
 """
-from typing import Any, Union
+from typing import Any, Union, Final
 import os.path as osp
 
 __all__ = ['norm_param_name', 'name_param_val']
 
-kLongestParamStr = 75
+kLongestParamStr: Final[int] = 75
 
 
 def norm_param_name(name: str) -> str:

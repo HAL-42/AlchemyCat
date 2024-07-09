@@ -101,7 +101,8 @@ P_DEP = PL = ParamLazy
 class Cfg2Tune(Config):
     """Config to be tuned with parameters to be tuned."""
 
-    def __init__(self, *cfgs, cfgs_update_at_parser: Union[tuple, str]=(), caps: Union[tuple, str]=(), **kwargs):
+    def __init__(self, *cfgs: Union[dict, str],
+                 cfgs_update_at_parser: Union[tuple[str, ...], str]=(), caps: Union[tuple[str, ...], str]=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:

@@ -12,7 +12,7 @@ import copy
 import sys
 import warnings
 from keyword import iskeyword
-from typing import Callable, Any, TypeVar, Type, Generator, final, cast, Iterable, Union
+from typing import Callable, Any, TypeVar, Type, Generator, final, cast, Iterable, Union, ClassVar
 if sys.version_info >= (3, 11):
     from typing import Self, Never, TypeAlias
 else:  # 兼容Python<3.11。
@@ -115,7 +115,7 @@ DEP = IL = ItemLazy
 class ADict(Dict):
     """继承自addict.Dict，用作数据容器。修复了addict.Dict的诸多问题。"""
 
-    _go_in_list = True  # 构造时递归进入list。
+    _go_in_list: ClassVar[bool] = True  # 构造时递归进入list。
 
     # -* 构造与反构造。
 
@@ -615,11 +615,12 @@ class ADict(Dict):
 class Config(ADict):
     """配置字典。继承自Dict，从类型上和Addict区分，以便分离配置项和配置树。"""
 
-    _go_in_list = False  # 构造时不递归进入list。
+    _go_in_list: ClassVar[bool] = False  # 构造时不递归进入list。
 
     # -* Config的初始化与解析。
 
-    def __init__(self, *cfgs, cfgs_update_at_parser: Union[tuple, str]=(), caps: Union[tuple, str]=(), **kwargs):
+    def __init__(self, *cfgs: Union[dict, str],
+                 cfgs_update_at_parser: Union[tuple[str, ...], str]=(), caps: Union[tuple[str, ...], str]=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
