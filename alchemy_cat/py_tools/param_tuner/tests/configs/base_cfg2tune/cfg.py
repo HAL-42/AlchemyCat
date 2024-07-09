@@ -8,7 +8,10 @@
 @Software: PyCharm
 @Desc    : 
 """
-from addict import Dict
+try:
+    from addict import Dict
+except ImportError:
+    Dict = dict
 
 from alchemy_cat.py_tools import Config, Cfg2Tune
 

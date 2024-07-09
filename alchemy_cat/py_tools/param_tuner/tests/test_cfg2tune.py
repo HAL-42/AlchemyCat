@@ -16,7 +16,10 @@ import sys
 from typing import Optional
 
 import pytest
-from addict import Dict
+try:
+    from addict import Dict
+except ImportError:
+    Dict = dict
 
 sys.path = ['', 'py_tools/param_tuner/tests'] + sys.path  # noqa: E402
 
