@@ -12,7 +12,20 @@ import glob
 import json
 import pickle
 from os import path as osp
+from pathlib import Path
 from typing import Tuple, Union
+
+try:
+    from yacs.config import CfgNode, _assert_with_logging, _valid_type, _VALID_TYPES  # noqa
+    YACS_AVAILABLE = True
+except ImportError:
+    YACS_AVAILABLE = False
+
+try:
+    from mmengine import Config as MMConfig  # noqa
+    MM_AVAILABLE = True
+except ImportError:
+    MM_AVAILABLE = False
 
 from ..load_module import load_module_from_py
 
@@ -49,20 +62,16 @@ def open_config(config_path: Union[str, dict], is_yaml: bool = False) -> Tuple[d
     if (ext != '.py') and (not osp.isfile(config_path)):  # py文件找不到，可能是从其他路径导入。
         raise RuntimeError(f"No config file found at {config_path}")
 
-    is_py = False
+    is_py = True
     # * Read yml/yaml config
     if ext == '.yml' or ext == '.yaml':
         # * Read and set config
         import yaml
-        from yamlinclude import YamlIncludeConstructor
 
-        config_dir, _ = osp.split(config_path)
-        YamlIncludeConstructor.add_to_loader_class(loader_class=yaml.FullLoader, base_dir=config_dir)
-        with open(config_path, 'r') as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
+        config = yaml.safe_load(Path(config_path).read_text())
+        if not isinstance(config, dict):
+            raise ValueError(f"{config} should be a dict, but got {type(config)}")
     elif ext == '.py':
-        is_py = True
-        # * Return config
         cfg_module = load_module_from_py(config_path)
         if hasattr(cfg_module, 'config'):
             config: dict = cfg_module.config
@@ -70,15 +79,40 @@ def open_config(config_path: Union[str, dict], is_yaml: bool = False) -> Tuple[d
                 raise RuntimeError(f"Both 'config' and 'cfg' are defined in {cfg_module.__path__} but not the same.")
         elif hasattr(cfg_module, 'cfg'):
             config: dict = cfg_module.cfg
+        elif hasattr(cfg_module, 'get_cfg_defaults'):  # yacs兼容
+            config: dict = cfg_module.get_cfg_defaults()
+        elif MM_AVAILABLE:
+            mm_config: MMConfig = MMConfig.fromfile(config_path)
+            if hasattr(mm_config, 'to_dict'):
+                config: dict = mm_config.to_dict()
+            else:
+                config: dict = object.__getattribute__(mm_config, '_cfg_dict').to_dict()
         else:
-            raise ValueError(f"config module {cfg_module.__path__} must have 'config' or 'cfg' defined.")
+            raise ValueError(f"config module {cfg_module.__path__} must have 'config'/'cfg' defined, "
+                             f"or be a yacs or mmcv config.")
 
+        # -* 如果是yacs配置，则转为dict。
+        if YACS_AVAILABLE and isinstance(config, CfgNode):
+            def convert_to_dict(cfg_node, key_list):
+                if not isinstance(cfg_node, CfgNode):
+                    _assert_with_logging(
+                        _valid_type(cfg_node),
+                        "Key {} with value {} is not a valid type; valid types: {}".format(
+                            ".".join(key_list), type(cfg_node), _VALID_TYPES
+                        ),
+                    )
+                    return cfg_node
+                else:
+                    cfg_dict = dict(cfg_node)
+                    for k, v in cfg_dict.items():
+                        cfg_dict[k] = convert_to_dict(v, key_list + [k])
+                    return cfg_dict
+
+            config = convert_to_dict(config, [])
     elif ext == '.json':
-        is_py = True
         with open(config_path, 'r') as json_f:
             config = json.load(json_f)
     elif ext == ".pkl":
-        is_py = True
         with open(config_path, 'rb') as pkl_f:
             config: dict = pickle.load(pkl_f)
     else:

@@ -253,9 +253,7 @@ class Cfg2Tune(Config):
             cfg_save_dir = osp.join(cfg_dir, cfg.rslt_dir)
             os.makedirs(cfg_save_dir, exist_ok=True)
 
-            cfg_txt_file = osp.join(cfg_save_dir, 'cfg.txt')
-            with open(cfg_txt_file, 'w') as txt_f:
-                txt_f.write(cfg.to_txt(prefix='cfg.'))
+            cfg.save_py(osp.join(cfg_save_dir, 'cfg.log'))
 
             cfg_file = osp.join(cfg_save_dir, 'cfg.pkl')
             with open(cfg_file, 'wb') as pkl_f:

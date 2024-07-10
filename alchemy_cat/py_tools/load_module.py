@@ -13,7 +13,7 @@ from types import ModuleType
 import os.path as osp
 from importlib import import_module
 from importlib.util import spec_from_file_location, module_from_spec
-import traceback
+# import traceback
 import warnings
 
 __all__ = ['load_module_from_py']
@@ -51,7 +51,7 @@ def load_module_from_py(py: str, from_file: bool=False) -> ModuleType:
                 raise RuntimeError(f"Relative import is not supported yet. ")
             module = import_module(import_path)
         except Exception:
-            print(traceback.format_exc())
+            # print(traceback.format_exc())
             warnings.warn(f"未能用import_module导入{py},尝试直接执行文件。")
 
     if module is None:

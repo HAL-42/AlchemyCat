@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/alchemy-cat.svg)](https://badge.fury.io/py/alchemy-cat)
 
-![banner](docs/figs/dl_config_logo.png)
+![banner](https://raw.githubusercontent.com/HAL-42/AlchemyCat/master/docs/figs/dl_config_logo.png)
 
 <p align="center">
 <a href="README.md">English</a> | <a href="README_CN.md">中文</a>
@@ -719,7 +719,7 @@ Saving Metric Frame at /tmp/experiment/tune/tune_bs_epoch/metric_frame.xlsx
 ```
 As the prompt says, the tuning results will also be saved to the `/tmp/experiment/tune/tune_bs_epoch/metric_frame.xlsx` table:
 <p align = "center">
-<img  src="docs/figs/readme-cfg2tune-excel.png" width="400" />
+<img  src="https://github.com/HAL-42/AlchemyCat/raw/master/docs/figs/readme-cfg2tune-excel.png" width="400" />
 </p>
 
 **Best Practice: The auto-tuner is separate from the standard workflow. Write configs and code without considering it. When tuning, add extra code to define parameter space, specify invocation and result methods. After tuning, remove the auto-tuner, keeping only the best config and algorithm.**
