@@ -38,6 +38,38 @@ AlchemyCat 的独到之处在于：
 pip install alchemy-cat
 ```
 
+# 从 YAML / YACS / MMCV 迁移
+<details>
+<summary> 如何从 YAML / YACS / MMCV 迁移 </summary>
+
+σ`∀´)σ 开玩笑的啦！不需要迁移。AlchemyCat 支持直接读写 YAML、YACS、MMCV 配置文件：
+```python
+from alchemy_cat.dl_config import load_config, Config
+
+# READ YAML / YACS / MMCV config to alchemy_cat.Config
+cfg = load_config('path/to/yaml_config.yaml or yacs_config.py or mmcv_config.py')
+# Init alchemy_cat.Config with YAML / YACS / MMCV config
+cfg = Config('path/to/yaml_config.yaml or yacs_config.py or mmcv_config.py')
+# alchemy_cat.Config inherits from YAML / YACS / MMCV config
+cfg = Config(caps='path/to/yaml_config.yaml or yacs_config.py or mmcv_config.py')
+
+print(cfg.model.backbone)  # Access config item
+
+cfg.save_yaml('path/to/save.yaml')  # Save to YAML config
+cfg.save_mmcv('path/to/save.py')  # Save to MMCV config
+cfg.save_py('path/to/save.py')  # Save to AlchemyCat config
+```
+我们还提供了一个脚本，用于转换不同配置格式：
+```bash
+python -m alchemy_cat.dl_config.from_x_to_y --x X --y Y --y_type=yaml/mmcv/alchemy-cat
+```
+其中：
+* `--x`：源配置文件路径，可以是 YAML / YACS / MMCV / AlchemyCat 配置文件。
+* `--y`：目标配置文件路径。
+* `--y_type`：目标配置的格式，可以是 `yaml`、`mmcv` 或 `alchemy-cat`。
+
+</details>
+
 # 简单使用
 AlchemyCat 确保配置与实验一一对应，呈双射关系：
 ```text
@@ -722,6 +754,33 @@ Saving Metric Frame at /tmp/experiment/tune/tune_bs_epoch/metric_frame.xlsx
 </p>
 
 **最佳实践：自动调参机独立于标准工作流。在写配置和代码时，先不要考虑调参。调参时，再写一点点额外的代码，定义参数空间，指定算法的调用和结果的获取方式。调参完毕后，剥离调参机，只发布最优的配置和算法。**
+
+## 另一个例子：在 MMCV 中使用自动调参 
+<details>
+<summary> 与 MMCV 结合使用 </summary>
+
+AlchemyCat 支持直接读写 MMCV 配置，可调配置可以写作：
+
+```python
+from alchemy_cat.dl_config import Cfg2Tune, Param2Tune
+
+cfg = Cfg2Tune(caps='mmcv_configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb2-40k_cityscapes-512x1024.py')
+
+cfg.model.backbone.depth = Param2Tune([50, 101])
+cfg.train_cfg.max_iters = Param2Tune([10_000, 20_000])
+```
+
+在工作函数中，我们调用 MMCV 官方训练脚本`train.py`。由于`work`收到的`cfg`是 AlchemyCat 格式的，我们需要将其保存为 MMCV 格式的配置文件，再传递给`train.py`：
+
+```python
+@runner.register_work_fn  # How to run config
+def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str) -> ...:
+    cfg.save_mmcv(mmcv_cfg_file := 'path/to/mmcv_format_cfg.py')
+    subprocess.run([sys.executable, 'train.py', mmcv_cfg_file],
+                   env=os.environ | {'CUDA_VISIBLE_DEVICE': f'pkl_idx % torch.cuda.device_count()'})
+```
+
+</details>
 
 ## 本章小结
 * 可以在可调配置`Cfg2Tune`中，使用`Param2Tune`定义参数空间。

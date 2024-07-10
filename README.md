@@ -39,6 +39,39 @@ If you are already using a configuration system in the table, switching to Alche
 pip install alchemy-cat
 ```
 
+# Migrate from YAML / YACS / MMCV
+<details>
+<summary> How to migrate from YAML / YACS / MMCV </summary>
+
+σ`∀´)σ Just kidding! No migration is needed. AlchemyCat can direct read and write YAML / YACS / MMCV config files:
+
+```python
+from alchemy_cat.dl_config import load_config, Config
+
+# READ YAML / YACS / MMCV config to alchemy_cat.Config
+cfg = load_config('path/to/yaml_config.yaml or yacs_config.py or mmcv_config.py')
+# Init alchemy_cat.Config with YAML / YACS / MMCV config
+cfg = Config('path/to/yaml_config.yaml or yacs_config.py or mmcv_config.py')
+# alchemy_cat.Config inherits from YAML / YACS / MMCV config
+cfg = Config(caps='path/to/yaml_config.yaml or yacs_config.py or mmcv_config.py')
+
+print(cfg.model.backbone)  # Access config item
+
+cfg.save_yaml('path/to/save.yaml')  # Save to YAML config
+cfg.save_mmcv('path/to/save.py')  # Save to MMCV config
+cfg.save_py('path/to/save.py')  # Save to AlchemyCat config
+```
+We also provide a script to convert between different config formats:
+```bash
+python -m alchemy_cat.dl_config.from_x_to_y --x X --y Y --y_type=yaml/mmcv/alchemy-cat
+```
+where: 
+* `--x`: Source config file path, can be YAML / YACS / MMCV / AlchemyCat config.
+* `--y`: Target config file path.
+* `--y_type`: Target config format, can be `yaml`, `mmcv`, or `alchemy-cat`.
+
+</details>
+
 # Plain Usage
 AlchemyCat ensures a one-to-one correspondence between each configuration and its unique experimental record, with the bijective relationship ensuring the experiment's reproducibility.
 ```text
@@ -723,6 +756,33 @@ As the prompt says, the tuning results will also be saved to the `/tmp/experimen
 </p>
 
 **Best Practice: The auto-tuner is separate from the standard workflow. Write configs and code without considering it. When tuning, add extra code to define parameter space, specify invocation and result methods. After tuning, remove the auto-tuner, keeping only the best config and algorithm.**
+
+## Another Example: Using Auto-Tuner with MMCV
+<details>
+<summary> Using Auto-Tuner with MMCV </summary>
+
+AlchemyCat can directly read and write MMCV configs. Tunable config can be written as:
+
+```python
+from alchemy_cat.dl_config import Cfg2Tune, Param2Tune
+
+cfg = Cfg2Tune(caps='mmcv_configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb2-40k_cityscapes-512x1024.py')
+
+cfg.model.backbone.depth = Param2Tune([50, 101])
+cfg.train_cfg.max_iters = Param2Tune([10_000, 20_000])
+```
+
+In the work function, we call the MMCV official training script `train.py`. Since the `cfg` received by the `work` is in AlchemyCat format, we need to first save it to MMCV format config and then pass it to `train.py`:
+
+```python
+@runner.register_work_fn  # How to run config
+def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str) -> ...:
+    cfg.save_mmcv(mmcv_cfg_file := 'path/to/mmcv_format_cfg.py')
+    subprocess.run([sys.executable, 'train.py', mmcv_cfg_file],
+                   env=os.environ | {'CUDA_VISIBLE_DEVICE': f'pkl_idx % torch.cuda.device_count()'})
+```
+
+</details>
 
 ## Summary of This Chapter
 * Define a tunable config `Cfg2Tune` with `Param2Tune` to specify the parameter space.
