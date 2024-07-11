@@ -8,32 +8,46 @@
 @Software: PyCharm
 @Desc    : 
 """
+import os
 import os.path as osp
 import subprocess
+import sys
 from functools import wraps
 from multiprocessing import Pool
 from pprint import pprint
 from typing import List, Optional, Any, Callable
+
+if sys.version_info >= (3, 11):
+    from typing import TypeAlias
+else:  # 兼容Python<3.11。
+    TypeAlias = Any
 
 import pandas as pd
 from colorama import Style, Fore
 from openpyxl import load_workbook
 from tqdm import tqdm
 
-from ..logger import Logger
-from ..str_formatters import get_local_time_str
 from .cfg2tune import Cfg2Tune
 from ..config.py_cfg import Config
+from ..logger import Logger
+from ..str_formatters import get_local_time_str
+from ...cuda_tools import allocate_cuda_by_group_rank
 
 __all__ = ["Cfg2TuneRunner"]
+
+WORK_WRAPPER_INPUT_TYPE: TypeAlias = tuple[int, tuple[Config, str, str, dict[str, str]]]
+WORK_INPUT_TYPE: TypeAlias = tuple[int, Config, str, str, dict[str, str]]
+WORK_WRAPPER_TYPE: TypeAlias = Callable[[WORK_WRAPPER_INPUT_TYPE], Any]
+WORK_TYPE: TypeAlias = Callable[[int, Config, str, str, dict[str, str]], Any]
 
 
 class Cfg2TuneRunner(object):
     """Running cfg2tune"""
-    def __init__(self, cfg2tune_py: str, config_root: str='./configs', experiment_root="experiment", pool_size: int=0,
+    def __init__(self, cfg2tune_py: str, config_root: str='./configs', experiment_root="experiment",
+                 pool_size: int=0, work_gpu_num: int=None,
                  metric_names: Optional[List[str]]=None,
                  gather_metric_fn: Callable[[Config, str, Any, dict[str, tuple[Any, str]]], dict[str, Any]]=None,
-                 work_fn: Callable[[tuple[int, tuple[Config, str, str]]], Any]=None):
+                 work_fn: WORK_WRAPPER_TYPE=None):
         """Running a cfg2tune.
 
         Args:
@@ -41,14 +55,25 @@ class Cfg2TuneRunner(object):
             config_root: Root dir where configs store.
             experiment_root: Root dir where experiment results store.
             pool_size: Multiprocess' Pool size when running tuning work.
+            work_gpu_num: Number of GPUs in a group.
             metric_names: Name of metrics to be gathered.
         """
         self.cfg2tune_py = cfg2tune_py
         self.config_root = config_root
         self.experiment_root = experiment_root
-        self.pool_size = pool_size
         self.gather_metric_fn = gather_metric_fn
         self.work_fn = work_fn
+        self.work_gpu_num = work_gpu_num
+
+        # -* 解算pool_size。
+        if work_gpu_num is not None:
+            if 'CUDA_VISIBLE_DEVICES' not in os.environ:
+                raise ValueError("work_gpu_num is set, but CUDA_VISIBLE_DEVICES is not set.")
+            if pool_size != 0:
+                raise ValueError("work_gpu_num is set, pool size will be calculated. ")
+            self.pool_size = len(os.environ['CUDA_VISIBLE_DEVICES'].split(',')) // work_gpu_num
+        else:
+            self.pool_size = pool_size
 
         # * 加载Cfg2Tune。
         self.cfg2tune = Cfg2Tune.load_cfg2tune(cfg2tune_py, config_root)
@@ -75,6 +100,11 @@ class Cfg2TuneRunner(object):
         # * 保存每个配置的运行结果。
         self.run_rslts: List[subprocess.CompletedProcess] = []
 
+        # * 保存每个配置的运行环境。
+        # NOTE pool_size == 0时，将原样返回env。
+        self.cuda_envs = [allocate_cuda_by_group_rank(idx, group_num=self.pool_size, block=False, verbosity=False)[1]
+                          for idx in range(len(self.param_combs))]
+
     def build_metrics(self):
         """得到参数组合与metric frame。"""
         midx = pd.MultiIndex.from_tuples([tuple(val[1] for val in param_comb.values())
@@ -91,17 +121,17 @@ class Cfg2TuneRunner(object):
         """并行或串行地，根据每个配置，执行work函数。work函数内，应当完成一次实验。"""
         work = self.work_fn if self.work_fn is not None else self.work
 
+        work_inputs = enumerate(zip(self.cfgs, self.cfg_pkls, self.cfg_rslt_dirs, self.cuda_envs))
+
         if self.pool_size > 0:
             with Pool(self.pool_size) as p:
-                map_it = p.imap(work, enumerate(zip(self.cfgs, self.cfg_pkls, self.cfg_rslt_dirs)), chunksize=1)
+                map_it = p.imap(work, work_inputs, chunksize=1)
                 for run_rslt in tqdm(map_it, 'Tuning', len(self.cfg_pkls), unit='configs', dynamic_ncols=True):
                     self.run_rslts.append(run_rslt)
         else:
-            for pkl_idx, cfg_cfg_pkl_cfg_rslt_dir in tqdm(enumerate(zip(self.cfgs, self.cfg_pkls, self.cfg_rslt_dirs)),
-                                                           'Tuning', len(self.cfg_pkls),
-                                                           unit='configs', dynamic_ncols=True):
+            for work_input in tqdm(work_inputs, 'Tuning', len(self.cfg_pkls), unit='configs', dynamic_ncols=True):
                 try:
-                    run_rslt = work((pkl_idx, cfg_cfg_pkl_cfg_rslt_dir))
+                    run_rslt = work(work_input)
                 except subprocess.CalledProcessError as e:
                     print(f"Cfg2TuneRunner's work failed. The stdout and stderr of work are: ")
                     print(f"{e.stdout}\n\n{e.stderr}")
@@ -109,27 +139,26 @@ class Cfg2TuneRunner(object):
                 self.run_rslts.append(run_rslt)
 
     @staticmethod
-    def parse_work_param(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir: tuple[int, tuple[Config, str, str]])\
-            -> tuple[int, Config, str, str]:
-        """pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir"""
-        pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir
-        return pkl_idx, cfg, cfg_pkl, cfg_rslt_dir
+    def parse_work_param(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env: WORK_WRAPPER_INPUT_TYPE) -> WORK_INPUT_TYPE:
+        """pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir, cuda_env) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env"""
+        pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir, cuda_env) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env
+        return pkl_idx, cfg, cfg_pkl, cfg_rslt_dir, cuda_env
 
     @staticmethod
-    def work(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir: tuple[int, tuple[Config, str, str]]):
-        """pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir,
+    def work(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env: WORK_WRAPPER_INPUT_TYPE):
+        """pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir, cuda_env) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env,
         then run the config pkl with subprocess.
 
         Return subprocess.CompletedProcess. """
         raise NotImplementedError()
 
-    def register_work_fn(self, work_fn: Callable[[int, Config, str, str], Any]) \
-            -> Callable[[tuple[int, tuple[Config, str, str]]], Any]:
+    def register_work_fn(self, work_fn: WORK_TYPE) -> WORK_WRAPPER_TYPE:
         """Register work_fn. Use as a decorator."""
         @wraps(work_fn)
-        def wrapper(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir: tuple[int, tuple[Config, str, str]]):
-            pkl_idx, cfg, cfg_pkl, cfg_rslt_dir = Cfg2TuneRunner.parse_work_param(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir)
-            return work_fn(pkl_idx, cfg, cfg_pkl, cfg_rslt_dir)
+        def wrapper(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env: WORK_WRAPPER_INPUT_TYPE):
+            pkl_idx, cfg, cfg_pkl, cfg_rslt_dir, cuda_env = (
+                Cfg2TuneRunner.parse_work_param(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env))
+            return work_fn(pkl_idx, cfg, cfg_pkl, cfg_rslt_dir, cuda_env)
 
         self.work_fn = wrapper
 

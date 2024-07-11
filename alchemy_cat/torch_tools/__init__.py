@@ -14,7 +14,6 @@ from .intermediate_value_getter import *
 from .network import *
 from .val_env import *
 from .set_network import *
-from .cuda_tools import *
 from .swa import *
 from .dist_communication import *
 from .rng_cacher import *
