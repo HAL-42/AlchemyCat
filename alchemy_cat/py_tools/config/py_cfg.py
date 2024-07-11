@@ -10,11 +10,14 @@
 """
 import copy
 import os
+import pprint
 import sys
 import warnings
 from keyword import iskeyword
 from pathlib import Path
 from typing import Callable, Any, TypeVar, Type, Generator, final, cast, Iterable, Union, ClassVar, Literal
+
+from colorama import Fore, Style
 
 if sys.version_info >= (3, 11):
     from typing import Self, Never, TypeAlias
@@ -583,7 +586,13 @@ class ADict(Dict):
 
     # -* 打印。
 
-    def to_txt(self, prefix: str='dic.', print_empty_leaf: bool=False) -> str:
+    def to_txt(self, prefix: str='dic.', print_empty_leaf: bool=False, color: bool=False) -> str:
+        def cr(n: str, fore: str) -> str:
+            if color:
+                return f'{fore}{n}{Style.RESET_ALL}'
+            else:
+                return n
+
         if len(prefix) == 0:  # 为了可读性，禁止空前缀。
             raise ValueError("prefix should not be empty.")
 
@@ -591,14 +600,14 @@ class ADict(Dict):
             prefix = name2prefix(prefix)
 
         root_name = prefix2name(prefix)
-        lines = [f'{root_name} = {self.__class__.__name__}()']
+        lines = [f'{cr(root_name, Fore.MAGENTA)} = {self.__class__.__name__}()']
 
         # NOTE 特殊树在此处构造。
         for name, b in self._named_branches(self, name=root_name):
             # 若为_whole或有caps，则为ADict特殊树。特殊树要打印特殊属性。
             if ((isinstance(b, ADict) and b.is_whole) or
                     (isinstance(b, Config) and b.get_attribute('_cfgs_update_at_parser'))):
-                line = f"{name}.override({b.is_whole})"  # 打印ADict的_whole属性，该操作还会确保树的存在。
+                line = f"{cr(name, Fore.MAGENTA)}.override({b.is_whole})"  # 打印ADict的_whole属性，该操作还会确保树的存在。
                 # 若为Config且存在依赖，还要打印_cfgs_update_at_parser。
                 if isinstance(b, Config) and (caps := b.get_attribute('_cfgs_update_at_parser')):
                     line = line + f".set_attribute('_cfgs_update_at_parser', {caps})"
@@ -608,7 +617,11 @@ class ADict(Dict):
         lines.append('# ------- ↓ LEAVES ↓ ------- #')
 
         for name, (c, k, l) in self._named_ckl(self, prefix=prefix):
-            lines.append(f"{name} = {repr(l)}")
+            str_l = pprint.pformat(l)
+            if '\n' not in str_l:
+                lines.append(f"{cr(name, Fore.CYAN)} = {str_l}")
+            else:
+                lines.append(f"{cr(name, Fore.CYAN)} = \\ \n{str_l}")
 
         # NOTE 打印空树。
         if print_empty_leaf:
@@ -616,7 +629,7 @@ class ADict(Dict):
 
             for name, b in self._named_branches(self, name=root_name):
                 if (len(b) == 0) and (not (isinstance(b, ADict) and b.is_whole)):
-                    lines.append(f"{name} = {b.__class__.__name__}()")
+                    lines.append(f"{cr(name, Fore.YELLOW)} = {b.__class__.__name__}()")
 
         return '\n'.join(lines)
 
@@ -909,11 +922,11 @@ class Config(ADict):
 
     # -* 对Config，使用to_txt字符化。
 
-    def to_txt(self, prefix: str='cfg.', print_empty_leaf: bool=False) -> str:
-        return super().to_txt(prefix=prefix, print_empty_leaf=print_empty_leaf)
+    def to_txt(self, prefix: str='cfg.', print_empty_leaf: bool=False, color: bool=False) -> str:
+        return super().to_txt(prefix=prefix, print_empty_leaf=print_empty_leaf, color=color)
 
     def __str__(self) -> str:
-        return self.to_txt()
+        return self.to_txt(color=True)
 
     def save_py(self, file: Union[str, os.PathLike]) -> None:
         file = Path(file)
