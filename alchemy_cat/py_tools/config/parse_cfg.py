@@ -88,7 +88,7 @@ def _process_yaml_config(config: dict, experiments_root: str, create_rslt_dir: b
     return config
 
 
-def _process_py_config(config: dict, config_path: str, experiments_root: str, config_root: str,
+def _process_py_config(config: dict, config_path: Union[str, dict], experiments_root: str, config_root: str,
                        create_rslt_dir: bool=True):
     if isinstance(config, Config):
         # TODO 支持下级cfg删除上级cfg项。
@@ -99,19 +99,36 @@ def _process_py_config(config: dict, config_path: str, experiments_root: str, co
         # NOTE      b. IL函数无记忆，即多次调用，结果相同。
         # config.reduce_COM()
 
-    if config.get('rslt_dir', ...) is ...:
-        config['rslt_dir'] = auto_rslt_dir(config_path, config_root)
+    # -* 首先判断rslt_dir能否获取。
+    if not isinstance(config_path, dict):
+        rslt_dir_available = True
+    elif ('rslt_dir' in config) and config['rslt_dir'] is not ...:
+        rslt_dir_available = True
+    else:
+        rslt_dir_available = False
 
-    if experiments_root != '':
-        config['rslt_dir'] = osp.join(experiments_root, config['rslt_dir'])
+    # -* 若rslt_dir可获取，总是获取。
+    if rslt_dir_available:
+        if config.get('rslt_dir', ...) is ...:  # 计算rslt_dir。
+            config['rslt_dir'] = auto_rslt_dir(config_path, config_root)
+    
+        if experiments_root != '':  # 修正rslt_dir。
+            config['rslt_dir'] = osp.join(experiments_root, config['rslt_dir'])
 
-    if create_rslt_dir:
-        os.makedirs(config['rslt_dir'], exist_ok=True)
+        if create_rslt_dir:  # 创建rslt_dir。
+            os.makedirs(config['rslt_dir'], exist_ok=True)
+    # -* 若rslt_dir不可获取，但需要创建rslt_dir，则报错。
+    elif create_rslt_dir:
+        raise RuntimeError("When create_rslt_dir is True, should set cfg.rslt_dir or open config from file.")
+    # -* 若rslt_dir不可获取，但也不需要创建rslt_dir，则不做任何处理。
+    else:
+        warnings.warn("config is parsed but can't resolve its rslt_dir. That's unusual and should have better way."
+                      "However, since create_rslt_dir is False, it's not a error.")
 
     return config
 
 
-def parse_config(config_path: Union[str, dict], experiments_root: str=None, config_root: str='./configs',
+def parse_config(config_path: Union[str, dict], experiments_root: str='', config_root: str='./configs',
                  create_rslt_dir: bool=True) -> Config:
     """Parse config from config path.
 
@@ -126,30 +143,16 @@ def parse_config(config_path: Union[str, dict], experiments_root: str=None, conf
     Returns:
         YAML config in Addict format
     """
-    if create_rslt_dir and experiments_root is None:
-        # NOTE 如果需要创建rslt_dir，那么experiments_root必须提供。
-        # NOTE 相反，若之后experiments_root为None，肯定不需要创建rslt_dir，此时experiment_root只用于修正原来的rslt_dir。
-        # NOTE 因此，不妨在这种情况下，将experiments_root视作''。
-        raise ValueError("experiments_root must be provided when create_rslt_dir is True")
+    # NOTE experiment_root 默认为''，即不修正实验目录。此时该参数无任何影响。
 
     # * Open config, get config dict.
-    config, is_py = open_config(config_path, is_yaml=False)
-    if config is None:
-        raise RuntimeError(f"Failed to parse config at {config_path}")
-    if isinstance(config_path, dict):
-        # NOTE 当config_path是dict时，auto_rslt_dir不可为...——因为无法获取真正的config_path。
-        # NOTE 此时，需要确保config['rslt_dir']已经被赋值。
-        if not config.get('rslt_dir'):
-            raise RuntimeError(f"config should indicate result save dir at "
-                               f"config['rslt_dir'] = {config.get('rslt_dir')}")
-        if config['rslt_dir'] is ...:
-            raise RuntimeError(f"When config_path is dict, config['rslt_dir'] should not be ...")
+    config, is_py = open_config(config_path, is_yaml=False)  # NOTE config为dict类型是保证的。
 
     # * Create experiment dirs according to CONFIG
     if not is_py:
-        config = _process_yaml_config(config, '' if experiments_root is None else experiments_root, create_rslt_dir)
+        config = _process_yaml_config(config, experiments_root, create_rslt_dir)
     else:
-        config = _process_py_config(config, config_path, '' if experiments_root is None else experiments_root,
+        config = _process_py_config(config, config_path, experiments_root,
                                     config_root=config_root,
                                     create_rslt_dir=create_rslt_dir)
 
@@ -158,7 +161,7 @@ def parse_config(config_path: Union[str, dict], experiments_root: str=None, conf
     return Config.from_dict(config)
 
 
-def load_config(config_path: Union[str, dict], experiments_root: str=None, config_root: str='./configs',
+def load_config(config_path: Union[str, dict], experiments_root: str='', config_root: str='./configs',
                 create_rslt_dir: bool=True) -> Config:
     """Parse config then compute lazy items and freeze.
 

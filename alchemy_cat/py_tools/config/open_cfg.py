@@ -67,10 +67,7 @@ def open_config(config_path: Union[str, dict], is_yaml: bool = False) -> Tuple[d
     if ext == '.yml' or ext == '.yaml':
         # * Read and set config
         import yaml
-
         config = yaml.safe_load(Path(config_path).read_text())
-        if not isinstance(config, dict):
-            raise ValueError(f"{config} should be a dict, but got {type(config)}")
     elif ext == '.py':
         cfg_module = load_module_from_py(config_path)
         if hasattr(cfg_module, 'config'):
@@ -81,6 +78,8 @@ def open_config(config_path: Union[str, dict], is_yaml: bool = False) -> Tuple[d
             config: dict = cfg_module.cfg
         elif hasattr(cfg_module, 'get_cfg_defaults'):  # yacs兼容
             config: dict = cfg_module.get_cfg_defaults()
+        elif hasattr(cfg_module, '_C'):  # yacs兼容
+            config: dict = getattr(cfg_module, '_C')
         elif MM_AVAILABLE:
             mm_config: MMConfig = MMConfig.fromfile(config_path)
             if hasattr(mm_config, 'to_dict'):
@@ -117,4 +116,8 @@ def open_config(config_path: Union[str, dict], is_yaml: bool = False) -> Tuple[d
             config: dict = pickle.load(pkl_f)
     else:
         raise ValueError(f"config_path = {config_path} must be python, json, pkl, yml or yaml file.")
+
+    if not isinstance(config, dict):
+        raise ValueError(f"The opened {config_path} should be a dict, but got {type(config)}")
+
     return config, is_py

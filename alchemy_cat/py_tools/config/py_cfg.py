@@ -715,7 +715,7 @@ class Config(ADict):
         # * 将主配置树更新回当前配置树。
         self.dict_update(main_cfg)
 
-    def parse(self, experiments_root: str=None, config_root: str= './configs',
+    def parse(self, experiments_root: str='', config_root: str= './configs',
               create_rslt_dir: bool=True) -> Self:
         # TODO 避免循环导入。Ugly，更好的办法是将parse_cfg.py中的parse_config放到py_cfg.py中。
         from .parse_cfg import parse_config
@@ -724,7 +724,7 @@ class Config(ADict):
     def compute_item_lazy(self) -> Self:
         return ItemLazy.compute_item_lazy(self)
 
-    def load(self, experiments_root: str=None, config_root: str='./configs',
+    def load(self, experiments_root: str='', config_root: str='./configs',
              create_rslt_dir: bool=True) -> 'Config':
         # TODO 避免循环导入。Ugly，更好的办法是将parse_cfg.py中的load_config放到py_cfg.py中。
         from .parse_cfg import load_config
