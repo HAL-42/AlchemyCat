@@ -111,7 +111,7 @@ def _process_py_config(config: dict, config_path: Union[str, dict], experiments_
     if rslt_dir_available:
         if config.get('rslt_dir', ...) is ...:  # 计算rslt_dir。
             config['rslt_dir'] = auto_rslt_dir(config_path, config_root)
-    
+
         if experiments_root != '':  # 修正rslt_dir。
             config['rslt_dir'] = osp.join(experiments_root, config['rslt_dir'])
 
