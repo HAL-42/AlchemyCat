@@ -188,6 +188,7 @@ def test_tune_mm(mm_config2tune: Cfg2Tune, dump_py: Path):
     cfgs[0].save_mmcv(dump_py)
     mm_cfg0 = MMConfig.fromfile(str(dump_py))
     del mm_cfg0._cfg_dict['rslt_dir']
+    del mm_cfg0._cfg_dict['work_dir']
     assert mm_cfg0.model.backbone.depth == 50
     assert mm_cfg0.train_cfg.max_iters == 10_000
     mm_cfg0.model.backbone.depth = 50
@@ -197,6 +198,7 @@ def test_tune_mm(mm_config2tune: Cfg2Tune, dump_py: Path):
     cfgs[1].save_mmcv(dump_py)
     mm_cfg1 = MMConfig.fromfile(str(dump_py))
     del mm_cfg1._cfg_dict['rslt_dir']
+    del mm_cfg1._cfg_dict['work_dir']
     assert mm_cfg1.model.backbone.depth == 50
     assert mm_cfg1.train_cfg.max_iters == 20_000
     mm_cfg1.model.backbone.depth = 50
@@ -206,6 +208,7 @@ def test_tune_mm(mm_config2tune: Cfg2Tune, dump_py: Path):
     cfgs[2].save_mmcv(dump_py)
     mm_cfg2 = MMConfig.fromfile(str(dump_py))
     del mm_cfg2._cfg_dict['rslt_dir']
+    del mm_cfg2._cfg_dict['work_dir']
     assert mm_cfg2.model.backbone.depth == 101
     assert mm_cfg2.train_cfg.max_iters == 10_000
     mm_cfg2.model.backbone.depth = 50
@@ -215,6 +218,7 @@ def test_tune_mm(mm_config2tune: Cfg2Tune, dump_py: Path):
     cfgs[3].save_mmcv(dump_py)
     mm_cfg3 = MMConfig.fromfile(str(dump_py))
     del mm_cfg3._cfg_dict['rslt_dir']
+    del mm_cfg3._cfg_dict['work_dir']
     assert mm_cfg3.model.backbone.depth == 101
     assert mm_cfg3.train_cfg.max_iters == 20_000
     mm_cfg3.model.backbone.depth = 50
