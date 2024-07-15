@@ -63,23 +63,23 @@ class Cfg2TuneRunner(object):
         self.experiment_root = experiment_root
         self.gather_metric_fn = gather_metric_fn
         self.work_fn = work_fn
-        self.work_gpu_num = work_gpu_num
+        self.work_gpu_num = int(work_gpu_num)
 
         # -* 解算pool_size。
-        if work_gpu_num is not None:
+        if self.work_gpu_num is not None:
             if 'CUDA_VISIBLE_DEVICES' not in os.environ:
                 raise ValueError("work_gpu_num is set, but CUDA_VISIBLE_DEVICES is not set.")
             if pool_size != 0:
                 raise ValueError("work_gpu_num is set, pool size will be calculated. ")
-            self.pool_size = len(os.environ['CUDA_VISIBLE_DEVICES'].split(',')) // work_gpu_num
+            self.pool_size = len(os.environ['CUDA_VISIBLE_DEVICES'].split(',')) // self.work_gpu_num
         else:
-            self.pool_size = pool_size
+            self.pool_size = int(pool_size)
 
         # * 加载Cfg2Tune。
-        self.cfg2tune = Cfg2Tune.load_cfg2tune(cfg2tune_py, config_root)
+        self.cfg2tune = Cfg2Tune.load_cfg2tune(cfg2tune_py, experiments_root=experiment_root, config_root=config_root)
 
         # * 设置整个调参实验的结果文件夹。
-        self.rslt_dir = osp.join(experiment_root, self.cfg2tune.rslt_dir)
+        self.rslt_dir = self.cfg2tune.rslt_dir
 
         # * 获取指标名。
         if self.cfg2tune.metric_names:
@@ -115,7 +115,7 @@ class Cfg2TuneRunner(object):
     def set_cfgs(self):
         """将Cfg2Tune转存为pkl文件，并得到对应的实验文件夹。"""
         self.cfg_pkls, self.cfgs = self.cfg2tune.dump_cfgs(self.config_root)
-        self.cfg_rslt_dirs = [osp.join(self.rslt_dir, osp.basename(osp.dirname(cfg_pkl))) for cfg_pkl in self.cfg_pkls]
+        self.cfg_rslt_dirs = [cfg['rslt_dir'] for cfg in self.cfgs]
 
     def run_cfgs(self):
         """并行或串行地，根据每个配置，执行work函数。work函数内，应当完成一次实验。"""

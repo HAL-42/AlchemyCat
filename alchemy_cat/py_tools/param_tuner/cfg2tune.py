@@ -267,7 +267,7 @@ class Cfg2Tune(Config):
         return cfg_files, cfgs
 
     @staticmethod
-    def load_cfg2tune(cfg2tune_py: str, config_root: str='./configs') -> 'Cfg2Tune':
+    def load_cfg2tune(cfg2tune_py: str, experiments_root: str='', config_root: str='./configs') -> 'Cfg2Tune':
         """导入、运行含有config = Cfg2Tune()的py文件，返回该config。"""
         '''
         若config的值，或者其Param2Tune的可选值中含有函数（也就是说cfg_tuned值含有函数），如何确保函数被正确序列化与反序列化？
@@ -280,6 +280,7 @@ class Cfg2Tune(Config):
         cfg2tune, _ = cast(tuple[Cfg2Tune, bool], open_config(cfg2tune_py))
 
         if cfg2tune.get('rslt_dir', ...) is ...:
-            cfg2tune['rslt_dir'] = auto_rslt_dir(cfg2tune_py, config_root)
+            cfg2tune['rslt_dir'] = auto_rslt_dir(cfg2tune_py,
+                                                 experiments_root=experiments_root, config_root=config_root)
 
         return cfg2tune

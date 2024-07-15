@@ -32,11 +32,12 @@ def _check_emtpy_value(val: Any, memo: str='base.'):
         pass
 
 
-def auto_rslt_dir(file: str, config_root: str='./configs', trunc_cwd: bool=False) -> str:
+def auto_rslt_dir(file: str, experiments_root: str='', config_root: str='./configs', trunc_cwd: bool=False) -> str:
     """根据配置文件的__file__属性，自动返回配置文件的rslt_dir。
 
     Args:
         file: 配置文件的__file__属性。
+        experiments_root: 实验目录的根目录。
         config_root: 相对工作目录，路径之于配置目录者。
         trunc_cwd: 是否去掉当前工作目录。
 
@@ -44,9 +45,14 @@ def auto_rslt_dir(file: str, config_root: str='./configs', trunc_cwd: bool=False
         配置文件的rslt_dir，默认是__file__去掉配置目录和配置文件后的路径。
     """
     if not trunc_cwd:
-        return osp.dirname(osp.relpath(file, config_root))
+        rslt_dir = osp.dirname(osp.relpath(file, config_root))
     else:
-        return str(Path(file).relative_to(Path.cwd()).relative_to(config_root).parent)
+        rslt_dir = str(Path(file).relative_to(Path.cwd()).relative_to(config_root).parent)
+
+    if experiments_root != '':  # 修正rslt_dir。
+        rslt_dir = osp.join(experiments_root, rslt_dir)
+
+    return rslt_dir
 
 
 def _process_yaml_config(config: dict, experiments_root: str, create_rslt_dir: bool=True):
@@ -110,10 +116,7 @@ def _process_py_config(config: dict, config_path: Union[str, dict], experiments_
     # -* 若rslt_dir可获取，总是获取。
     if rslt_dir_available:
         if config.get('rslt_dir', ...) is ...:  # 计算rslt_dir。
-            config['rslt_dir'] = auto_rslt_dir(config_path, config_root)
-
-        if experiments_root != '':  # 修正rslt_dir。
-            config['rslt_dir'] = osp.join(experiments_root, config['rslt_dir'])
+            config['rslt_dir'] = auto_rslt_dir(config_path, config_root=config_root, experiments_root=experiments_root)
 
         if create_rslt_dir:  # 创建rslt_dir。
             os.makedirs(config['rslt_dir'], exist_ok=True)
