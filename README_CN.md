@@ -1,12 +1,31 @@
 # Alchemy Cat
 
-[![PyPI version](https://badge.fury.io/py/alchemy-cat.svg)](https://badge.fury.io/py/alchemy-cat)
+<p align="center">
 
-![banner](https://raw.githubusercontent.com/HAL-42/AlchemyCat/master/docs/figs/dl_config_logo.png)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/y/HAL-42/AlchemyCat)
+<img src="https://img.shields.io/github/stars/HAL-42/AlchemyCat?color=yellow" alt="Stars">
+<img src="https://img.shields.io/github/issues/HAL-42/AlchemyCat?color=red" alt="Issues">
+![GitHub License](https://img.shields.io/github/license/HAL-42/AlchemyCat?color=cyan)
+<br>
+[![PyPI version](https://badge.fury.io/py/alchemy-cat.svg)](https://badge.fury.io/py/alchemy-cat)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/alchemy-cat?color=yellow)
+<img src="https://img.shields.io/badge/python-3.9-purple.svg" alt="Python"> <br>
+
+</p>
 
 <p align="center">
 <a href="README.md">English</a> | <a href="README_CN.md">中文</a>
 </p>
+
+![banner](https://raw.githubusercontent.com/HAL-42/AlchemyCat/master/docs/figs/dl_config_logo.png)
+
+<p align="center">
+
+[介绍](#介绍) | [安装](#安装) | [迁移](#迁移) | [文档](#文档)
+
+</p>
+
+# <div align="center">🚀 介绍</div>
 
 <p align="center">
   AlchemyCat 为深度学习提供了一套先进的配置系统。<br> 语法<strong>简单优雅</strong>，支持继承、组合、依赖以<strong>最小化配置冗余</strong>，并支持<strong>自动调参</strong>。
@@ -33,12 +52,12 @@ AlchemyCat 的独到之处在于：
 
 如果您已经在使用上表中某个配置系统，迁移到 AlchemyCat 几乎是零成本的。花15分钟阅读下面的文档，并将 AlchemyCat 运用到项目中，从此你的GPU将永无空闲！
 
-# 安装
+# <div align="center">📦 安装</div>
 ```bash
 pip install alchemy-cat
 ```
 
-# 从 YAML / YACS / MMCV 迁移
+# <div align="center">🚚 迁移</div>
 <details>
 <summary> 如何从 YAML / YACS / MMCV 迁移 </summary>
 
@@ -70,7 +89,9 @@ python -m alchemy_cat.dl_config.from_x_to_y --x X --y Y --y_type=yaml/mmcv/alche
 
 </details>
 
-# 简单使用
+# <div align="center">📖 文档 </div>
+
+## 简单使用
 AlchemyCat 确保配置与实验一一对应，呈双射关系：
 ```text
 config C + algorithm code A ——> reproducible experiment E(C, A)
@@ -175,12 +196,12 @@ torch.save(model.state_dict(), f"{cfg.rslt_dir}/model_{epoch}.pth")  # Save all 
 
 加载出的`cfg`默认是只读的（`cfg.is_frozen == True`）。若要修改，用`cfg.unfreeze()`解冻`cfg`。
 
-## 本章小结
+### 本章小结
 * 配置文件提供一个`Config`对象`cfg`，其本质是一个树结构的嵌套字典，支持`.`操作读写。
 * `cfg`访问不存在的键时，返回一个一次性空字典，可将其视作`False`。
 * 使用`load_config`函数加载配置文件，实验目录会自动创建，其路径会赋值给`cfg.rslt_dir`。
 
-# 继承
+## 继承
 新配置可以继承已有的基配置，写作`cfg = Config(caps='base_cfg.py')`。新配置只需覆写或新增项目，其余项目将复用基配置。如对[基配置](alchemy_cat/dl_config/examples/configs/mnist/plain_usage/cfg.py)：
 ```python
 # -- [INCOMPLETE] configs/mnist/plain_usage/cfg.py --
@@ -278,12 +299,12 @@ cfg = Config(caps=('configs/mnist/plain_usage/cfg.py', 'alchemy_cat/dl_config/ex
 > 继承时，我们先拷贝整棵基配置树，再以新配置更新之，确保新配置和基配置的树结构相互隔离——即增、删、改新配置不会影响基配置。因此，更复杂继承关系，如菱形继承也是支持的，只是不太可读，不建议使用。\
 > 注意，叶结点的值被引用传递，原地修改将影响整条继承链。
 
-## 本章小结
+### 本章小结
 * 新配置借助继承来复用基配置，并覆写、新增一些配置项。
 * 新配置递归地更新基配置，使用`Config.override`可以退回到`dict.update`的更新方式。
 * `Config`支持链式继承和多继承，可实现更加细粒度的复用。
 
-# 依赖
+## 依赖
 [上一节](#继承)的例子中，修改新配置的批次大小时，学习率也随之改变。这种一个配置项随着另一个配置项的变化情况，称作“依赖”。
 
 修改某个配置项后，忘记修改它的依赖项，是非常常见的 bug。好在 AlchemyCat 可以定义依赖项，修改依赖的源头，所有依赖项将自动更新。[例如](alchemy_cat/dl_config/examples/configs/mnist/base/cfg.py)：
@@ -359,12 +380,12 @@ cfg.sched.main.ini.T_max = 27
 
 当依赖项依赖另一个依赖项时，必须按正确顺序计算它们。默认的计算顺序是定义顺序。`priority`参数可以人工指定计算顺序：`priority`越小，计算越早。譬如上面`cfg.sched.warm_epochs`被`cfg.sched.warm.ini.total_iters`依赖，后者又被`cfg.sched.main.ini.T_max`依赖，故他们的`priority`依次增加。
 
-## 本章小结
+### 本章小结
 * 当一个配置项依赖于另一项时，应定义其为依赖项。改变依赖源头，依赖项会根据计算函数自动计算。
 * 依赖项可以通过`DEP(...)`或`Config.set_DEP`装饰器定义。
 * 依赖项间相互依赖时，可通过`priority`参数指定解算顺序，否则按照定义顺序解算。
 
-# 组合
+## 组合
 组合是另一种复用配置的方式。预定义好的子配置树，可以像积木一样，组合出完整的配置。譬如，下面的[子配置树](alchemy_cat/dl_config/examples/configs/addons/linear_warm_cos_sched.py)定义了一套学习率策略：
 
 ```python
@@ -425,11 +446,10 @@ cfg.sched.main.ini.T_max = 27
 
 **最佳实践：组合和继承，其目的都是复用配置。组合更加灵活、低耦合，应当优先使用组合，尽量减少继承层次。**
 
-## 本章小结
+### 本章小结
 * 可以用预定义的子配置，组合出最终配置。
 
-# 完整样例
-
+## 完整样例
 
 <details>
 <summary> 展开完整样例 </summary>
@@ -605,7 +625,7 @@ if cfg.log:
 运行`python train.py --config 'configs/mnist/base,sched_from_addon,2xbs,2÷epo/cfg.py'`，将会按照配置文件中设置，使用`train.py`训练，并将结果保存到`/tmp/experiment/mnist/base,sched_from_addon,2xbs,2÷epo`目录中。
 </details>
 
-# 自动调参
+## 自动调参
 在[上面的例子](#完整样例)中，每运行一次`python train.py --config path/to/cfg.py`，就针对一组参数，得到一份对应的实验结果。
 
 然而，很多时候，我们需要网格搜索参数空间，寻找最优的参数组合。若为每一组参数组合都写一个配置，既辛苦也容易出错。那能不能在一个『可调配置』中，定义整个参数空间。随后让程序自动地遍历所有参数组合，对每组参数生成一个配置，运行配置，并汇总所有实验结果以供比较。
@@ -617,7 +637,7 @@ config to be tuned T ───> config C1 + algorithm code A ───> reproduc
                      ├──> config C2 + algorithm code A ───> reproducible experiment E1(C2, A) ──│ 
                     ...                                                                         ...
 ```
-## 可调配置
+### 可调配置
 使用自动调参机，首先需要写一个可调配置：
 ```python
 # -- configs/tune/tune_bs_epoch/cfg.py --
@@ -690,7 +710,7 @@ batch_size epochs  child_configs
 256        5       configs/tune/tune_bs_epoch,subject_to/batch_size=256,epochs=5/cfg.pkl
 ```
 
-## 运行自动调参机
+### 运行自动调参机
 我们还需要写一小段脚本来运行自动调参机：
 ```python
 # -- tune_train.py --
@@ -755,7 +775,7 @@ Saving Metric Frame at /tmp/experiment/tune/tune_bs_epoch/metric_frame.xlsx
 
 **最佳实践：自动调参机独立于标准工作流。在写配置和代码时，先不要考虑调参。调参时，再写一点点额外的代码，定义参数空间，指定算法的调用和结果的获取方式。调参完毕后，剥离调参机，只发布最优的配置和算法。**
 
-## 另一个例子：在 MMCV 中使用自动调参 
+### 另一个例子：在 MMCV 中使用自动调参 
 <details>
 <summary> 与 MMCV 结合使用 </summary>
 
@@ -782,16 +802,16 @@ def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str) -> ...:
 
 </details>
 
-## 本章小结
+### 本章小结
 * 可以在可调配置`Cfg2Tune`中，使用`Param2Tune`定义参数空间。
 * 自动调参机`Cfg2TuneRunner`会遍历参数空间，生成子配置，运行子配置，并汇总实验结果。
 
-# 进阶
+## 进阶
 
 <details>
 <summary> 展开进阶 </summary>
 
-## 美化打印
+### 美化打印
 `Config`的`__str__`方法被重载，以`.`分隔的键名，美观地打印树结构：
 
 ```text
@@ -826,7 +846,7 @@ cfg['Invalid Attribute Name'].foo = 10
 cfg.bar['def'] = {'a': 1, 'b': 2}
 ```
 
-## 自动捕获实验日志
+### 自动捕获实验日志
 对深度学习任务，我们建议用`init_env`代替`load_config`，在加载配置之余，`init_env`还可以初始化深度学习环境，譬如设置 torch 设备、梯度、随机种子、分布式训练：
 
 ```python
@@ -859,14 +879,14 @@ if __name__ == '__main__':
 
 更详细用法可参见`init_env`的 docstring。
 
-## 属性字典
+### 属性字典
 如果您是 [addict](https://github.com/mewwts/addict) 的用户，我们的`ADict`可以作为`addict.Dict`的 drop-in replacement：`from alchemy_cat.dl_config import ADict as Dict`。
 
 `ADict` 具备 `addict.Dict` 的所有接口，但重新实现了所有方法，优化了执行效率，覆盖了更多 corner case（如循环引用）。`Config`其实就是`ADict`的子类。
 
 如果您没有使用过`addict`，可以考虑阅读这份[文档](https://github.com/mewwts/addict)。研究型代码常常会传递复杂的字典结构，`addict.Dict`或`ADict`支持属性读写字典，非常适合处理嵌套字典。
 
-## 循环引用
+### 循环引用
 `ADict`和`Config`的初始化、继承、组合需要用到一种名为`branch_copy`的操作，其介于浅拷贝和深拷贝之间，即拷贝树结构，但不拷贝叶节点。`ADict.copy`，`Config.copy`，`copy.copy(cfg)`均会调用`branch_copy`，而非`dict`的`copy`方法。
 
 理论上`ADict.branch_copy`能够处理循环引用情况，譬如：
@@ -891,7 +911,7 @@ True
 
 总而言之，尽管循环引用是被支持的，不过即没有必要，也不推荐使用。
 
-## 遍历配置树
+### 遍历配置树
 `Config.named_branches`和`Config.named_ckl`分别遍历配置树的所有分支和叶节点（所在的分支、键名和值）：
 ```text
 >>> list(cfg.named_branches) 
@@ -908,7 +928,7 @@ True
 [({'a': 1}, 'a', 1), ({'b': ['str1', 'str2']}, 'b', ['str1', 'str2'])]
 ```
 
-## 惰性继承
+### 惰性继承
 ```text
 >>> from alchemy_cat.dl_config import Config
 >>> cfg = Config(caps='configs/mnist/base,sched_from_addon/cfg.py')
@@ -924,12 +944,12 @@ cfg.sched.epochs = 15
 ```
 继承时，父配置`caps`不会被立即更新过来，而是等到`load_config`时才会被加载。惰性继承使得配置系统可以鸟瞰整条继承链，少数功能有赖于此。
 
-## 协同Git
+### 协同Git
 由于`config C + algorithm code A ——> reproducible experiment E(C, A)`，意味着当配置`C`和算法代码`A`确定时，总是能复现实验`E`。因此，建议将配置文件和算法代码一同提交到 Git 仓库中，以便日后复现实验。
 
 我们还提供了一个[脚本](alchemy_cat/torch_tools/scripts/tag_exps.py)，运行`pyhon -m alchemy_cat.torch_tools.scripts.tag_exps -s commit_ID -a commit_ID`，将交互式地列出该 commit 新增的配置，并按照配置路径给 commit 打上标签。这有助于快速回溯历史上某个实验的配置和算法。
 
-## 为子任务手动分配显卡
+### 为子任务手动分配显卡
 `Cfg2TuneRunner`的`work`函数有时需要为子进程分配显卡。除了使用`cuda_env`参数，还可以使用`allocate_cuda_by_group_rank`，根据`pkl_idx`手动分配空闲显卡，：
 ```python
 from alchemy_cat.cuda_tools import allocate_cuda_by_group_rank
@@ -947,19 +967,19 @@ def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str, cuda_env: d
 
 返回值`current_cudas`是一个列表，包含了分配的显卡号。`env_with_current_cuda`是设置了`CUDA_VISIBLE_DEVICES`的环境变量字典，可直接传入`subprocess.run`的`env`参数。
 
-## 匿名函数无法 pickle 问题
+### 匿名函数无法 pickle 问题
 `Cfg2Tune`生成的子配置会被 pickle 保存。然而，若`Cfg2Tune`定义了形似`DEP(lambda c: ...)`的依赖项，所存储的匿名函数无法被 pickle。变通方法有：
 * 配合装饰器`@Config.set_DEP`，将依赖项的计算函数定义为一个全局函数。
 * 将依赖项的计算函数定义在一个独立的模块中，然后再传递给`DEP`。
 * 在父配置`caps`中定义依赖项。由于继承的处理是惰性的，`Cfg2Tune`生成的子配置暂时不包含依赖项。
 * 如果依赖源是可调参数，可使用特殊的依赖项`P_DEP`，它将于`Cfg2Tune`生成子配置后、保存为 pickle 前解算。
 
-## 关于继承的更多技巧
+### 关于继承的更多技巧
 
-### 继承时删除
+#### 继承时删除
 `Config.empty_leaf()`结合了`Config.clear()`和`Config.override()`，可以得到一棵空且 "override" 的子树。这常用于在继承时表示『删除』语义，即用一个空配置，覆盖掉基配置的某颗子配置树。
 
-### `update`方法
+#### `update`方法
 `cfg`是一个`Config`实例，`base_cfg`是一个`dict`实例，`cfg.dict_update(base_cfg)`、`cfg.update(base_cfg)`、`cfg |= base_cfg`的效果与让`Config(base_cfg)`继承`cfg`类似。
 
 `cfg.dict_update(base_cfg, incremental=True)`则确保只做增量式更新——即只会增加`cfg`中不存在的键，而不会覆盖已有键。

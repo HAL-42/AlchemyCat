@@ -1,12 +1,31 @@
 # Alchemy Cat
 
-[![PyPI version](https://badge.fury.io/py/alchemy-cat.svg)](https://badge.fury.io/py/alchemy-cat)
+<p align="center">
 
-![banner](https://raw.githubusercontent.com/HAL-42/AlchemyCat/master/docs/figs/dl_config_logo.png)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/y/HAL-42/AlchemyCat)
+<img src="https://img.shields.io/github/stars/HAL-42/AlchemyCat?color=yellow" alt="Stars">
+<img src="https://img.shields.io/github/issues/HAL-42/AlchemyCat?color=red" alt="Issues">
+![GitHub License](https://img.shields.io/github/license/HAL-42/AlchemyCat?color=cyan)
+<br>
+[![PyPI version](https://badge.fury.io/py/alchemy-cat.svg)](https://badge.fury.io/py/alchemy-cat)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/alchemy-cat?color=yellow)
+<img src="https://img.shields.io/badge/python-3.9-purple.svg" alt="Python"> <br>
+
+</p>
 
 <p align="center">
 <a href="README.md">English</a> | <a href="README_CN.md">中文</a>
 </p>
+
+![banner](https://raw.githubusercontent.com/HAL-42/AlchemyCat/master/docs/figs/dl_config_logo.png)
+
+<p align="center">
+
+[Introduction](#Introduction) | [Installation](#Installation) | [Migration](#Migration) | [Documentation](#Documentation)
+
+</p>
+
+# <div align="center">🚀 Introduction</div>
 
 <p align="center">
 AlchemyCat is an advanced config system for deep learning. <br> 
@@ -34,12 +53,12 @@ AlchemyCat distinguishes itself by:
 
 If you are already using a configuration system in the table, switching to AlchemyCat is almost cost-free. Spend 15 minutes reading the documentation and apply AlchemyCat to your project—your GPU will always be busy!
 
-# Installation
+# <div align="center">📦 Installation</div>
 ```bash
 pip install alchemy-cat
 ```
 
-# Migrate from YAML / YACS / MMCV
+# <div align="center">🚚 Migration</div>
 <details>
 <summary> How to migrate from YAML / YACS / MMCV </summary>
 
@@ -72,7 +91,9 @@ where:
 
 </details>
 
-# Plain Usage
+# <div align="center">📖 Documentation </div>
+
+## Plain Usage
 AlchemyCat ensures a one-to-one correspondence between each configuration and its unique experimental record, with the bijective relationship ensuring the experiment's reproducibility.
 ```text
 config C + algorithm code A ——> reproducible experiment E(C, A)
@@ -179,12 +200,12 @@ The `load_config` imports `cfg` from `configs/mnist/base/cfg.py`, handling inher
 
 The loaded `cfg` is read-only by default (`cfg.is_frozen == True`). To modify, unfreeze `cfg` with `cfg.unfreeze()`.
 
-## Summary of This Chapter
+### Summary of This Chapter
 * The config file offers a `Config` object `cfg`, a nested dictionary with a tree structure, allowing read and write via the `.` operator.
 * Accessing non-existent keys in `cfg` returns a one-time empty dictionary considered as `False`.
 * Use `load_config` to load the config file. The experiment path will be auto created and assigned to `cfg.rslt_dir`.
 
-# Inheritance
+## Inheritance
 The new config can inherit the existing base config, written as `cfg = Config(caps='base_cfg.py')`. The new config only needs to override or add items, with rest items reusing the base config. For example, with [base config](alchemy_cat/dl_config/examples/configs/mnist/plain_usage/cfg.py):
 ```python
 # -- [INCOMPLETE] configs/mnist/plain_usage/cfg.py --
@@ -282,12 +303,12 @@ cfg = Config(caps=('configs/mnist/plain_usage/cfg.py', 'alchemy_cat/dl_config/ex
 > We copy the base config tree and update it with the new config, ensuring isolation between them. This means changes to the new config do not affect the base. Complex inheritance like diamond inheritance is supported but not recommended due to readability issues. \
 > Note that leaf node values are passed by reference; modifying them inplace will affect the entire inheritance chain.
 
-## Summary of This Chapter
+### Summary of This Chapter
 * The new config can leverage inheritance to reuse the base config and modifies or adds some items.
 * The new config updates the base config recursively. Use `Config.override` to revert to the `dict.update` method for updates.
 * `Config` supports chain and multiple inheritance, allowing for more fine-grained reuse.
 
-# Dependency
+## Dependency
 In the [previous](#inheritance) example, changing the batch size in the new configuration also alters the learning rate. This interdependence is called "dependency."
 
 When modifying a config item, it's common to forget its dependencies. AlchemyCat lets you define dependencies, changing the dependency source updates all dependent items automatically. [For example](alchemy_cat/dl_config/examples/configs/mnist/base/cfg.py):
@@ -364,12 +385,12 @@ The dependency `cfg.sched.warm_epochs` is defined using the `Config.set_DEP` dec
 
 When a dependency relies on another dependency, they must be computed in the correct order. By default, this is the defined order. The `priority` parameter can specify computation order: smaller `priority` compute earlier. For instance, `cfg.sched.warm_epochs` depended by `cfg.sched.warm.ini.total_iters`, which is depended by `cfg.sched.main.ini.T_max`, so their `priority` increase sequentially.
 
-## Summary of This Chapter
+### Summary of This Chapter
 * A dependency is defined when one config item relies on another. Changing the dependency source will automatically recalculate the dependency based on the calculation function.
 * Dependencies can be defined by `DEP(...)` or the `Config.set_DEP` decorator.
 * If dependencies are interdependent, use the `priority` parameter to specify the computation order; otherwise, they resolve in the order of definition.
 
-# Composition
+## Composition
 Composition allows reusing configs by compose predefined config subtrees to form a complete config. For instance, the following [config subtree](alchemy_cat/dl_config/examples/configs/addons/linear_warm_cos_sched.py) defines a learning rate strategy: 
 
 ```python
@@ -431,10 +452,10 @@ It looks very simple! Just assign/mount the predefined config sub-subtree to the
 
 **Best Practice: Both composition and inheritance aim to reuse config. Composition is more flexible and loosely coupled, so it should be prioritized over inheritance.**
 
-## Summary of This Chapter
+### Summary of This Chapter
 * Define config subtree and compose them to create a complete config.
 
-# Full Example
+## Full Example
 
 <details>
 <summary> Expand full example </summary>
@@ -609,7 +630,7 @@ if cfg.log:
 Run `python train.py --config 'configs/mnist/base,sched_from_addon,2xbs,2÷epo/cfg.py'`, and it will use the settings in the config file to train with `train.py` and save the results to the `/tmp/experiment/mnist/base,sched_from_addon,2xbs,2÷epo` directory.
 </details>
 
-# Auto Parameter Tuning
+## Auto Parameter Tuning
 In the [example above](#full-example), running `python train.py --config path/to/cfg.py` each time yields an experimental result for a set of parameters.
 
 However, we often need to perform grid search over the parameter space to find the optimal parameter combination. Writing a config for each combination is laborious and error-prone. Can we define the entire parameter space in a "tunable config"? Then let the program automatically traverse all combinations, generate configs, run them, and summarize results for comparison.
@@ -622,7 +643,7 @@ config to be tuned T ───> config C1 + algorithm code A ───> reproduc
                      ├──> config C2 + algorithm code A ───> reproducible experiment E1(C2, A) ──│ 
                     ...                                                                         ...
 ```
-## Tunable Config
+### Tunable Config
 To use the auto-tuner, we first need to write a tunable config:
 ```python
 # -- configs/tune/tune_bs_epoch/cfg.py --
@@ -694,7 +715,7 @@ batch_size epochs  child_configs
 256        5       configs/tune/tune_bs_epoch,subject_to/batch_size=256,epochs=5/cfg.pkl
 ```
 
-## Running auto-tuner
+### Running auto-tuner
 We also need to write a small script to run the auto-tuner:
 ```python
 # -- tune_train.py --
@@ -758,7 +779,7 @@ As the prompt says, the tuning results will also be saved to the `/tmp/experimen
 
 **Best Practice: The auto-tuner is separate from the standard workflow. Write configs and code without considering it. When tuning, add extra code to define parameter space, specify invocation and result methods. After tuning, remove the auto-tuner, keeping only the best config and algorithm.**
 
-## Another Example: Using Auto-Tuner with MMCV
+### Another Example: Using Auto-Tuner with MMCV
 <details>
 <summary> Using Auto-Tuner with MMCV </summary>
 
@@ -785,16 +806,16 @@ def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str) -> ...:
 
 </details>
 
-## Summary of This Chapter
+### Summary of This Chapter
 * Define a tunable config `Cfg2Tune` with `Param2Tune` to specify the parameter space.
 * Use the auto-tuner `Cfg2TuneRunner` to traverse the parameter space, generate sub-configs, run them, and summarize the results.
 
-# Advanced Usage
+## Advanced Usage
 
 <details>
 <summary> Expand advanced usage </summary>
 
-## Pretty Print
+### Pretty Print
 The `__str__` method of `Config` is overloaded to print the tree structure with keys separated by `.`:
 
 ```text
@@ -829,7 +850,7 @@ cfg['Invalid Attribute Name'].foo = 10
 cfg.bar['def'] = {'a': 1, 'b': 2}
 ```
 
-## Auto Capture Experiment Logs
+### Auto Capture Experiment Logs
 For deep learning tasks, we recommend using `init_env` instead of `load_config`. In addition to loading the config, `init_env` can also initialize the deep learning environment, such as setting the torch device, gradient, random seed, and distributed training:
 
 ```python
@@ -862,14 +883,14 @@ If `log_stdout=True`, `init_env` will fork `sys.stdout` and `sys.stderr` to the 
 
 Details can be found in the docstring of `init_env`.
 
-## Attribute Dict
+### Attribute Dict
 If you are a user of [addict](https://github.com/mewwts/addict), our `ADict` can be used as a drop-in replacement for `addict.Dict`: `from alchemy_cat.dl_config import ADict as Dict`.
 
 `ADict` has all the interfaces of `addict.Dict`. However, all methods are re-implemented to optimize execution efficiency and cover more corner cases (such as circular references). `Config` is actually a subclass of `ADict`.
 
 If you haven't used `addict` before, read this [documentation](https://github.com/mewwts/addict). Research code often involves complex dictionaries. `addict.Dict` or `ADict` supports attribute-style access for nested dictionaries.
 
-## Circular References
+### Circular References
 The initialization, inheritance, and composition of `ADict` and `Config` require a `branch_copy` operation, which is between shallow and deep copy, that is, copying the tree structure but not the leaf nodes. `ADict.copy`, `Config.copy`, and `copy.copy(cfg)` all call `branch_copy`, not the `copy` method of `dict`.
 
 In theory, `ADict.branch_copy` can handle circular references, such as:
@@ -894,7 +915,7 @@ Different from `ADict`, the data model of `Config` is a bidirectional tree, and 
 
 In summary, although circular references are supported, they are neither necessary nor recommended.
 
-## Traverse the Config Tree
+### Traverse the Config Tree
 `Config.named_branchs` and `Config.named_ckl` respectively traverse all branches and leaves of the config tree (the branch, key name, and value they are in):
 ```text
 >>> list(cfg.named_branches) 
@@ -911,7 +932,7 @@ In summary, although circular references are supported, they are neither necessa
 [({'a': 1}, 'a', 1), ({'b': ['str1', 'str2']}, 'b', ['str1', 'str2'])]
 ```
 
-## Lazy Inheritance
+### Lazy Inheritance
 ```text
 >>> from alchemy_cat.dl_config import Config
 >>> cfg = Config(caps='configs/mnist/base,sched_from_addon/cfg.py')
@@ -927,7 +948,7 @@ cfg.sched.epochs = 15
 ```
 When inheriting, the parent configs `caps` is not immediately updated, but is loaded when `load_config` is called. Lazy inheritance allows the config system to have an eager-view of the entire inheritance chain, and a few features rely on this.
 
-## Work with Git
+### Work with Git
 
 For `config C + algorithm code A ——> reproducible experiment E(C, A)`, meaning that when the config `C` and the algorithm code `A` are determined, the experiment `E` can always be reproduced. Therefore, it is recommended to submit the configuration file and algorithm code to the Git repository together for reproducibility.
 
@@ -951,19 +972,19 @@ def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str, cuda_env: d
 
 The return value `current_cudas` is a list containing the allocated GPU numbers. `env_with_current_cuda` is an environment variable dictionary with `CUDA_VISIBLE_DEVICES` set, which can be passed directly to the `env` parameter of `subprocess.run`.
 
-## Pickling Lambda Functions
+### Pickling Lambda Functions
 Sub-configs generated by `Cfg2Tune` will be saved using pickle. However, if `Cfg2Tune` defines dependencies as `DEP(lambda c: ...)`, these lambda functions cannot be pickled. Workarounds include:
 * Using the decorator `@Config.set_DEP` to define the dependency's computation function.
 * Defining the dependency's calculation function in a separate module and passing it to `DEP`.
 * Defining dependencies in the parent configs since inheritance is handled lazily, so sub-configs temporarily exclude dependencies.
 * If the dependency source is a tunable parameter, use `P_DEP`, which resolves after generating sub-configs of `Cfg2Tune` but before saving them as pickle.
 
-## More Inheritance Tricks
+### More Inheritance Tricks
 
-### Deleting During Inheritance
+#### Deleting During Inheritance
 The `Config.empty_leaf()` combines `Config.clear()` and `Config.override()` to get an empty and "override" subtree. This is commonly used to represent the "delete" semantics during inheritance, that is, using an empty config to override a subtree of the base config.
 
-### `update` Method
+#### `update` Method
 Let `cfg` be a `Config` instance and `base_cfg` be a `dict` instance. The effects of `cfg.dict_update(base_cfg)`, `cfg.update(base_cfg)`, and `cfg |= base_cfg` are similar to inheriting `Config(base_cfg)` from `cfg`.
 
 Run `cfg.dict_update(base_cfg, incremental=True)` to ensure only incremental updates, that is, only add keys that do not exist in `cfg` without overwriting existing keys.
