@@ -13,12 +13,13 @@ from pathlib import Path
 
 import pytest
 
-from alchemy_cat.py_tools import Config, load_config, open_config, Cfg2Tune, Param2Tune
+from alchemy_cat.py_tools import Config, load_config, open_config, Cfg2TuneRunner
 
 YAML_CFG = 'py_tools/config/tests/migrate/yaml.yaml'
 YACS_CFG = 'py_tools/config/tests/migrate/yacs_cfg.py'
 YACS_GET_CFG = 'py_tools/config/tests/migrate/yacs_get.py'
-MM_CFG = 'py_tools/config/tests/migrate/mm_configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb2-40k_cityscapes-512x1024.py'
+MM_CFG = 'py_tools/config/tests/migrate/mm_configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb4-40k_voc12aug-512x512.py'
+MM_CFG2TUNE = 'py_tools/config/tests/migrate/mm_configs/d3p/tune_sched/cfg.py'
 AC_CFG = 'py_tools/config/tests/migrate/ac_cfg.py'
 
 sys.path = ['', 'py_tools/config/tests'] + sys.path
@@ -65,12 +66,11 @@ def dump_yaml():
 
 
 @pytest.fixture(scope='function')
-def mm_config2tune():
-    cfg = Cfg2Tune(caps=MM_CFG)
-    cfg.rslt_dir = 'xxx'
-    cfg.model.backbone.depth = Param2Tune([50, 101])
-    cfg.train_cfg.max_iters = Param2Tune([10_000, 20_000])
-    yield cfg
+def mm_cfg2tune_cfgs():
+    runner = Cfg2TuneRunner(MM_CFG2TUNE,
+                            config_root='py_tools/config/tests/migrate/mm_configs',
+                            experiment_root='/tmp/mm_exp')
+    yield list(runner.cfg2tune.get_cfgs())
 
 
 @pytest.mark.skipif(not is_yaml(), reason="yaml is not installed")
@@ -178,49 +178,63 @@ def test_to_mm(dump_py: Path):
 
 
 @pytest.mark.skipif(not is_mm(), reason="mmengine is not installed")
-def test_tune_mm(mm_config2tune: Cfg2Tune, dump_py: Path):
+def test_tune_mm(mm_cfg2tune_cfgs, dump_py: Path):
     from mmengine import Config as MMConfig
 
     mm_cfg = MMConfig.fromfile(MM_CFG)
 
-    cfgs = list(mm_config2tune.get_cfgs())
+    def compare_with_origin(mm_cfg_n):
+        del mm_cfg_n._cfg_dict['rslt_dir']
+        del mm_cfg_n._cfg_dict['work_dir']
 
-    cfgs[0].save_mmcv(dump_py)
+        mm_cfg_n.model.auxiliary_head.loss_decode.loss_weight = 0.4
+        mm_cfg_n.train_cfg.max_iters = 40_000
+        mm_cfg_n.train_dataloader.batch_size = 4
+        mm_cfg_n.optim_wrapper.optimizer.lr = 0.01
+        mm_cfg_n.param_scheduler[0]['end'] = 40_000
+
+        assert mm_cfg_n._cfg_dict == mm_cfg._cfg_dict
+
+    mm_cfg2tune_cfgs[0].save_mmcv(dump_py)
     mm_cfg0 = MMConfig.fromfile(str(dump_py))
-    del mm_cfg0._cfg_dict['rslt_dir']
-    del mm_cfg0._cfg_dict['work_dir']
-    assert mm_cfg0.model.backbone.depth == 50
-    assert mm_cfg0.train_cfg.max_iters == 10_000
-    mm_cfg0.model.backbone.depth = 50
-    mm_cfg0.train_cfg.max_iters = 40_000
-    assert mm_cfg0._cfg_dict == mm_cfg._cfg_dict
+    assert mm_cfg0.work_dir == '/tmp/mm_exp/d3p/tune_sched/max_iters=20000,batch_size=8'
+    assert mm_cfg0.rslt_dir == mm_cfg0.work_dir
+    assert mm_cfg0.model.auxiliary_head.loss_decode.loss_weight == 0.2
+    assert mm_cfg0.train_cfg.max_iters == 20_000
+    assert mm_cfg0.train_dataloader.batch_size == 8
+    assert mm_cfg0.param_scheduler[0]['end'] == 20_000
+    assert mm_cfg0.optim_wrapper.optimizer.lr == pytest.approx(0.01)
+    compare_with_origin(mm_cfg0)
 
-    cfgs[1].save_mmcv(dump_py)
+    mm_cfg2tune_cfgs[1].save_mmcv(dump_py)
     mm_cfg1 = MMConfig.fromfile(str(dump_py))
-    del mm_cfg1._cfg_dict['rslt_dir']
-    del mm_cfg1._cfg_dict['work_dir']
-    assert mm_cfg1.model.backbone.depth == 50
+    assert mm_cfg1.work_dir == '/tmp/mm_exp/d3p/tune_sched/max_iters=20000,batch_size=16'
+    assert mm_cfg1.rslt_dir == mm_cfg1.work_dir
+    assert mm_cfg1.model.auxiliary_head.loss_decode.loss_weight == 0.2
     assert mm_cfg1.train_cfg.max_iters == 20_000
-    mm_cfg1.model.backbone.depth = 50
-    mm_cfg1.train_cfg.max_iters = 40_000
-    assert mm_cfg1._cfg_dict == mm_cfg._cfg_dict
+    assert mm_cfg1.train_dataloader.batch_size == 16
+    assert mm_cfg1.param_scheduler[0]['end'] == 20_000
+    assert mm_cfg1.optim_wrapper.optimizer.lr == pytest.approx(0.02)
+    compare_with_origin(mm_cfg1)
 
-    cfgs[2].save_mmcv(dump_py)
+    mm_cfg2tune_cfgs[2].save_mmcv(dump_py)
     mm_cfg2 = MMConfig.fromfile(str(dump_py))
-    del mm_cfg2._cfg_dict['rslt_dir']
-    del mm_cfg2._cfg_dict['work_dir']
-    assert mm_cfg2.model.backbone.depth == 101
-    assert mm_cfg2.train_cfg.max_iters == 10_000
-    mm_cfg2.model.backbone.depth = 50
-    mm_cfg2.train_cfg.max_iters = 40_000
-    assert mm_cfg2._cfg_dict == mm_cfg._cfg_dict
+    assert mm_cfg2.work_dir == '/tmp/mm_exp/d3p/tune_sched/max_iters=40000,batch_size=8'
+    assert mm_cfg2.rslt_dir == mm_cfg2.work_dir
+    assert mm_cfg2.model.auxiliary_head.loss_decode.loss_weight == 0.2
+    assert mm_cfg2.train_cfg.max_iters == 40_000
+    assert mm_cfg2.train_dataloader.batch_size == 8
+    assert mm_cfg2.param_scheduler[0]['end'] == 40_000
+    assert mm_cfg2.optim_wrapper.optimizer.lr == pytest.approx(0.01)
+    compare_with_origin(mm_cfg2)
 
-    cfgs[3].save_mmcv(dump_py)
+    mm_cfg2tune_cfgs[3].save_mmcv(dump_py)
     mm_cfg3 = MMConfig.fromfile(str(dump_py))
-    del mm_cfg3._cfg_dict['rslt_dir']
-    del mm_cfg3._cfg_dict['work_dir']
-    assert mm_cfg3.model.backbone.depth == 101
-    assert mm_cfg3.train_cfg.max_iters == 20_000
-    mm_cfg3.model.backbone.depth = 50
-    mm_cfg3.train_cfg.max_iters = 40_000
-    assert mm_cfg3._cfg_dict == mm_cfg._cfg_dict
+    assert mm_cfg3.work_dir == '/tmp/mm_exp/d3p/tune_sched/max_iters=40000,batch_size=16'
+    assert mm_cfg3.rslt_dir == mm_cfg3.work_dir
+    assert mm_cfg3.model.auxiliary_head.loss_decode.loss_weight == 0.2
+    assert mm_cfg3.train_cfg.max_iters == 40_000
+    assert mm_cfg3.train_dataloader.batch_size == 16
+    assert mm_cfg3.param_scheduler[0]['end'] == 40_000
+    assert mm_cfg3.optim_wrapper.optimizer.lr == pytest.approx(0.02)
+    compare_with_origin(mm_cfg3)

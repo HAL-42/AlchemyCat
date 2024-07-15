@@ -63,7 +63,7 @@ class Cfg2TuneRunner(object):
         self.experiment_root = experiment_root
         self.gather_metric_fn = gather_metric_fn
         self.work_fn = work_fn
-        self.work_gpu_num = int(work_gpu_num)
+        self.work_gpu_num = int(work_gpu_num) if work_gpu_num is not None else work_gpu_num
 
         # -* 解算pool_size。
         if self.work_gpu_num is not None:

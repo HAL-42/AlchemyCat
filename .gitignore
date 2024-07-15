@@ -16,6 +16,7 @@ __pycache__/
 #!**/data/.gitkeep
 **/datasets
 !**/datasets/**/.gitkeep
+!**/_base_/datasets
 
 **/dataset
 !**/dataset/**/.gitkeep
