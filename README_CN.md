@@ -1,6 +1,6 @@
 # Alchemy Cat
 
-<p align="center">
+<div align="center">
 
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/y/HAL-42/AlchemyCat)
 <img src="https://img.shields.io/github/stars/HAL-42/AlchemyCat?color=yellow" alt="Stars">
@@ -11,25 +11,25 @@
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/alchemy-cat?color=yellow)
 <img src="https://img.shields.io/badge/python-3.9-purple.svg" alt="Python"> <br>
 
-</p>
+</div>
 
-<p align="center">
+<div align="center">
 <a href="README.md">English</a> | <a href="README_CN.md">中文</a>
-</p>
+</div>
 
 ![banner](https://raw.githubusercontent.com/HAL-42/AlchemyCat/master/docs/figs/dl_config_logo.png)
 
-<p align="center">
+<div align="center">
 
 [介绍](#介绍) | [安装](#安装) | [迁移](#迁移) | [文档](#文档)
 
-</p>
+</div>
 
 # <div align="center">🚀 介绍</div>
 
-<p align="center">
+<div align="center">
   AlchemyCat 为深度学习提供了一套先进的配置系统。<br> 语法<strong>简单优雅</strong>，支持继承、组合、依赖以<strong>最小化配置冗余</strong>，并支持<strong>自动调参</strong>。
-</p>
+</div>
 
 下表对比了 AlchemyCat 和其他配置系统（😡不支持，🤔有限支持，🥳支持）：
 
@@ -91,7 +91,7 @@ python -m alchemy_cat.dl_config.from_x_to_y --x X --y Y --y_type=yaml/mmcv/alche
 
 # <div align="center">📖 文档 </div>
 
-## 简单使用
+## 基础使用
 AlchemyCat 确保配置与实验一一对应，呈双射关系：
 ```text
 config C + algorithm code A ——> reproducible experiment E(C, A)

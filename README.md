@@ -1,6 +1,6 @@
 # Alchemy Cat
 
-<p align="center">
+<div align="center">
 
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/y/HAL-42/AlchemyCat)
 <img src="https://img.shields.io/github/stars/HAL-42/AlchemyCat?color=yellow" alt="Stars">
@@ -11,26 +11,26 @@
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/alchemy-cat?color=yellow)
 <img src="https://img.shields.io/badge/python-3.9-purple.svg" alt="Python"> <br>
 
-</p>
+</div>
 
-<p align="center">
+<div align="center">
 <a href="README.md">English</a> | <a href="README_CN.md">中文</a>
-</p>
+</div>
 
 ![banner](https://raw.githubusercontent.com/HAL-42/AlchemyCat/master/docs/figs/dl_config_logo.png)
 
-<p align="center">
+<div align="center">
 
 [Introduction](#Introduction) | [Installation](#Installation) | [Migration](#Migration) | [Documentation](#Documentation)
 
-</p>
+</div>
 
 # <div align="center">🚀 Introduction</div>
 
-<p align="center">
+<div align="center">
 AlchemyCat is an advanced config system for deep learning. <br> 
 The grammar is <strong>simple and elegant</strong>, supporting inheritance, composition, and dependency to <strong>minimize config redundancy</strong>, and also supports <strong>automatic parameter tuning</strong>.
-</p>
+</div>
 
 This table compares AlchemyCat with other config systems (😡 not support, 🤔 limited support, 🥳 supported):
 
@@ -93,7 +93,7 @@ where:
 
 # <div align="center">📖 Documentation </div>
 
-## Plain Usage
+## Basic Usage
 AlchemyCat ensures a one-to-one correspondence between each configuration and its unique experimental record, with the bijective relationship ensuring the experiment's reproducibility.
 ```text
 config C + algorithm code A ——> reproducible experiment E(C, A)
@@ -954,7 +954,7 @@ For `config C + algorithm code A ——> reproducible experiment E(C, A)`, meani
 
 We also provide a [script](alchemy_cat/torch_tools/scripts/tag_exps.py) that runs `pyhon -m alchemy_cat.torch_tools.scripts.tag_exps -s commit_ID -a commit_ID`, interactively lists the new configs added by the commit, and tags the commit according to the config path. This helps quickly trace back the config and algorithm of a historical experiment.
 
-## Allocate GPU for Child Processes Manually
+### Allocate GPU for Child Processes Manually
 The `work` function of `Cfg2TuneRunner` sometimes needs to allocate GPUs for subprocesses. Besides using the `cuda_env` parameter, you can manually assign idle GPUs based on `pkl_idx` using the `allocate_cuda_by_group_rank`:
 ```python
 from alchemy_cat.cuda_tools import allocate_cuda_by_group_rank
