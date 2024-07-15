@@ -56,8 +56,8 @@ cfg = Config(caps='path/to/yaml_config.yaml or yacs_config.py or mmcv_config.py'
 print(cfg.model.backbone)  # Access config item
 
 cfg.save_yaml('path/to/save.yaml')  # Save to YAML config
-cfg.save_mmcv('path/to/save.py')  # Save to MMCV config
-cfg.save_py('path/to/save.py')  # Save to AlchemyCat config
+cfg.save_mmcv('path/to/save.py')    # Save to MMCV config
+cfg.save_py('path/to/save.py')      # Save to AlchemyCat config
 ```
 我们还提供了一个脚本，用于转换不同配置格式：
 ```bash
@@ -694,7 +694,7 @@ batch_size epochs  child_configs
 我们还需要写一小段脚本来运行自动调参机：
 ```python
 # -- tune_train.py --
-import argparse, json, os, subprocess, torch, sys
+import argparse, json, os, subprocess, sys
 from alchemy_cat.dl_config import Config, Cfg2TuneRunner
 
 parser = argparse.ArgumentParser(description='Tuning AlchemyCat MNIST Example')
@@ -702,12 +702,11 @@ parser.add_argument('-c', '--cfg2tune', type=str)
 args = parser.parse_args()
 
 # Set `pool_size` to GPU num, will run `pool_size` of configs in parallel
-runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', pool_size=torch.cuda.device_count())
+runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', work_gpu_num=1)
 
 @runner.register_work_fn  # How to run config
-def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str) -> ...:
-    subprocess.run([sys.executable, 'train.py', '-c', cfg_pkl],
-                   env=os.environ | {'CUDA_VISIBLE_DEVICE': f'pkl_idx % torch.cuda.device_count()'})
+def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str, cuda_env: dict[str, str]) -> ...:
+    subprocess.run([sys.executable, 'train.py', '-c', cfg_pkl], env=cuda_env)
 
 @runner.register_gather_metric_fn  # How to gather metric for summary
 def gather_metric(cfg: Config, cfg_rslt_dir: str, run_rslt: ..., param_comb: dict[str, tuple[..., str]]) -> dict[str, ...]:
@@ -717,14 +716,15 @@ runner.tuning()
 ```
 上面的脚本执行了如下操作：
 * 传入可调配置的路径，实例化调参机`runner = Cfg2TuneRunner(...)`。<br> 
-自动调参机默认逐个运行子配置。设置参数`pool_size > 0`，可以并行运行`pool_size`个子配置。对深度学习任务，`pool_size`一般为`GPU数量 // 每个任务所占GPU数量`。
+自动调参机默认逐个运行子配置。设置参数`work_gpu_num`，可以并行运行`len(os.environ['CUDA_VISIBLE_DEVICES']) // work_gpu_num`个子配置。
 * 注册工作函数，该函数用于运行单个子配置。函数参数为：
   * `pkl_idx`：子配置的序号
   * `cfg`：子配置
   * `cfg_pkl`：子配置的 pickle 保存路径
   * `cfg_rslt_dir`：子配置的实验目录。
+  * `cuda_env`：如果设置了`work_gpu_num`，那么`cuda_env`会为并行子配置分配不重叠的 `CUDA_VISIBLE_DEVICES` 环境变量。
 
-  一般而言，我们只需要将`cfg_pkl`作为配置文件（`load_cfg`支持读取 pickle 保存的配置）传入训练脚本即可。对深度学习任务，还需要为每个任务设置不同的`CUDA_VISIBLE_DEVICE`。
+  一般而言，我们只需要将`cfg_pkl`作为配置文件（`load_cfg`支持读取 pickle 保存的配置）传入训练脚本即可。对深度学习任务，还需要为每个配置设置不同的`CUDA_VISIBLE_DEVICES`。
 * 注册汇总函数。汇总函数对每个实验结果，返回格式为`{metric_name: metric_value}`的字典。调参机会自动遍历所有实验结果，汇总到一个表格中。汇总函数接受如下参数：
   * `cfg`：子配置
   * `cfg_rslt_dir`：子配置的实验目录
@@ -812,6 +812,18 @@ cfg.bar.foo.b = ['str1', 'str2']
 >>> exec(cfg.to_txt(prefix='new_cfg.'), globals(), (l_dict := {}))
 >>> l_dict['new_cfg'] == cfg
 True
+```
+
+对不合法的属性名，`Config`会回退到`dict`的打印格式：
+```text
+>>> cfg = Config()
+>>> cfg['Invalid Attribute Name'].foo = 10
+>>> cfg.bar['def'] = {'a': 1, 'b': 2}
+>>> print(cfg)
+cfg = Config()
+# ------- ↓ LEAVES ↓ ------- #
+cfg['Invalid Attribute Name'].foo = 10
+cfg.bar['def'] = {'a': 1, 'b': 2}
 ```
 
 ## 自动捕获实验日志
@@ -917,21 +929,21 @@ cfg.sched.epochs = 15
 
 我们还提供了一个[脚本](alchemy_cat/torch_tools/scripts/tag_exps.py)，运行`pyhon -m alchemy_cat.torch_tools.scripts.tag_exps -s commit_ID -a commit_ID`，将交互式地列出该 commit 新增的配置，并按照配置路径给 commit 打上标签。这有助于快速回溯历史上某个实验的配置和算法。
 
-## 为子任务分配显卡
-`Cfg2TuneRunner`的`work`函数有时需要给子进程分配显卡。`allocate_cuda_by_group_rank`可按照`pkl_idx`，分配空闲的显卡：
+## 为子任务手动分配显卡
+`Cfg2TuneRunner`的`work`函数有时需要为子进程分配显卡。除了使用`cuda_env`参数，还可以使用`allocate_cuda_by_group_rank`，根据`pkl_idx`手动分配空闲显卡，：
 ```python
-from alchemy_cat.torch_tools import allocate_cuda_by_group_rank
+from alchemy_cat.cuda_tools import allocate_cuda_by_group_rank
 
 # ... Code before
 
 @runner.register_work_fn  # How to run config
-def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str) -> ...:
+def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str, cuda_env: dict[str, str]) -> ...:
     current_cudas, env_with_current_cuda = allocate_cuda_by_group_rank(group_rank=pkl_idx, group_cuda_num=2, block=True, verbosity=True)
     subprocess.run([sys.executable, 'train.py', '-c', cfg_pkl], env=env_with_current_cuda)
 
 # ... Code after
 ```
-`group_rank`一般为`pkl_idx`，`group_cuda_num`为子任务所需显卡数量。`block`为`True`时，若分配的显卡被占用，会阻塞直到有空闲。`verbosity`为`True`时，会打印阻塞情况。
+`group_rank`一般为`pkl_idx`，`group_cuda_num`为任务所需显卡数量。`block`为`True`时，若分配的显卡被占用，会阻塞直到有空闲。`verbosity`为`True`时，会打印阻塞情况。
 
 返回值`current_cudas`是一个列表，包含了分配的显卡号。`env_with_current_cuda`是设置了`CUDA_VISIBLE_DEVICES`的环境变量字典，可直接传入`subprocess.run`的`env`参数。
 

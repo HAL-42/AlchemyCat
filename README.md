@@ -58,8 +58,8 @@ cfg = Config(caps='path/to/yaml_config.yaml or yacs_config.py or mmcv_config.py'
 print(cfg.model.backbone)  # Access config item
 
 cfg.save_yaml('path/to/save.yaml')  # Save to YAML config
-cfg.save_mmcv('path/to/save.py')  # Save to MMCV config
-cfg.save_py('path/to/save.py')  # Save to AlchemyCat config
+cfg.save_mmcv('path/to/save.py')    # Save to MMCV config
+cfg.save_py('path/to/save.py')      # Save to AlchemyCat config
 ```
 We also provide a script to convert between different config formats:
 ```bash
@@ -639,7 +639,7 @@ Its writing style is similar to the [normal configuration](alchemy_cat/dl_config
 * The type of config is `Cfg2Tune`, a subclass of `Config`.
 * For grid search parameters, use `Param2Tune([v1, v2, ...])` with optional values `v1, v2, ...`.
 
-The tunable config above will search a parameter space of size 3×2=6 and generate these 6 sub-configurations:
+The tunable config above will search a parameter space of size 3×2=6 and generate these 6 sub-configs:
 ```text
 batch_size  epochs  child_configs            
 128         5       configs/tune/tune_bs_epoch/batch_size=128,epochs=5/cfg.pkl
@@ -698,7 +698,7 @@ batch_size epochs  child_configs
 We also need to write a small script to run the auto-tuner:
 ```python
 # -- tune_train.py --
-import argparse, json, os, subprocess, torch, sys
+import argparse, json, os, subprocess, sys
 from alchemy_cat.dl_config import Config, Cfg2TuneRunner
 
 parser = argparse.ArgumentParser(description='Tuning AlchemyCat MNIST Example')
@@ -706,12 +706,11 @@ parser.add_argument('-c', '--cfg2tune', type=str)
 args = parser.parse_args()
 
 # Set `pool_size` to GPU num, will run `pool_size` of configs in parallel
-runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', pool_size=torch.cuda.device_count())
+runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', work_gpu_num=1)
 
 @runner.register_work_fn  # How to run config
-def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str) -> ...:
-    subprocess.run([sys.executable, 'train.py', '-c', cfg_pkl],
-                   env=os.environ | {'CUDA_VISIBLE_DEVICE': f'pkl_idx % torch.cuda.device_count()'})
+def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str, cuda_env: dict[str, str]) -> ...:
+    subprocess.run([sys.executable, 'train.py', '-c', cfg_pkl], env=cuda_env)
 
 @runner.register_gather_metric_fn  # How to gather metric for summary
 def gather_metric(cfg: Config, cfg_rslt_dir: str, run_rslt: ..., param_comb: dict[str, tuple[..., str]]) -> dict[str, ...]:
@@ -720,13 +719,15 @@ def gather_metric(cfg: Config, cfg_rslt_dir: str, run_rslt: ..., param_comb: dic
 runner.tuning()
 ```
 The script performs these operations:
-* Instantiates the auto-tuner with `runner = Cfg2TuneRunner(...)`, passing in the tunable config path. By default, it runs sub-configs sequentially; setting `pool_size > 0` enables parallel execution of `pool_size` sub-configs. For deep learning tasks, set `pool_size` to `number of GPUs // number of GPUs per task`.
+* Instantiates the auto-tuner with `runner = Cfg2TuneRunner(...)`, passing in the tunable config path. By default, it runs sub-configs sequentially. Set the parameter `work_gpu_num` to run `len(os.environ['CUDA_VISIBLE_DEVICES']) // work_gpu_num` sub-configs in parallel.
 * Registers a worker that executes each sub-config. The function parameters are:
   - `pkl_idx`: index of the sub-config
   - `cfg`: the sub-config
   - `cfg_pkl`: pickle save path for this sub-config
   - `cfg_rslt_dir`: experiment directory.
-  Commonly, we only need to pass `cfg_pkl` as the config file into the training script, since `load_cfg` supports reading config in pickle format. For deep learning tasks, different `CUDA_VISIBLE_DEVICE` are needed for each task.
+  - `cuda_env`: If `work_gpu_num` is set, then `cuda_env` will allocate non-overlapping `CUDA_VISIBLE_DEVICES` environment variables for parallel sub-configs.
+  
+  Commonly, we only need to pass `cfg_pkl` as the config file into the training script, since `load_cfg` supports reading config in pickle format. For deep learning tasks, different `CUDA_VISIBLE_DEVICES` are needed for each sub-config.
 * Registers a summary function that returns an experimental result as a `{metric_name: metric_value}` dictionary. The auto-tunner will traverse all experimental results and summary into a table. The summary function accepts these parameters:
   - `cfg`: the sub-configuration
   - `cfg_rslt_dir`: experiment directory
@@ -814,6 +815,18 @@ When all leaf nodes are built-in types, the pretty print output of `Config` can 
 >>> exec(cfg.to_txt(prefix='new_cfg.'), globals(), (l_dict := {}))
 >>> l_dict['new_cfg'] == cfg
 True
+```
+
+For invalid attribute names, `Config` will fall back to the print format of `dict`:
+```text
+>>> cfg = Config()
+>>> cfg['Invalid Attribute Name'].foo = 10
+>>> cfg.bar['def'] = {'a': 1, 'b': 2}
+>>> print(cfg)
+cfg = Config()
+# ------- ↓ LEAVES ↓ ------- #
+cfg['Invalid Attribute Name'].foo = 10
+cfg.bar['def'] = {'a': 1, 'b': 2}
 ```
 
 ## Auto Capture Experiment Logs
@@ -920,21 +933,21 @@ For `config C + algorithm code A ——> reproducible experiment E(C, A)`, meani
 
 We also provide a [script](alchemy_cat/torch_tools/scripts/tag_exps.py) that runs `pyhon -m alchemy_cat.torch_tools.scripts.tag_exps -s commit_ID -a commit_ID`, interactively lists the new configs added by the commit, and tags the commit according to the config path. This helps quickly trace back the config and algorithm of a historical experiment.
 
-## Allocate GPU for Child Processes
-The `work` function of `Cfg2TuneRunner` sometimes needs to allocate GPUs to child processes. `allocate_cuda_by_group_rank` can allocate free GPUs according to `pkl_idx`:
+## Allocate GPU for Child Processes Manually
+The `work` function of `Cfg2TuneRunner` sometimes needs to allocate GPUs for subprocesses. Besides using the `cuda_env` parameter, you can manually assign idle GPUs based on `pkl_idx` using the `allocate_cuda_by_group_rank`:
 ```python
-from alchemy_cat.torch_tools import allocate_cuda_by_group_rank
+from alchemy_cat.cuda_tools import allocate_cuda_by_group_rank
 
 # ... Code before
 
 @runner.register_work_fn  # How to run config
-def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str) -> ...:
+def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str, cuda_env: dict[str, str]) -> ...:
     current_cudas, env_with_current_cuda = allocate_cuda_by_group_rank(group_rank=pkl_idx, group_cuda_num=2, block=True, verbosity=True)
     subprocess.run([sys.executable, 'train.py', '-c', cfg_pkl], env=env_with_current_cuda)
 
 # ... Code after
 ```
-`group_rank` commonly is `pkl_idx`, and `group_cuda_num` is the number of GPUs needed for the subtask. If `block` is `True`, it waits if the GPU is occupied. If `verbosity` is `True`, it prints blocking situations.
+`group_rank` commonly is `pkl_idx`, and `group_cuda_num` is the number of GPUs needed for the task. If `block` is `True`, it waits if the GPU is occupied. If `verbosity` is `True`, it prints blocking situations.
 
 The return value `current_cudas` is a list containing the allocated GPU numbers. `env_with_current_cuda` is an environment variable dictionary with `CUDA_VISIBLE_DEVICES` set, which can be passed directly to the `env` parameter of `subprocess.run`.
 
