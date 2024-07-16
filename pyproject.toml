@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 # -* 项目基本信息。
 name = "alchemy_cat"
-version = "0.0.6"
+version = "0.0.7b1"
 authors = [
   { name="HAL_42", email="hal_42@zju.edu.cn" },
 ]
-description = "Advanced Config System."
+description = "Alchemy Cat —— 🔥Config System for SOTA"
 readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = [
