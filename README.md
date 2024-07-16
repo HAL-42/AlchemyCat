@@ -28,9 +28,14 @@
 
 # <div align="center">🚀 Introduction</div>
 
-AlchemyCat is a config system designed for machine learning research, aiming to simplify repetitive tasks like reproduction, modifying configs, and hyperparameter tuning. With AlchemyCat, researchers can fully explore the parameter tuning potential of algorithm to:
-* Prevent effective designs from being overshadowed by suboptimal hyperparameters.
-* Advance to SOTA, making their work more convincing.
+When developing machine learning algorithms, we often bother with:
+* Config files (YAML / YACS / MMCV) are lengthy and complex. If entries are interdependent, extra caution is needed to avoid errors when modifying them.
+* Parameter tuning requires rewriting the config for each parameter set, leading to code duplication and difficulty in tracking changes.
+* Manually traversing the parameter space and summarizing results during parameter tuning is time-consuming and inefficient.
+* Insufficient parameter tuning can obscure effective designs.
+* Effective methods may not achieve SOTA due to insufficient parameter tuning, reducing persuasiveness.
+
+AlchemyCat is a config system designed for machine learning research to address such issues. It helps researchers to fully explore the parameter tuning potential by simplifying repetitive tasks like reproduction, modifying configs, and hyperparameter tuning
 
 The table below compares AlchemyCat with existing config systems (😡 not support, 🤔 limited support, 🥳 supported):
 
