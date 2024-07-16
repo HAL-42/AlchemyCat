@@ -1,5 +1,6 @@
 # Ignore some doc.
 *.pptx
+*.xlsx
 
 # Ignore Python Cache
 *__pycache__
