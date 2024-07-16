@@ -19,7 +19,7 @@ YAML_CFG = 'py_tools/config/tests/migrate/yaml.yaml'
 YACS_CFG = 'py_tools/config/tests/migrate/yacs_cfg.py'
 YACS_GET_CFG = 'py_tools/config/tests/migrate/yacs_get.py'
 MM_CFG = 'py_tools/config/tests/migrate/mm_configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb4-40k_voc12aug-512x512.py'
-MM_CFG2TUNE = 'py_tools/config/tests/migrate/mm_configs/d3p/tune_sched/cfg.py'
+MM_CFG2TUNE = 'py_tools/config/tests/migrate/mm_configs/d3p/tune_bs,iter/cfg.py'
 AC_CFG = 'py_tools/config/tests/migrate/ac_cfg.py'
 
 sys.path = ['', 'py_tools/config/tests'] + sys.path
@@ -197,7 +197,7 @@ def test_tune_mm(mm_cfg2tune_cfgs, dump_py: Path):
 
     mm_cfg2tune_cfgs[0].save_mmcv(dump_py)
     mm_cfg0 = MMConfig.fromfile(str(dump_py))
-    assert mm_cfg0.work_dir == '/tmp/mm_exp/d3p/tune_sched/max_iters=20000,batch_size=8'
+    assert mm_cfg0.work_dir == '/tmp/mm_exp/d3p/tune_bs,iter/max_iters=20000,batch_size=8'
     assert mm_cfg0.rslt_dir == mm_cfg0.work_dir
     assert mm_cfg0.model.auxiliary_head.loss_decode.loss_weight == 0.2
     assert mm_cfg0.train_cfg.max_iters == 20_000
@@ -208,7 +208,7 @@ def test_tune_mm(mm_cfg2tune_cfgs, dump_py: Path):
 
     mm_cfg2tune_cfgs[1].save_mmcv(dump_py)
     mm_cfg1 = MMConfig.fromfile(str(dump_py))
-    assert mm_cfg1.work_dir == '/tmp/mm_exp/d3p/tune_sched/max_iters=20000,batch_size=16'
+    assert mm_cfg1.work_dir == '/tmp/mm_exp/d3p/tune_bs,iter/max_iters=20000,batch_size=16'
     assert mm_cfg1.rslt_dir == mm_cfg1.work_dir
     assert mm_cfg1.model.auxiliary_head.loss_decode.loss_weight == 0.2
     assert mm_cfg1.train_cfg.max_iters == 20_000
@@ -219,7 +219,7 @@ def test_tune_mm(mm_cfg2tune_cfgs, dump_py: Path):
 
     mm_cfg2tune_cfgs[2].save_mmcv(dump_py)
     mm_cfg2 = MMConfig.fromfile(str(dump_py))
-    assert mm_cfg2.work_dir == '/tmp/mm_exp/d3p/tune_sched/max_iters=40000,batch_size=8'
+    assert mm_cfg2.work_dir == '/tmp/mm_exp/d3p/tune_bs,iter/max_iters=40000,batch_size=8'
     assert mm_cfg2.rslt_dir == mm_cfg2.work_dir
     assert mm_cfg2.model.auxiliary_head.loss_decode.loss_weight == 0.2
     assert mm_cfg2.train_cfg.max_iters == 40_000
@@ -230,7 +230,7 @@ def test_tune_mm(mm_cfg2tune_cfgs, dump_py: Path):
 
     mm_cfg2tune_cfgs[3].save_mmcv(dump_py)
     mm_cfg3 = MMConfig.fromfile(str(dump_py))
-    assert mm_cfg3.work_dir == '/tmp/mm_exp/d3p/tune_sched/max_iters=40000,batch_size=16'
+    assert mm_cfg3.work_dir == '/tmp/mm_exp/d3p/tune_bs,iter/max_iters=40000,batch_size=16'
     assert mm_cfg3.rslt_dir == mm_cfg3.work_dir
     assert mm_cfg3.model.auxiliary_head.loss_decode.loss_weight == 0.2
     assert mm_cfg3.train_cfg.max_iters == 40_000
