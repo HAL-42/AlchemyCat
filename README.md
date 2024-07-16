@@ -22,7 +22,7 @@
 
 <div align="center">
 
-[🚀Introduction](#div-aligncenter-introductiondiv) | [📦Installation](#div-aligncenter-installationdiv) | [🚚Migration](#div-aligncenter-migrationdiv) | [📖Documentation](#div-aligncenter-documentation-div)
+[🚀Introduction](https://github.com/HAL-42/AlchemyCat/blob/master/README.md#-introduction) | [📦Installation](https://github.com/HAL-42/AlchemyCat/blob/master/README.md#-installation) | [🚚Migration](https://github.com/HAL-42/AlchemyCat/blob/master/README.md#-migration) | [📖Documentation](https://github.com/HAL-42/AlchemyCat/blob/master/README.md#-documentation-)
 
 </div>
 
@@ -49,7 +49,7 @@ AlchemyCat implements all features of current popular config systems, while full
 * Maintainable: Allows for establishing **dependency** between config items, enabling global synchronization with a single change.
 * Supports auto parameter tuning and result summarization without needing to modify original configs or training codes.
 
-[Migrate](#div-aligncenter-migrationdiv) from config systems listed above to AlchemyCat is effortless. Just spend 15 minutes reading the [documentation](#div-aligncenter-documentation-div) and apply AlchemyCat to your project, and your GPU will never be idle again!
+[Migrate](https://github.com/HAL-42/AlchemyCat/blob/master/README.md#-migration) from config systems listed above to AlchemyCat is effortless. Just spend 15 minutes reading the [documentation](https://github.com/HAL-42/AlchemyCat/blob/master/README.md#-documentation-) and apply AlchemyCat to your project, and your GPU will never be idle again!
 
 ## Quick Glance
 Deep learning relies on numerous empirical hyperparameters, such as learning rate, loss weights, max iterations, sliding window size, drop probability, thresholds, and even random seeds. 
@@ -136,7 +136,7 @@ def param_scheduler(c):
         by_epoch=False)
 ```
 > [!NOTE]
-> In the example above, defining dependencies might seem needless since they can be computed directly. However, when combined with **inheritance**, setting dependencies in the base config allows tunable configs to focus on key hyperparameters without worrying about trivial dependency details. Refer to the [documentation](#div-aligncenter-documentation-div) for details.
+> In the example above, defining dependencies might seem needless since they can be computed directly. However, when combined with **inheritance**, setting dependencies in the base config allows tunable configs to focus on key hyperparameters without worrying about trivial dependency details. Refer to the [documentation](#dependency) for details.
 
 # <div align="center">📦 Installation</div>
 ```bash
