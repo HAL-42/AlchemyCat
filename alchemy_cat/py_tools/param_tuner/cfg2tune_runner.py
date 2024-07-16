@@ -12,6 +12,7 @@ import os
 import os.path as osp
 import subprocess
 import sys
+import traceback
 from functools import wraps
 from multiprocessing import Pool
 from pprint import pprint
@@ -23,7 +24,6 @@ else:  # 兼容Python<3.11。
     TypeAlias = Any
 
 import pandas as pd
-from colorama import Style, Fore
 from openpyxl import load_workbook
 from tqdm import tqdm
 
@@ -32,6 +32,7 @@ from ..config.py_cfg import Config
 from ..logger import Logger
 from ..str_formatters import get_local_time_str
 from ...cuda_tools import allocate_cuda_by_group_rank
+from ..color_print import yprint, gprint, rprint
 
 __all__ = ["Cfg2TuneRunner"]
 
@@ -47,7 +48,8 @@ class Cfg2TuneRunner(object):
                  pool_size: int=0, work_gpu_num: int=None,
                  metric_names: Optional[List[str]]=None,
                  gather_metric_fn: Callable[[Config, str, Any, dict[str, tuple[Any, str]]], dict[str, Any]]=None,
-                 work_fn: WORK_WRAPPER_TYPE=None):
+                 work_fn: WORK_WRAPPER_TYPE=None,
+                 allow_fail_gather: bool=True):
         """Running a cfg2tune.
 
         Args:
@@ -57,6 +59,7 @@ class Cfg2TuneRunner(object):
             pool_size: Multiprocess' Pool size when running tuning work.
             work_gpu_num: Number of GPUs in a group.
             metric_names: Name of metrics to be gathered.
+            allow_fail_gather: Whether allow gather_metric_fn to fail.
         """
         self.cfg2tune_py = cfg2tune_py
         self.config_root = config_root
@@ -64,6 +67,7 @@ class Cfg2TuneRunner(object):
         self.gather_metric_fn = gather_metric_fn
         self.work_fn = work_fn
         self.work_gpu_num = int(work_gpu_num) if work_gpu_num is not None else work_gpu_num
+        self.allow_fail_gather = allow_fail_gather
 
         # -* 解算pool_size。
         if self.work_gpu_num is not None:
@@ -165,9 +169,19 @@ class Cfg2TuneRunner(object):
         return wrapper
 
     def gather_metrics(self):
+        gather_failed = False
         for cfg, cfg_rslt_dir, run_rslt, param_comb in zip(self.cfgs, self.cfg_rslt_dirs,
                                                            self.run_rslts, self.param_combs):
-            metric = self.gather_metric(cfg, cfg_rslt_dir, run_rslt, param_comb)
+            try:
+                metric = self.gather_metric(cfg, cfg_rslt_dir, run_rslt, param_comb)
+            except Exception as e:
+                if self.allow_fail_gather:
+                    yprint(f"[WARNING] Error occurred when gather_metric for {cfg_rslt_dir}. ")
+                    rprint(traceback.format_exc())
+                    gather_failed = True
+                    continue
+                else:
+                    raise e
 
             if self.metric_frame is None:
                 if self.metric_names is None:
@@ -178,6 +192,9 @@ class Cfg2TuneRunner(object):
                     f"metric.keys()={metric.keys()} != self.metric_names={self.metric_names}"
 
             self.metric_frame.loc[tuple(val[1] for val in param_comb.values())] = metric
+
+        if gather_failed:
+            yprint("[WARNING] Some gather_metric failed. Please check the error message above.")
 
     def gather_metric(self, cfg: Config, cfg_rslt_dir: str, run_rslt: Any, param_comb: dict[str, tuple[Any, str]]) \
             -> dict[str, Any]:
@@ -210,7 +227,7 @@ class Cfg2TuneRunner(object):
         Logger(stdout_log_file, real_time=True)
         print(f"Log stdout at {stdout_log_file}")
 
-        print(Fore.GREEN + "-----------------Setting Configs-----------------" + Style.RESET_ALL)
+        gprint("-----------------Setting Configs-----------------")
         self.set_cfgs()
 
         print("Saving Config pkls at: ")
@@ -219,15 +236,15 @@ class Cfg2TuneRunner(object):
         print("Param Combines: ")
         pprint(self.param_combs, sort_dicts=False)
 
-        print(Fore.GREEN + "-----------------Running Configs-----------------" + Style.RESET_ALL)
+        gprint("-----------------Running Configs-----------------")
         self.run_cfgs()
 
         if self.gather_metric_fn is not None:
-            print(Fore.GREEN + "-----------------Gather Metrics-----------------" + Style.RESET_ALL)
+            gprint("-----------------Gather Metrics-----------------")
             self.gather_metrics()
             print("Metric Frame: ")
             pprint(self.metric_frame)
 
-            print(Fore.GREEN + "-----------------Save Metrics-----------------" + Style.RESET_ALL)
+            gprint("-----------------Save Metrics-----------------")
             self.save_metrics()
             print(f"Saving Metric Frame at {osp.join(self.rslt_dir, 'metric_frame.xlsx')}")
