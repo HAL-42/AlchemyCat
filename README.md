@@ -1,4 +1,4 @@
-# Alchemy Cat
+# Alchemy Cat —— 🔥Config System for SOTA
 
 <div align="center">
 
@@ -16,24 +16,23 @@
 <div align="center">
 <a href="README.md">English</a> | <a href="README_CN.md">中文</a>
 </div>
-
+<br>
 
 ![banner](https://raw.githubusercontent.com/HAL-42/AlchemyCat/master/docs/figs/dl_config_logo.png)
 
 <div align="center">
 
-[Introduction](#Introduction) | [Installation](#Installation) | [Migration](#Migration) | [Documentation](#Documentation)
+[🚀Introduction](#div-aligncenter-introductiondiv) | [📦Installation](#div-aligncenter-installationdiv) | [🚚Migration](#div-aligncenter-migrationdiv) | [📖Documentation](#div-aligncenter-documentation-div)
 
 </div>
 
 # <div align="center">🚀 Introduction</div>
 
-<div align="center">
-AlchemyCat is an advanced config system for deep learning. <br> 
-The grammar is <strong>simple and elegant</strong>, supporting inheritance, composition, and dependency to <strong>minimize config redundancy</strong>, and also supports <strong>automatic parameter tuning</strong>.
-</div>
+AlchemyCat is a config system designed for machine learning research, aiming to simplify repetitive tasks like reproduction, modifying configs, and hyperparameter tuning. With AlchemyCat, researchers can fully explore the parameter tuning potential of algorithm to:
+* Prevent effective designs from being overshadowed by suboptimal hyperparameters.
+* Advance to SOTA, making their work more convincing.
 
-This table compares AlchemyCat with other config systems (😡 not support, 🤔 limited support, 🥳 supported):
+The table below compares AlchemyCat with existing config systems (😡 not support, 🤔 limited support, 🥳 supported):
 
 | Feature                    | argparse | yaml | YACS | mmcv | AlchemyCat |
 |----------------------------|----------|------|------|------|------------|
@@ -44,15 +43,100 @@ This table compares AlchemyCat with other config systems (😡 not support, 🤔
 | dependency                 | 😡       | 😡   | 😡   | 😡   | 🥳         |
 | Automatic Parameter Tuning | 😡       | 😡   | 😡   | 😡   | 🥳         |
 
-AlchemyCat implements all features offered by the "SOTA" config system, while fully considering various special cases, ensuring stability.
+AlchemyCat implements all features of current popular config systems, while fully considering various special cases, ensuring stability. AlchemyCat distinguishes itself by:
+* Readable: The syntax is simple, elegant, and Pythonic.
+* Reusable: Supports **inheritance** and **composition** of configs, reducing redundancy and enhancing reusability.
+* Maintainable: Allows for establishing **dependency** between config items, enabling global synchronization with a single change.
+* Supports auto parameter tuning and result summarization without needing to modify original configs or training codes.
 
-AlchemyCat distinguishes itself by:
-* Support inheritance and composition to reuse existing configs, minimizing config redundancy.
-* Supports inter-dependence between config items, with changes made in one place taking effect everywhere.
-* Provide an automatic parameter tuning tool, which only requires a slight modification to the origin config file to achieve automatic parameter tuning and summarization.
-* Adopt a simple, elegant, and pythonic syntax.
+[Migrate](#div-aligncenter-migrationdiv) from config systems listed above to AlchemyCat is effortless. Just spend 15 minutes reading the [documentation](#div-aligncenter-documentation-div) and apply AlchemyCat to your project, and your GPU will never be idle again!
 
-If you are already using a configuration system in the table, switching to AlchemyCat is almost cost-free. Spend 15 minutes reading the documentation and apply AlchemyCat to your project—your GPU will always be busy!
+## Quick Glance
+Deep learning relies on numerous empirical hyperparameters, such as learning rate, loss weights, max iterations, sliding window size, drop probability, thresholds, and even random seeds. 
+
+The relationship between hyperparameters and performance is hard to predict theoretically. The only certainty is that arbitrarily chosen hyperparameters are unlikely to be optimal. Practice has shown that grid search through the hyperparameter space can significantly enhance model performance; sometimes its effect even surpasses so-called "contributions." Achieving SOTA often depends on this!
+
+AlchemyCat offers an auto parameter-tuner that seamlessly integrates with existing config systems to explore the hyperparameter space and summarize experiment results automatically. Using this tool requires no modifications to the original config or training code.
+
+For example, with [MMSeg](https://github.com/open-mmlab/mmsegmentation) users only need to write a tunable config inherited from MMSeg's base config and define the parameter search space:
+```python
+# -- configs/deeplabv3plus/tune_bs,iter/cfg.py --
+from alchemy_cat import Cfg2Tune, Param2Tune
+
+# Inherit from standard mmcv config.
+cfg = Cfg2Tune(caps='configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb4-40k_voc12aug-512x512.py')
+
+# Inherit and override
+cfg.model.auxiliary_head.loss_decode.loss_weight = 0.2
+
+# Tuning parameters: grid search batch_size and max_iters
+cfg.train_dataloader.batch_size = Param2Tune([4, 8])
+cfg.train_cfg.max_iters = Param2Tune([20_000, 40_000])
+# ... 
+```
+Next, write a script specifying how to run a single config and read its results:
+```python
+# -- tools/tune_dist_train.py --
+import argparse, subprocess
+from alchemy_cat.dl_config import Cfg2TuneRunner, Config
+from alchemy_cat.dl_config.examples.read_mmcv_metric import get_metric
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--cfg2tune', type=str)            # Path to the tunable config
+parser.add_argument('--num_gpu', type=int, default=2)  # Number of GPUs for each task
+args = parser.parse_args()
+
+runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='work_dirs', work_gpu_num=args.num_gpu)
+
+@runner.register_work_fn  # Run experiment for each param combination with mmcv official train script
+def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str, cuda_env: dict[str, str]):
+    mmcv_cfg = cfg.save_mmcv(cfg_rslt_dir + '/mmcv_config.py')
+    subprocess.run(f'./tools/dist_train.sh {mmcv_cfg} {args.num_gpu}', env=cuda_env, shell=True)
+
+@runner.register_gather_metric_fn    # Optional, gather metric of each config
+def gather_metric(cfg: Config, cfg_rslt_dir: str, run_rslt, param_comb) -> dict[str, float]:
+    return get_metric(cfg_rslt_dir)  # {'aAcc': xxx, 'mIoU': xxx, 'mAcc': xxx}
+
+runner.tuning()
+```
+Run `CUDA_VISIBLE_DEVICES=0,1,2,3 python tools/tune_dist_train.py --cfg2tune configs/deeplabv3plus/tune_bs,iter/cfg.py`, which will automatically search the parameter space in parallel and summarize the experiment results as follows:
+
+<div align = "center">
+<img  src="https://raw.githubusercontent.com/HAL-42/AlchemyCat/master/docs/figs/readme-teaser-excel.png" width="500" />
+</div>
+
+In fact, the above config is still incomplete for some hyperparameters are interdependent and need to be adjusted together. For instance, the learning rate should scale with the batch size. AlchemyCat uses **dependency** to manage these relationships; when a dependency source changes, related dependencies automatically update for consistency. The complete config with dependencies is:
+```python
+# -- configs/deeplabv3plus/tune_bs,iter/cfg.py --
+from alchemy_cat import Cfg2Tune, Param2Tune, P_DEP
+
+# Inherit from standard mmcv config.
+cfg = Cfg2Tune(caps='configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb4-40k_voc12aug-512x512.py')
+
+# Inherit and override
+cfg.model.auxiliary_head.loss_decode.loss_weight = 0.2
+
+# Tuning parameters: grid search batch_size and max_iters
+cfg.train_dataloader.batch_size = Param2Tune([4, 8])
+cfg.train_cfg.max_iters = Param2Tune([20_000, 40_000])
+
+# Dependencies:
+# 1) learning rate increase with batch_size
+cfg.optim_wrapper.optimizer.lr = P_DEP(lambda c: (c.train_dataloader.batch_size / 8) * 0.01)
+
+# 2) end of param_scheduler increase with max_iters
+@cfg.set_DEP()
+def param_scheduler(c):
+    return dict(
+        type='PolyLR',
+        eta_min=1e-4,
+        power=0.9,
+        begin=0,
+        end=c.train_cfg.max_iters,
+        by_epoch=False)
+```
+> [!NOTE]
+> In the example above, defining dependencies might seem needless since they can be computed directly. However, when combined with **inheritance**, setting dependencies in the base config allows tunable configs to focus on key hyperparameters without worrying about trivial dependency details. Refer to the [documentation](#div-aligncenter-documentation-div) for details.
 
 # <div align="center">📦 Installation</div>
 ```bash
@@ -123,7 +207,8 @@ The experimental directory is automatically generated, mirroring the relative pa
             └── 10 epoch
                 └── xxx.log
 ```
-**Best Practice: Create a `__init__.py` next to `cfg.py`(usually will be auto created by IDE), and avoid paths containing '.'. This can help IDE to debug and allow relative import in `cfg.py`.**
+> [!TIP]
+> **Best Practice: Create a `__init__.py` next to `cfg.py`(usually will be auto created by IDE), and avoid paths containing '.'. This can help IDE to debug and allow relative import in `cfg.py`.**
 
 
 Let's begin with an incomplete example to demonstrate writing and loading a config. First, create the [config file](alchemy_cat/dl_config/examples/configs/mnist/plain_usage/cfg.py):
@@ -145,7 +230,8 @@ cfg.dt.ini.train = True
 ```
 Here, we first instantiate a `Config` object `cfg`, and then add config items through attribute operator `.`. Config items can be any Python objects, including functions, methods, and classes.
 
-**Best Practice: We prefer specifying functions or classes directly in config over using strings/semaphores to control the program behavior. This enables IDE navigation, simplifying reading and debugging.**
+> [!TIP]
+> **Best Practice: We prefer specifying functions or classes directly in config over using strings/semaphores to control the program behavior. This enables IDE navigation, simplifying reading and debugging.**
 
 `Config` is a subclass of Python's `dict`. The above code defines a nested dictionary with a **tree structure**:
 ```text
@@ -774,38 +860,12 @@ batch_size epochs
 Saving Metric Frame at /tmp/experiment/tune/tune_bs_epoch/metric_frame.xlsx
 ```
 As the prompt says, the tuning results will also be saved to the `/tmp/experiment/tune/tune_bs_epoch/metric_frame.xlsx` table:
-<p align = "center">
+<div align = "center">
 <img  src="https://github.com/HAL-42/AlchemyCat/raw/master/docs/figs/readme-cfg2tune-excel.png" width="400" />
-</p>
+</div>
 
-**Best Practice: The auto-tuner is separate from the standard workflow. Write configs and code without considering it. When tuning, add extra code to define parameter space, specify invocation and result methods. After tuning, remove the auto-tuner, keeping only the best config and algorithm.**
-
-### Another Example: Using Auto-Tuner with MMCV
-<details>
-<summary> Using Auto-Tuner with MMCV </summary>
-
-AlchemyCat can directly read and write MMCV configs. Tunable config can be written as:
-
-```python
-from alchemy_cat.dl_config import Cfg2Tune, Param2Tune
-
-cfg = Cfg2Tune(caps='mmcv_configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb2-40k_cityscapes-512x1024.py')
-
-cfg.model.backbone.depth = Param2Tune([50, 101])
-cfg.train_cfg.max_iters = Param2Tune([10_000, 20_000])
-```
-
-In the work function, we call the MMCV official training script `train.py`. Since the `cfg` received by the `work` is in AlchemyCat format, we need to first save it to MMCV format config and then pass it to `train.py`:
-
-```python
-@runner.register_work_fn  # How to run config
-def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str) -> ...:
-    cfg.save_mmcv(mmcv_cfg_file := 'path/to/mmcv_format_cfg.py')
-    subprocess.run([sys.executable, 'train.py', mmcv_cfg_file],
-                   env=os.environ | {'CUDA_VISIBLE_DEVICE': f'pkl_idx % torch.cuda.device_count()'})
-```
-
-</details>
+> [!TIP]
+> **Best Practice: The auto-tuner is separate from the standard workflow. Write configs and code without considering it. When tuning, add extra code to define parameter space, specify invocation and result methods. After tuning, remove the auto-tuner, keeping only the best config and algorithm.**
 
 ### Summary of This Chapter
 * Define a tunable config `Cfg2Tune` with `Param2Tune` to specify the parameter space.

@@ -1,4 +1,4 @@
-# Alchemy Cat
+# Alchemy Cat —— 🔥SOTA利器
 
 <div align="center">
 
@@ -16,23 +16,23 @@
 <div align="center">
 <a href="README.md">English</a> | <a href="README_CN.md">中文</a>
 </div>
-
+<br>
 
 ![banner](https://raw.githubusercontent.com/HAL-42/AlchemyCat/master/docs/figs/dl_config_logo.png)
 
 <div align="center">
 
-[介绍](#介绍) | [安装](#安装) | [迁移](#迁移) | [文档](#文档)
+[🚀介绍](#div-aligncenter-介绍div) | [📦安装](#div-aligncenter-安装div) | [🚚迁移](#div-aligncenter-迁移div) | [📖文档](#div-aligncenter-文档-div)
 
 </div>
 
 # <div align="center">🚀 介绍</div>
 
-<div align="center">
-  AlchemyCat 为深度学习提供了一套先进的配置系统。<br> 语法<strong>简单优雅</strong>，支持继承、组合、依赖以<strong>最小化配置冗余</strong>，并支持<strong>自动调参</strong>。
-</div>
+AlchemyCat 是针对机器学习研究设计的配置系统，其核心目标是简化重复性工作，如复现、修改配置和调参。利用 AlchemyCat，研究者能够迅速穷尽算法的调参潜力，从而： 
+* 避免有效的设计被次优的超参数所埋没。 
+* 冲击SOTA，让工作更有说服力。
 
-下表对比了 AlchemyCat 和其他配置系统（😡不支持，🤔有限支持，🥳支持）：
+下表对比了 AlchemyCat 和现有的配置系统（😡不支持，🤔有限支持，🥳支持）：
 
 | 功能    | argparse | yaml | YACS | mmcv | AlchemyCat |
 |-------|----------|------|------|------|------------|
@@ -43,15 +43,103 @@
 | 依赖    | 😡       | 😡   | 😡   | 😡   | 🥳         |
 | 自动调参  | 😡       | 😡   | 😡   | 😡   | 🥳         |
 
-AlchemyCat 囊括了此前 "SOTA" 配置系统提供的所有功能，且充分考虑了各种特殊情况，稳定性有保障。
 
-AlchemyCat 的独到之处在于：
-* 支持继承、组合来复用已有配置，最小化配置冗余。
-* 支持配置项间相互依赖，一处修改，处处生效，大大降低修改配置时的心智负担。
-* 提供一台自动调参机，只需对配置文件做一点点修改，即可实现自动调参并总结。
-* 采用了更加简单优雅、pythonic 的语法，附带大量开箱即用的实用方法、属性。
+可以看到，AlchemyCat 囊括了当前流行的配置系统所提供的所有功能，且充分考虑了各种细节，稳定性有保障。其独到之处还在于：
+* 可读：语法简洁、优雅、Pythonic。
+* 可复用：支持配置的**继承**和**组合**，有效减少冗余，提高配置的复用性。
+* 可维护：支持在配置项间建立**依赖**关系，实现一处更改，全局同步，大大减轻修改配置时的心智负担。
+* 支持**自动调参**并汇总结果，且无需修改原有的标准配置或训练代码。
 
-如果您已经在使用上表中某个配置系统，迁移到 AlchemyCat 几乎是零成本的。花15分钟阅读下面的文档，并将 AlchemyCat 运用到项目中，从此你的GPU将永无空闲！
+如果您已经在使用上表中某个配置系统，[迁移](#div-aligncenter-迁移div)到 AlchemyCat 是零成本的。花15分钟阅读[文档](#div-aligncenter-文档-div)，并将 AlchemyCat 运用到项目中，从此你的GPU将永无空闲！
+
+## 速览
+
+深度学习依赖于众多经验性的超参数，包括学习率、损失权重、迭代次数、滑动窗口大小、drop path概率、各种阈值，乃至于随机种子。
+
+超参数-性能间的关系难以被理论预测。唯一可以肯定的是，拍脑袋选择的超参数很难达到最优。实践证明，通过网格搜索来遍历超参空间，能够显著提升模型性能，其效果有时甚至超过所谓的『创新点』。能否斩获 SOTA，往往取决于此！
+
+AlchemyCat 提供一台自动调参机，它能够无缝集成现有配置系统，自动探索超参空间并汇总实验结果。使用该工具，用户无需对原始配置或训练代码做任何修改。
+
+以 [MMSeg](https://github.com/open-mmlab/mmsegmentation) 为例，用户仅需编写一个可调配置，其**继承**自 MMSeg 提供的基配置，定义了参数的搜索空间：
+```python
+# -- configs/deeplabv3plus/tune_bs,iter/cfg.py --
+from alchemy_cat import Cfg2Tune, Param2Tune
+
+# Inherit from standard mmcv config.
+cfg = Cfg2Tune(caps='configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb4-40k_voc12aug-512x512.py')
+
+# Inherit and override
+cfg.model.auxiliary_head.loss_decode.loss_weight = 0.2
+
+# Tuning parameters: grid search batch_size and max_iters
+cfg.train_dataloader.batch_size = Param2Tune([4, 8])
+cfg.train_cfg.max_iters = Param2Tune([20_000, 40_000])
+# ... 
+```
+随后编写一个脚本，指定如何运行单个配置并读取其实验结果：
+```python
+# -- tools/tune_dist_train.py --
+import argparse, subprocess
+from alchemy_cat.dl_config import Cfg2TuneRunner, Config
+from alchemy_cat.dl_config.examples.read_mmcv_metric import get_metric
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--cfg2tune', type=str)            # Path to the tunable config
+parser.add_argument('--num_gpu', type=int, default=2)  # Number of GPUs for each task
+args = parser.parse_args()
+
+runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='work_dirs', work_gpu_num=args.num_gpu)
+
+@runner.register_work_fn  # Run experiment for each param combination with mmcv official train script
+def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str, cuda_env: dict[str, str]):
+    mmcv_cfg = cfg.save_mmcv(cfg_rslt_dir + '/mmcv_config.py')
+    subprocess.run(f'./tools/dist_train.sh {mmcv_cfg} {args.num_gpu}', env=cuda_env, shell=True)
+
+@runner.register_gather_metric_fn    # Optional, gather metric of each config
+def gather_metric(cfg: Config, cfg_rslt_dir: str, run_rslt, param_comb) -> dict[str, float]:
+    return get_metric(cfg_rslt_dir)  # {'aAcc': xxx, 'mIoU': xxx, 'mAcc': xxx}
+
+runner.tuning()
+```
+运行`CUDA_VISIBLE_DEVICES=0,1,2,3 python tools/tune_dist_train.py --cfg2tune configs/deeplabv3plus/tune_bs,iter/cfg.py`，将自动**并行**搜索参数空间，汇总得到如下实验结果：
+
+<div align = "center">
+<img  src="https://raw.githubusercontent.com/HAL-42/AlchemyCat/master/docs/figs/readme-teaser-excel.png" width="500" />
+</div>
+
+不过，上述配置尚不完整，因为某些超参数之间互相依赖，需要同步调整。例如，学习率应当正比于批次大小。AlchemyCat 利用**依赖项**来描述这种关系，依赖源一旦修改，相关的依赖项将自动更新以保持一致。包含依赖项的完整配置如下：
+```python
+# -- configs/deeplabv3plus/tune_bs,iter/cfg.py --
+from alchemy_cat import Cfg2Tune, Param2Tune, P_DEP
+
+# Inherit from standard mmcv config.
+cfg = Cfg2Tune(caps='configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb4-40k_voc12aug-512x512.py')
+
+# Inherit and override
+cfg.model.auxiliary_head.loss_decode.loss_weight = 0.2
+
+# Tuning parameters: grid search batch_size and max_iters
+cfg.train_dataloader.batch_size = Param2Tune([4, 8])
+cfg.train_cfg.max_iters = Param2Tune([20_000, 40_000])
+
+# Dependencies:
+# 1) learning rate increase with batch_size
+cfg.optim_wrapper.optimizer.lr = P_DEP(lambda c: (c.train_dataloader.batch_size / 8) * 0.01)
+
+# 2) end of param_scheduler increase with max_iters
+@cfg.set_DEP()
+def param_scheduler(c):
+    return dict(
+        type='PolyLR',
+        eta_min=1e-4,
+        power=0.9,
+        begin=0,
+        end=c.train_cfg.max_iters,
+        by_epoch=False)
+```
+> [!NOTE]
+> 上面例子中，定义依赖项看似画蛇添足——它们其实可以被直接算出。但是，当结合**继承**功能时，将依赖项定义在基配置中可以带来极大便利：这样，可调配置就可以专注于搜索关键超参数，而无需处理那些繁琐的依赖细节。更贴切的例子参见[文档](#依赖)。
+
 
 # <div align="center">📦 安装</div>
 ```bash
@@ -121,7 +209,8 @@ config C + algorithm code A ——> reproducible experiment E(C, A)
             └── 10 epoch
                 └── xxx.log
 ```
-**最佳实践：在`cfg.py`旁边创建一个`__init__.py`（一般IDE会自动创建），并避免路径中含有'.'。遵守该最佳实践有助于 IDE 调试，且能够在`cfg.py`中使用相对导入。**
+> [!TIP]
+> **最佳实践：在`cfg.py`旁边创建一个`__init__.py`（一般IDE会自动创建），并避免路径中含有'.'。遵守该最佳实践有助于 IDE 调试，且能够在`cfg.py`中使用相对导入。**
 
 
 让我们从一个不完整的例子开始，了解如何书写和加载配置。我们首先创建[配置文件](alchemy_cat/dl_config/examples/configs/mnist/plain_usage/cfg.py)：
@@ -143,7 +232,8 @@ cfg.dt.ini.train = True
 ```
 这里我们首先实例化一个`Config`类别对象`cfg`，随后通过属性操作`.`来添加配置项。配置项可以是任意 python 对象，包括函数、方法、类。
 
-**最佳实践：我们推荐直接在配置项中指定函数或类，而不是通过字符串/信号量来控制程序行为。前者支持 IDE 跳转，便于阅读和调试。**
+> [!TIP]
+> **最佳实践：我们推荐直接在配置项中指定函数或类，而不是通过字符串/信号量来控制程序行为。前者支持 IDE 跳转，便于阅读和调试。**
 
 `Config`是python `dict`的子类，上面代码定义了一个**树结构**的嵌套字典：
 ```text
@@ -770,38 +860,12 @@ batch_size epochs
 Saving Metric Frame at /tmp/experiment/tune/tune_bs_epoch/metric_frame.xlsx
 ```
 正如提示信息所言，调参结果还会被保存到 `/tmp/experiment/tune/tune_bs_epoch/metric_frame.xlsx` 表格中：
-<p align = "center">
+<div align = "center">
 <img  src="https://github.com/HAL-42/AlchemyCat/raw/master/docs/figs/readme-cfg2tune-excel.png" width="400" />
-</p>
+</div>
 
-**最佳实践：自动调参机独立于标准工作流。在写配置和代码时，先不要考虑调参。调参时，再写一点点额外的代码，定义参数空间，指定算法的调用和结果的获取方式。调参完毕后，剥离调参机，只发布最优的配置和算法。**
-
-### 另一个例子：在 MMCV 中使用自动调参 
-<details>
-<summary> 与 MMCV 结合使用 </summary>
-
-AlchemyCat 支持直接读写 MMCV 配置，可调配置可以写作：
-
-```python
-from alchemy_cat.dl_config import Cfg2Tune, Param2Tune
-
-cfg = Cfg2Tune(caps='mmcv_configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb2-40k_cityscapes-512x1024.py')
-
-cfg.model.backbone.depth = Param2Tune([50, 101])
-cfg.train_cfg.max_iters = Param2Tune([10_000, 20_000])
-```
-
-在工作函数中，我们调用 MMCV 官方训练脚本`train.py`。由于`work`收到的`cfg`是 AlchemyCat 格式的，我们需要将其保存为 MMCV 格式的配置文件，再传递给`train.py`：
-
-```python
-@runner.register_work_fn  # How to run config
-def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str) -> ...:
-    cfg.save_mmcv(mmcv_cfg_file := 'path/to/mmcv_format_cfg.py')
-    subprocess.run([sys.executable, 'train.py', mmcv_cfg_file],
-                   env=os.environ | {'CUDA_VISIBLE_DEVICE': f'pkl_idx % torch.cuda.device_count()'})
-```
-
-</details>
+> [!TIP]
+> **最佳实践：自动调参机独立于标准工作流。在写配置和代码时，先不要考虑调参。调参时，再写一点点额外的代码，定义参数空间，指定算法的调用和结果的获取方式。调参完毕后，剥离调参机，只发布最优的配置和算法。**
 
 ### 本章小结
 * 可以在可调配置`Cfg2Tune`中，使用`Param2Tune`定义参数空间。
