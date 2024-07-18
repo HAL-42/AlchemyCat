@@ -53,16 +53,17 @@ def allocate_cuda_by_group_rank(group_rank: int,
         group_cuda_num = cuda_num // group_num  # 组数已知，算出卡数。
 
     # -* 等待当前CUDA设备空闲。
+    # -** 按照索引确定CUDA设备。
+    group_idx = group_rank % group_num  # 当前所在组。
+    current_cudas = cudas[group_idx * group_cuda_num:(group_idx + 1) * group_cuda_num]  # 所在组拥有的CUDA设备。
+    # -** 动态分配。
     if block:
         current_cudas = block_get_available_cuda(cudas,
                                                  cuda_need=group_cuda_num,
                                                  memory_need=memory_need,
                                                  max_process=max_process,
-                                                 verbosity=verbosity)
-    # -* 按照索引确定CUDA设备。
-    else:
-        group_idx = group_rank % group_num  # 当前所在组。
-        current_cudas = cudas[group_idx * group_cuda_num:(group_idx + 1) * group_cuda_num]  # 所在组拥有的CUDA设备。
+                                                 verbosity=verbosity,
+                                                 cudas_prefer=current_cudas)
 
     # -* 获取当前指定了当前设备的环境变量。
     env_with_current_cuda = os.environ.copy()

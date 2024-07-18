@@ -108,7 +108,7 @@ class Cfg2TuneRunner(object):
 
         # * 保存每个配置的运行结果。
         self.run_rslts: List[subprocess.CompletedProcess] = []
-        self.cuda_env_kwargs = {'group_num': pool_size,
+        self.cuda_env_kwargs = {'group_num': self.pool_size,
                                 'block': block, 'verbosity': verbosity,
                                 'memory_need': memory_need, 'max_process': max_process}
 

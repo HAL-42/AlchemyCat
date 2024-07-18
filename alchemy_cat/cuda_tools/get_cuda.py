@@ -36,7 +36,8 @@ def cudas2CUDA_VISIBLE_DEVICES(cudas: Union[list[Union[str, int]], str]) -> str:
 
 def block_get_available_cuda(cudas: Union[list[Union[str, int]], str],
                              cuda_need: int=-1, memory_need: float=-1., max_process: int=-1,
-                             sleep_secs: int=kSleepSecs, verbosity: bool=True) -> list[int]:
+                             sleep_secs: int=kSleepSecs, verbosity: bool=True,
+                             cudas_prefer: list[int]=None) -> list[int]:
     """Block the program util find enough available CUDA devices.
 
     Args:
@@ -47,6 +48,7 @@ def block_get_available_cuda(cudas: Union[list[Union[str, int]], str],
         max_process: Max process num on available GPU. < 0 means no limit.
         sleep_secs: If block, sleep sleep_secs seconds and recheck.
         verbosity: Where print heartbeat.
+        cudas_prefer: Prefer to use these cudas.
 
     Returns:
         Available CUDA devices.
@@ -92,7 +94,14 @@ def block_get_available_cuda(cudas: Union[list[Union[str, int]], str],
                    f"GPU need: {cuda_need}, Memory need: {memory_need:.1f}MB, Max process: {max_process}.")
             sleep(sleep_secs)
 
-    ret = available_cudas[:cuda_need]
+    if cudas_prefer is None:
+        ret = available_cudas[:cuda_need]
+    else:
+        ret = set(cudas_prefer) & set(available_cudas)  # 找到prefer中可用的cuda。
+        if len(ret) < cuda_need:  # 若可用cuda不足。
+            ret = list(ret) + list(set(available_cudas) - ret)[:cuda_need-len(ret)]
+        else:  # 若可用cuda足够。
+            ret = list(ret)[:cuda_need]
     if verbosity:
         gprint(f"[SUCCESS] Get available cudas {ret}.")
     return ret
