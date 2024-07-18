@@ -9,8 +9,4 @@
 @Desc    : 
 """
 from .auto_allocate_cuda import *
-try:
-    from .cuda_block import *
-except ImportError:
-    # 没有安装gpustat
-    pass
+from .get_cuda import *

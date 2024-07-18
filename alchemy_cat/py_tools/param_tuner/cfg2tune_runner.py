@@ -8,7 +8,6 @@
 @Software: PyCharm
 @Desc    : 
 """
-import os
 import os.path as osp
 import subprocess
 import sys
@@ -31,12 +30,12 @@ from .cfg2tune import Cfg2Tune
 from ..config.py_cfg import Config
 from ..logger import Logger
 from ..str_formatters import get_local_time_str
-from ...cuda_tools import allocate_cuda_by_group_rank
+from ...cuda_tools import allocate_cuda_by_group_rank, get_cudas
 from ..color_print import yprint, gprint, rprint
 
 __all__ = ["Cfg2TuneRunner"]
 
-WORK_WRAPPER_INPUT_TYPE: TypeAlias = tuple[int, tuple[Config, str, str, dict[str, str]]]
+WORK_WRAPPER_INPUT_TYPE: TypeAlias = tuple[int, tuple[Config, str, str, dict[str, Any]]]
 WORK_INPUT_TYPE: TypeAlias = tuple[int, Config, str, str, dict[str, str]]
 WORK_WRAPPER_TYPE: TypeAlias = Callable[[WORK_WRAPPER_INPUT_TYPE], Any]
 WORK_TYPE: TypeAlias = Callable[[int, Config, str, str, dict[str, str]], Any]
@@ -49,7 +48,9 @@ class Cfg2TuneRunner(object):
                  metric_names: Optional[List[str]]=None,
                  gather_metric_fn: Callable[[Config, str, Any, dict[str, tuple[Any, str]]], dict[str, Any]]=None,
                  work_fn: WORK_WRAPPER_TYPE=None,
-                 allow_fail_gather: bool=True):
+                 allow_fail_gather: bool=True,
+                 block: bool=True, verbosity: bool=True,
+                 memory_need: float=-1., max_process: int=-1):
         """Running a cfg2tune.
 
         Args:
@@ -60,6 +61,10 @@ class Cfg2TuneRunner(object):
             work_gpu_num: Number of GPUs in a group.
             metric_names: Name of metrics to be gathered.
             allow_fail_gather: Whether allow gather_metric_fn to fail.
+            block: Refer to `alchemy_cat.cuda_tools.allocate_cuda_by_group_rank`.
+            verbosity: Refer to `alchemy_cat.cuda_tools.allocate_cuda_by_group_rank`.
+            memory_need: Refer to `alchemy_cat.cuda_tools.allocate_cuda_by_group_rank`.
+            max_process: Refer to `alchemy_cat.cuda_tools.allocate_cuda_by_group_rank`.
         """
         self.cfg2tune_py = cfg2tune_py
         self.config_root = config_root
@@ -71,11 +76,11 @@ class Cfg2TuneRunner(object):
 
         # -* 解算pool_size。
         if self.work_gpu_num is not None:
-            if 'CUDA_VISIBLE_DEVICES' not in os.environ:
-                raise ValueError("work_gpu_num is set, but CUDA_VISIBLE_DEVICES is not set.")
+            if work_gpu_num <= 0:
+                raise ValueError("work_gpu_num must be None or integer larger than 0.")
             if pool_size != 0:
                 raise ValueError("work_gpu_num is set, pool size will be calculated. ")
-            self.pool_size = len(os.environ['CUDA_VISIBLE_DEVICES'].split(',')) // self.work_gpu_num
+            self.pool_size = len(get_cudas()[0]) // self.work_gpu_num
         else:
             self.pool_size = int(pool_size)
 
@@ -103,11 +108,9 @@ class Cfg2TuneRunner(object):
 
         # * 保存每个配置的运行结果。
         self.run_rslts: List[subprocess.CompletedProcess] = []
-
-        # * 保存每个配置的运行环境。
-        # NOTE pool_size == 0时，将原样返回env。
-        self.cuda_envs = [allocate_cuda_by_group_rank(idx, group_num=self.pool_size, block=False, verbosity=False)[1]
-                          for idx in range(len(self.param_combs))]
+        self.cuda_env_kwargs = {'group_num': pool_size,
+                                'block': block, 'verbosity': verbosity,
+                                'memory_need': memory_need, 'max_process': max_process}
 
     def build_metrics(self):
         """得到参数组合与metric frame。"""
@@ -125,7 +128,8 @@ class Cfg2TuneRunner(object):
         """并行或串行地，根据每个配置，执行work函数。work函数内，应当完成一次实验。"""
         work = self.work_fn if self.work_fn is not None else self.work
 
-        work_inputs = enumerate(zip(self.cfgs, self.cfg_pkls, self.cfg_rslt_dirs, self.cuda_envs))
+        work_inputs = enumerate(zip(self.cfgs, self.cfg_pkls, self.cfg_rslt_dirs,
+                                    [self.cuda_env_kwargs] * len(self.cfgs)))
 
         if self.pool_size > 0:
             with Pool(self.pool_size) as p:
@@ -143,25 +147,22 @@ class Cfg2TuneRunner(object):
                 self.run_rslts.append(run_rslt)
 
     @staticmethod
-    def parse_work_param(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env: WORK_WRAPPER_INPUT_TYPE) -> WORK_INPUT_TYPE:
-        """pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir, cuda_env) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env"""
-        pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir, cuda_env) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env
-        return pkl_idx, cfg, cfg_pkl, cfg_rslt_dir, cuda_env
+    def parse_work_param(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env_kwargs: WORK_WRAPPER_INPUT_TYPE) -> WORK_INPUT_TYPE:
+        """Convert `WORK_WRAPPER_INPUT_TYPE` to `WORK_INPUT_TYPE`"""
+        pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir, cuda_env_kwargs) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env_kwargs
+        return pkl_idx, cfg, cfg_pkl, cfg_rslt_dir, allocate_cuda_by_group_rank(pkl_idx, **cuda_env_kwargs)[1]
 
     @staticmethod
-    def work(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env: WORK_WRAPPER_INPUT_TYPE):
-        """pkl_idx, (cfg, cfg_pkl, cfg_rslt_dir, cuda_env) = pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env,
-        then run the config pkl with subprocess.
-
-        Return subprocess.CompletedProcess. """
+    def work(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env_kwargs: WORK_WRAPPER_INPUT_TYPE):
+        """Do not implement this function, use `register_work_fn` instead."""
         raise NotImplementedError()
 
     def register_work_fn(self, work_fn: WORK_TYPE) -> WORK_WRAPPER_TYPE:
         """Register work_fn. Use as a decorator."""
         @wraps(work_fn)
-        def wrapper(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env: WORK_WRAPPER_INPUT_TYPE):
+        def wrapper(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env_kwargs: WORK_WRAPPER_INPUT_TYPE):
             pkl_idx, cfg, cfg_pkl, cfg_rslt_dir, cuda_env = (
-                Cfg2TuneRunner.parse_work_param(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env))
+                Cfg2TuneRunner.parse_work_param(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env_kwargs))
             return work_fn(pkl_idx, cfg, cfg_pkl, cfg_rslt_dir, cuda_env)
 
         self.work_fn = wrapper

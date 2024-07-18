@@ -30,6 +30,7 @@ dependencies = [
     "openpyxl",
     "loguru",
     "psutil",
+    "gpustat>=0.6.0",
 ]
 
 [project.optional-dependencies]
@@ -50,7 +51,6 @@ full = [
     "scikit-image>=0.20.0",
     "scikit-learn>=1.2.2",
     "xlwings>=0.30.10",
-    "gpustat>=0.6.0",
 ]
 
 # -* 项目的URL。
