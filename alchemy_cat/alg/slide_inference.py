@@ -34,8 +34,8 @@ def _pad_imgs(imgs: torch.Tensor, padded_h: int, padded_w: int, pad_val: ...=0) 
 
 def slide_inference(imgs: torch.Tensor, *others: torch.Tensor,
                     model: Callable[[torch.Tensor, ...], torch.Tensor],
-                    num_class: int,
                     window_sizes: Union[Iterable, int], strides: Union[Iterable, int],
+                    num_class: int=None,
                     pad: bool=False,
                     win_size_checker: Callable[[int], bool]=lambda x: find_nearest_odd_size(x, min_n=4) == x,
                     align_corners: bool=True)\
@@ -46,8 +46,8 @@ def slide_inference(imgs: torch.Tensor, *others: torch.Tensor,
         imgs: 待推理的(N, 3, H, W)图片。
         others: 其他输入，如标签，形状为(..., H, W)。
         model: 推理函数，输入(N, 3, H, W)图片，输出得分。
-        num_class: 模型logit输出通道数。
         window_sizes: 滑动窗口尺寸。若为可迭代对象，表(win_h, win_w)；若为int，则正方形窗口的边长。
+        num_class: 模型logit输出通道数。若为None，则使用模型的输出通道数。
         strides: 滑动窗口步长。若为可迭代对象，表(stride_h, stride_w)；若为int，表步长之于高宽上一致者。
         pad: 是否在推理前，将输入图片填充到滑动窗口尺寸。注意，若没有pad，当确保输入图片尺寸为模型支持的尺寸。
         win_size_checker: 检查最后真实切出的窗口，其尺寸是否符合要求。默认检查是否为n=4的奇尺寸。
@@ -72,8 +72,11 @@ def slide_inference(imgs: torch.Tensor, *others: torch.Tensor,
         padded_others = others
 
     # * 初始化得分和累加次数。
-    logits = torch.zeros((padded_imgs.shape[0], num_class, padded_imgs.shape[2], padded_imgs.shape[3]),
-                         dtype=padded_imgs.dtype, device=padded_imgs.device)
+    def ini_logits(c: int) -> torch.Tensor:
+        return torch.zeros((padded_imgs.shape[0], c, padded_imgs.shape[2], padded_imgs.shape[3]),
+                           dtype=padded_imgs.dtype, device=padded_imgs.device)
+
+    logits = ini_logits(num_class) if num_class is not None else None
     add_count = torch.zeros((padded_imgs.shape[2], padded_imgs.shape[3]),
                             dtype=torch.int64, device=padded_imgs.device)
 
@@ -101,7 +104,8 @@ def slide_inference(imgs: torch.Tensor, *others: torch.Tensor,
             cropped_logits = F.interpolate(model(cropped_imgs, *cropped_others),
                                            size=(cropped_imgs.shape[2], cropped_imgs.shape[3]),
                                            mode='bilinear', align_corners=align_corners)
-
+            if logits is None:
+                logits = ini_logits(cropped_logits.shape[1])
             logits[:, :, y1:y2, x1:x2] += cropped_logits
             add_count[y1:y2, x1:x2] += 1
 
