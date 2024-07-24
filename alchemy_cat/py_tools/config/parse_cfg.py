@@ -125,8 +125,7 @@ def _process_py_config(config: dict, config_path: Union[str, dict], experiments_
         raise RuntimeError("When create_rslt_dir is True, should set cfg.rslt_dir or open config from file.")
     # -* 若rslt_dir不可获取，但也不需要创建rslt_dir，则不做任何处理。
     else:
-        warnings.warn("config is parsed but can't resolve its rslt_dir. That's unusual and should have better way."
-                      "However, since create_rslt_dir is False, it's not a error.")
+        pass
 
     return config
 
