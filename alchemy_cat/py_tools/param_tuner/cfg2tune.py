@@ -256,8 +256,7 @@ class Cfg2Tune(Config):
             cfg.save_py(osp.join(cfg_save_dir, 'cfg.log'))
 
             cfg_file = osp.join(cfg_save_dir, 'cfg.pkl')
-            with open(cfg_file, 'wb') as pkl_f:
-                pickle.dump(cfg, pkl_f)
+            cfg.save_pkl(cfg_file, save_copy=False)
 
             cfg_files.append(cfg_file)
             cfgs.append(cfg)

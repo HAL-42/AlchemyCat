@@ -10,6 +10,7 @@
 """
 import copy
 import os
+import pickle
 import pprint
 import sys
 import warnings
@@ -685,7 +686,7 @@ class Config(ADict):
                 cfgs_update_at_parser = cfgs_update_at_parser + cfg_dep
 
         # -* 记录基配置。
-        # self.set_attribute('_cfgs_update_at_init', cfgs)  # ! 该值除了debug，根本用不大。如果cfgs不是str而是字典，pickle还会增加额外的负担。
+        # self.set_attribute('_cfgs_update_at_init', cfgs)  # ! 该值除了debug，根本用不到。如果cfgs不是str而是字典，pickle还会增加额外的负担。
         self.set_attribute('_cfgs_update_at_parser', cfgs_update_at_parser)
 
     def update_at_parser(self) -> None:
@@ -939,6 +940,13 @@ from alchemy_cat.dl_config import {type(self).__name__}
 """
 
         file.write_text(cfg_str)
+
+        return file
+
+    def save_pkl(self, file: Union[str, os.PathLike], save_copy: bool=True) -> Path:
+        (file := Path(file)).parent.mkdir(parents=True, exist_ok=True)
+
+        file.write_bytes(pickle.dumps(self.branch_copy() if save_copy else self))
 
         return file
 
