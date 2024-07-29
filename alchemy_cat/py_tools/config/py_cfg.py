@@ -840,6 +840,10 @@ class Config(ADict):
             elif (value.get_attribute('__parent') is not None) or (value.get_attribute('__key') is not None):
                 self[key] = value.branch_copy()
                 value = self[key]
+                # TODO 此处有一个隐藏BUG：当该value含有DEP时，改DEP会被赋值过来。若该DEP是rel模式，则level很可能错乱。
+                # TODO 解决方案1：重算level和lambda：太复杂，做不到。
+                # TODO 解决方案2：拷贝过来的IL作为“分身”，不直接计算，等“真身”计算完后赋值：“真身”若来自其他树，可能不计算，不可信。
+                # TODO 解决方案3：安全检查，赋值过来的树里，如果有rel的DEP，如果其level超过了赋值树的顶层，则报错。
             # -* 根子树挂载。
             else:
                 value.set_attribute('__parent', self)
