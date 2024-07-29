@@ -817,7 +817,7 @@ parser = argparse.ArgumentParser(description='Tuning AlchemyCat MNIST Example')
 parser.add_argument('-c', '--cfg2tune', type=str)
 args = parser.parse_args()
 
-# Set `pool_size` to GPU num, will run `pool_size` of configs in parallel
+# Will run `torch.cuda.device_count() // work_gpu_num`  of configs in parallel
 runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', work_gpu_num=1)
 
 @runner.register_work_fn  # How to run config
@@ -1019,23 +1019,19 @@ cfg.sched.epochs = 15
 
 我们还提供了一个[脚本](alchemy_cat/torch_tools/scripts/tag_exps.py)，运行`pyhon -m alchemy_cat.torch_tools.scripts.tag_exps -s commit_ID -a commit_ID`，将交互式地列出该 commit 新增的配置，并按照配置路径给 commit 打上标签。这有助于快速回溯历史上某个实验的配置和算法。
 
-### 为子任务手动分配显卡
-`Cfg2TuneRunner`的`work`函数有时需要为子进程分配显卡。除了使用`cuda_env`参数，还可以使用`allocate_cuda_by_group_rank`，根据`pkl_idx`手动分配空闲显卡，：
+### 自动分配空闲显卡
+`work`函数通过`cuda_env`参数，接收`Cfg2TuneRunner`自动分配的空闲显卡。我们还可以进一步控制『空闲显卡』的定义：
 ```python
-from alchemy_cat.cuda_tools import allocate_cuda_by_group_rank
-
-# ... Code before
-
-@runner.register_work_fn  # How to run config
-def work(pkl_idx: int, cfg: Config, cfg_pkl: str, cfg_rslt_dir: str, cuda_env: dict[str, str]) -> ...:
-    current_cudas, env_with_current_cuda = allocate_cuda_by_group_rank(group_rank=pkl_idx, group_cuda_num=2, block=True, verbosity=True)
-    subprocess.run([sys.executable, 'train.py', '-c', cfg_pkl], env=env_with_current_cuda)
-
-# ... Code after
+runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', work_gpu_num=1, 
+                        block=True,             # Try to allocate idle GPU
+                        memory_need=10 * 1024,  # Need 10 GB memory
+                        max_process=2)          # Max 2 process already ran on each GPU
 ```
-`group_rank`一般为`pkl_idx`，`group_cuda_num`为任务所需显卡数量。`block`为`True`时，若分配的显卡被占用，会阻塞直到有空闲。`verbosity`为`True`时，会打印阻塞情况。
+其中：
+* `block`: 默认为`True`。若为`False`，则总是顺序分配显卡，不考虑空闲与否。
+* `memory_need`：运行每个子配置需要的显存，单位为 MB。空闲显卡之可用显存必须 ≥ `memory_need`。默认值为`-1.`，表示需要独占所有显存。
+* `max_process`：最大已有进程数。空闲显卡已有的进程数必须 ≤ `max_process`。默认值为`-1`，表示无限制。
 
-返回值`current_cudas`是一个列表，包含了分配的显卡号。`env_with_current_cuda`是设置了`CUDA_VISIBLE_DEVICES`的环境变量字典，可直接传入`subprocess.run`的`env`参数。
 
 ### 匿名函数无法 pickle 问题
 `Cfg2Tune`生成的子配置会被 pickle 保存。然而，若`Cfg2Tune`定义了形似`DEP(lambda c: ...)`的依赖项，所存储的匿名函数无法被 pickle。变通方法有：

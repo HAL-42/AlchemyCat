@@ -6,7 +6,7 @@ parser = argparse.ArgumentParser(description='Tuning AlchemyCat MNIST Example')
 parser.add_argument('-c', '--cfg2tune', type=str)
 args = parser.parse_args()
 
-# Set `pool_size` to GPU num, will run `pool_size` of configs in parallel
+# Will run `torch.cuda.device_count() // work_gpu_num`  of configs in parallel
 runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', work_gpu_num=1)
 
 @runner.register_work_fn  # How to run config
