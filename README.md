@@ -1020,7 +1020,7 @@ For `config C + algorithm code A ——> reproducible experiment E(C, A)`, meani
 
 We also provide a [script](alchemy_cat/torch_tools/scripts/tag_exps.py) that runs `pyhon -m alchemy_cat.torch_tools.scripts.tag_exps -s commit_ID -a commit_ID`, interactively lists the new configs added by the commit, and tags the commit according to the config path. This helps quickly trace back the config and algorithm of a historical experiment.
 
-### Allocate GPU for Child Processes Manually
+### Automatically Allocate idle GPUs
 The `work` function receives the idle GPU automatically allocated by `Cfg2TuneRunner` through the `cuda_env` parameter. We can further control the definition of 'idle GPU':
 ```python
 runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', work_gpu_num=1, 
