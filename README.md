@@ -213,7 +213,7 @@ The experimental directory is automatically generated, mirroring the relative pa
                 └── xxx.log
 ```
 > [!TIP]
-> **Best Practice: Create a `__init__.py` next to `cfg.py`(usually will be auto created by IDE), and avoid paths containing '.'. This can help IDE to debug and allow relative import in `cfg.py`.**
+> **Best Practice: Avoid having '.' in the path. By following this best practice, relative imports can be used in `cfg.py`, and functions and classes defined within it can be pickled.**
 
 
 Let's begin with an incomplete example to demonstrate writing and loading a config. First, create the [config file](alchemy_cat/dl_config/examples/configs/mnist/plain_usage/cfg.py):

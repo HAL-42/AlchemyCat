@@ -215,7 +215,7 @@ config C + algorithm code A ——> reproducible experiment E(C, A)
                 └── xxx.log
 ```
 > [!TIP]
-> **最佳实践：在`cfg.py`旁边创建一个`__init__.py`（一般IDE会自动创建），并避免路径中含有'.'。遵守该最佳实践有助于 IDE 调试，且能够在`cfg.py`中使用相对导入。**
+> **最佳实践：避免路径中含有'.'。遵守该最佳实践，`cfg.py`中能够使用相对导入，其中定义的函数、类能够被pickle。**
 
 
 让我们从一个不完整的例子开始，了解如何书写和加载配置。我们首先创建[配置文件](alchemy_cat/dl_config/examples/configs/mnist/plain_usage/cfg.py)：
