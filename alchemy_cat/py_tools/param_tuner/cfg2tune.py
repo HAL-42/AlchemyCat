@@ -221,7 +221,10 @@ class Cfg2Tune(Config):
             if self.is_subtree(v, self):
                 other[k] = v._cfg_tuned()
             elif isinstance(v, Param2Tune):
-                other[k] = v.cur_val
+                cur_val = v.cur_val
+                if isinstance(cur_val, Config):
+                    cur_val = cur_val.branch_copy()
+                other[k] = cur_val
             else:
                 other[k] = v
 
