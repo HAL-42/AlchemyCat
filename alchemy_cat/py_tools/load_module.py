@@ -45,14 +45,22 @@ def load_module_from_py(py: str, from_file: bool=False) -> ModuleType:
 
     if not from_file:
         try:
-            import_path = '.'.join(osp.normpath(osp.splitext(py)[0]).lstrip(osp.sep).split(osp.sep))
-            if '.' == import_path[0]:  # 如果是相对路径。
-                # import_path = import_path[1:]  # 相对路径会多一个点。
-                raise RuntimeError(f"Relative import is not supported yet. ")
+            paths = osp.normpath(osp.splitext(py)[0]).lstrip(osp.sep).split(osp.sep)
+
+            if paths[0] == '..':  # 相对导入不支持。
+                raise ValueError(f"Relative import is not supported yet. ")
+            for p in paths:
+                if '.' in p:  # 导入路径中不应含有'.'。
+                    raise ValueError(f"Import path can not contain '.', but got {p} in {py}. ")
+
+            import_path = '.'.join(paths)
             module = import_module(import_path)
-        except Exception:
+        except Exception as e:
             # print(traceback.format_exc())
-            warnings.warn(f"未能用import_module导入{py},尝试直接执行文件。")
+            warnings.warn(f'Failed to import {py} by `import_module` as "{e}", '
+                          f'trying rollback mode to execute the file directly. \n'
+                          f'Please note that rollback mode has limited functionality: relative imports in `cfg.py` are'
+                          f' not possible, and functions or classes defined within it cannot be pickled.')
 
     if module is None:
         spec = spec_from_file_location("foo", py)
