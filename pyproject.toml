@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 # -* 项目基本信息。
 name = "alchemy_cat"
-version = "0.0.8"
+version = "0.0.9"
 authors = [
   { name="HAL-42", email="hal_42@zju.edu.cn" },
 ]
