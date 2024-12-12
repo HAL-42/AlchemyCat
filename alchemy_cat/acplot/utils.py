@@ -12,7 +12,7 @@ import numpy as np
 
 from typing import Union, Iterable
 
-from alchemy_cat.data.plugins.augers import pad_img_label
+import alchemy_cat.data.plugins.augers as au
 
 __all__ = ['stack_figs']
 
@@ -41,5 +41,6 @@ def stack_figs(in_list: list, img_pad_val: Union[int, float, Iterable] = (127, 1
             max_w = item.shape[1]
     out_arr = np.zeros((len(in_list), max_h, max_w, 3), dtype=in_list[0].dtype)
     for i, item in enumerate(in_list):
-        out_arr[i] = pad_img_label(item, pad_img_to=(max_h, max_w), img_pad_val=img_pad_val, pad_location=pad_location)
+        out_arr[i] = au.pad_img_label(item, pad_img_to=(max_h, max_w),
+                                      img_pad_val=img_pad_val, pad_location=pad_location)
     return out_arr
