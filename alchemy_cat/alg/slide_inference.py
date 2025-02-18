@@ -8,12 +8,12 @@
 @Software: PyCharm
 @Desc    : 滑动窗口法推理图片。
 """
-from typing import Callable, Union, Iterable, Tuple, List
-
-from math import ceil
+import warnings
+from typing import Callable, Union, Iterable, Tuple, List, cast
 
 import torch
 import torch.nn.functional as F
+from math import ceil
 
 from alchemy_cat.alg import size2HW, find_nearest_odd_size
 
@@ -33,12 +33,13 @@ def _pad_imgs(imgs: torch.Tensor, padded_h: int, padded_w: int, pad_val: ...=0) 
 
 
 def slide_inference(imgs: torch.Tensor, *others: torch.Tensor,
-                    model: Callable[[torch.Tensor, ...], torch.Tensor],
+                    model: Callable,
                     window_sizes: Union[Iterable, int], strides: Union[Iterable, int],
                     num_class: int=None,
                     pad: bool=False,
                     win_size_checker: Callable[[int], bool]=lambda x: find_nearest_odd_size(x, min_n=4) == x,
-                    align_corners: bool=True)\
+                    align_corners: bool=True,
+                    mode: str='bilinear',)\
         -> torch.Tensor:
     """滑动窗口法推理图片。
 
@@ -47,15 +48,20 @@ def slide_inference(imgs: torch.Tensor, *others: torch.Tensor,
         others: 其他输入，如标签，形状为(..., H, W)。
         model: 推理函数，输入(N, 3, H, W)图片，输出得分。
         window_sizes: 滑动窗口尺寸。若为可迭代对象，表(win_h, win_w)；若为int，则正方形窗口的边长。
-        num_class: 模型logit输出通道数。若为None，则使用模型的输出通道数。
+        num_class: Deprecated。
         strides: 滑动窗口步长。若为可迭代对象，表(stride_h, stride_w)；若为int，表步长之于高宽上一致者。
         pad: 是否在推理前，将输入图片填充到滑动窗口尺寸。注意，若没有pad，当确保输入图片尺寸为模型支持的尺寸。
         win_size_checker: 检查最后真实切出的窗口，其尺寸是否符合要求。默认检查是否为n=4的奇尺寸。
         align_corners: 是否对齐角点。
+        mode: The mode parameter for torch.nn.functional.interpolate.
 
     Returns:
         与输入imgs等大的(N, num_class, H, W)得分。
     """
+    # num_class参数弃用。
+    if num_class is not None:
+        warnings.warn("num_class is deprecated and will be removed in future versions.", DeprecationWarning)
+
     # * others的形状必须与imgs的形状一致。
     assert all([imgs.shape[2:] == other.shape[-2:] for other in others])
 
@@ -72,11 +78,11 @@ def slide_inference(imgs: torch.Tensor, *others: torch.Tensor,
         padded_others = others
 
     # * 初始化得分和累加次数。
-    def ini_logits(c: int) -> torch.Tensor:
-        return torch.zeros((padded_imgs.shape[0], c, padded_imgs.shape[2], padded_imgs.shape[3]),
-                           dtype=padded_imgs.dtype, device=padded_imgs.device)
+    def ini_logits(ref_logits: torch.Tensor) -> torch.Tensor:
+        return torch.zeros((ref_logits.shape[0], ref_logits.shape[1], padded_imgs.shape[2], padded_imgs.shape[3]),
+                           dtype=ref_logits.dtype, device=ref_logits.device)
 
-    logits = ini_logits(num_class) if num_class is not None else None
+    logits = None
     add_count = torch.zeros((padded_imgs.shape[2], padded_imgs.shape[3]),
                             dtype=torch.int64, device=padded_imgs.device)
 
@@ -103,14 +109,14 @@ def slide_inference(imgs: torch.Tensor, *others: torch.Tensor,
 
             cropped_logits = F.interpolate(model(cropped_imgs, *cropped_others),
                                            size=(cropped_imgs.shape[2], cropped_imgs.shape[3]),
-                                           mode='bilinear', align_corners=align_corners)
+                                           mode=mode, align_corners=align_corners, antialias=True)
             if logits is None:
-                logits = ini_logits(cropped_logits.shape[1])
+                logits = ini_logits(cropped_logits)
             logits[:, :, y1:y2, x1:x2] += cropped_logits
             add_count[y1:y2, x1:x2] += 1
 
     # * 求平均得分。
-    assert torch.all(add_count != 0)
+    assert torch.all(cast(torch.Tensor, add_count != 0))
     logits /= add_count
 
     # * 后处理得到与输入等大的得分图。

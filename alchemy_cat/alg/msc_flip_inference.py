@@ -86,6 +86,8 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
                        pad_aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]]=lambda x: x,
                        msc_aligner: Union[Callable[[int], int], Iterable[Callable[[int], int]]]=lambda x: x,
                        align_corners: bool=False,
+                       mode: str='bilinear',
+                       logits_scale_factor: int | float=1,
                        cuda_memory_saving: int=0,
                        softmax_norm: bool=True) \
         -> torch.Tensor:
@@ -103,6 +105,8 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
         msc_aligner: The scaled_size calculated by scale_factor * img_size will be fixed by aligner(scaled_size). If
             Iterable, then first and second aligners separately used to align H and W.
         align_corners: If True, use `align_corners` parameter for torch.nn.functional.interpolate.
+        mode: The mode parameter for torch.nn.functional.interpolate.
+        logits_scale_factor: The factor to scale logits before fusion. (Default: 1)
         cuda_memory_saving: int before 0-2. The larger less_cuda_memory set, the less gpu memory used by function. May
             loss some performance. (Default: 0)
         softmax_norm: If Ture, the output logit will be normalized by softmax then fusion between different scales. Else
@@ -111,6 +115,7 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
     Returns: (N, C, H, W) probs of image predicts
     """
     origin_h, origin_w = imgs.shape[-2:]
+    logits_h, logits_w = round(origin_h * logits_scale_factor), round(origin_w * logits_scale_factor)
 
     # * For saving more gpu memory, move imgs to cpu.
     if cuda_memory_saving > 1:
@@ -147,7 +152,8 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
         scaled_h, scaled_w = round(origin_h * msc_factor_h), round(origin_w * msc_factor_w)
         scaled_h, scaled_w = msc_aligner_h(scaled_h), msc_aligner_w(scaled_w)
 
-        batch_X = F.interpolate(imgs, size=(scaled_h, scaled_w), mode='bilinear', align_corners=align_corners)
+        batch_X = F.interpolate(imgs, size=(scaled_h, scaled_w), mode=mode, align_corners=align_corners,
+                                antialias=True)
         if is_flip:
             batch_X = flip_imgs(batch_X)
 
@@ -163,14 +169,14 @@ def msc_flip_inference(imgs: torch.Tensor, model: Callable[[torch.Tensor], torch
             padded_logits = padded_logits.cpu()
 
         if margin == [0, 0, 0, 0]:
-            logits = F.interpolate(padded_logits, size=(origin_h, origin_w),
-                                   mode='bilinear', align_corners=align_corners)
+            logits = F.interpolate(padded_logits, size=(logits_h, logits_w),
+                                   mode=mode, align_corners=align_corners, antialias=True)
         else:
             logits = F.interpolate(padded_logits, size=(padded_h, padded_w),
-                                   mode='bilinear', align_corners=align_corners)
+                                   mode=mode, align_corners=align_corners, antialias=True)
             logits = logits[:, :, margin[0]:(logits.shape[2] - margin[1]), margin[2]:(logits.shape[3] - margin[3])]
-            logits = F.interpolate(logits, size=(origin_h, origin_w),
-                                   mode='bilinear', align_corners=align_corners)
+            logits = F.interpolate(logits, size=(logits_h, logits_w),
+                                   mode=mode, align_corners=align_corners, antialias=True)
         probs = F.softmax(logits, dim=1) if softmax_norm else logits
         if is_flip:
             probs = merge_flipped_probs(probs)
