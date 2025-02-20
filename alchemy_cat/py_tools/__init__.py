@@ -22,7 +22,7 @@ from .get_process_info import *
 from .find_files import *
 from .color_print import *
 from .decorators import *
-from .check_img_exits import *
+from .check_img_exists import *
 from .load_module import *
 from .cat_head import *
 from .parse_log import *
