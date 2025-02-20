@@ -13,15 +13,17 @@ import os.path as osp
 import pickle
 import shutil
 import sys
+import warnings
 from typing import Optional
 
 import pytest
+
 try:
     from addict import Dict
 except ImportError:
     Dict = dict
 
-sys.path = ['', 'py_tools/param_tuner/tests'] + sys.path  # noqa: E402
+sys.path = ['alchemy_cat/py_tools/param_tuner/tests'] + sys.path  # noqa: E402
 
 from alchemy_cat.py_tools import Cfg2Tune, open_config, ItemLazy, Config
 
@@ -232,7 +234,12 @@ def test_no_legal_val_config(no_legal_val_config):
 
 def test_same_name_config():
     with pytest.raises(RuntimeError, match="for param2tune repeated."):
-        Cfg2Tune.load_cfg2tune(osp.join('py_tools/param_tuner/tests', 'configs', 'same_name_config', 'cfg.py'))
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message='Failed to import alchemy_cat/py_tools/param_tuner/tests'
+                                                      '/configs/same_name_config/cfg.py by `import_module` as "key = '
+                                                      'a for param2tune repeated."')
+            Cfg2Tune.load_cfg2tune(osp.join('alchemy_cat/py_tools/param_tuner/tests',
+                                            'configs', 'same_name_config', 'cfg.py'))
 
 
 def test_no_param_config(no_param_config):

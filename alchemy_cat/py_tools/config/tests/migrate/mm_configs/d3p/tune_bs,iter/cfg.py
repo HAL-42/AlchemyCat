@@ -11,7 +11,7 @@
 from alchemy_cat import Cfg2Tune, Param2Tune, DEP, P_DEP
 
 # Inherit from standard mmcv config.
-cfg = Cfg2Tune(caps='py_tools/config/tests/migrate/mm_configs/'
+cfg = Cfg2Tune(caps='alchemy_cat/py_tools/config/tests/migrate/mm_configs/'
                     'deeplabv3plus/deeplabv3plus_r50-d8_4xb4-40k_voc12aug-512x512.py')
 
 # Inherit and override

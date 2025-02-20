@@ -15,14 +15,15 @@ import pytest
 
 from alchemy_cat.py_tools import Config, load_config, open_config, Cfg2TuneRunner
 
-YAML_CFG = 'py_tools/config/tests/migrate/yaml.yaml'
-YACS_CFG = 'py_tools/config/tests/migrate/yacs_cfg.py'
-YACS_GET_CFG = 'py_tools/config/tests/migrate/yacs_get.py'
-MM_CFG = 'py_tools/config/tests/migrate/mm_configs/deeplabv3plus/deeplabv3plus_r50-d8_4xb4-40k_voc12aug-512x512.py'
-MM_CFG2TUNE = 'py_tools/config/tests/migrate/mm_configs/d3p/tune_bs,iter/cfg.py'
-AC_CFG = 'py_tools/config/tests/migrate/ac_cfg.py'
+YAML_CFG = 'alchemy_cat/py_tools/config/tests/migrate/yaml.yaml'
+YACS_CFG = 'alchemy_cat/py_tools/config/tests/migrate/yacs_cfg.py'
+YACS_GET_CFG = 'alchemy_cat/py_tools/config/tests/migrate/yacs_get.py'
+MM_CFG = ('alchemy_cat/py_tools/config/tests/migrate/mm_configs/deeplabv3plus/'
+          'deeplabv3plus_r50-d8_4xb4-40k_voc12aug-512x512.py')
+MM_CFG2TUNE = 'alchemy_cat/py_tools/config/tests/migrate/mm_configs/d3p/tune_bs,iter/cfg.py'
+AC_CFG = 'alchemy_cat/py_tools/config/tests/migrate/ac_cfg.py'
 
-sys.path = ['', 'py_tools/config/tests'] + sys.path
+sys.path = ['', 'alchemy_cat/py_tools/config/tests'] + sys.path
 
 
 def is_yaml() -> bool:
@@ -51,7 +52,7 @@ def is_mm() -> bool:
 
 @pytest.fixture(scope='module')
 def dump_py():
-    dump_py = Path('/tmp/test_alchemy_cat_config/dump.py')
+    dump_py = Path('Temp/test_alchemy_cat_config/dump.py')
     dump_py.parent.mkdir(parents=True, exist_ok=True)
     yield dump_py
     # dump_py.unlink(missing_ok=True)
@@ -59,7 +60,7 @@ def dump_py():
 
 @pytest.fixture(scope='module')
 def dump_yaml():
-    dump_yaml = Path('/tmp/test_alchemy_cat_config/dump.yaml')
+    dump_yaml = Path('Temp/test_alchemy_cat_config/dump.yaml')
     dump_yaml.parent.mkdir(parents=True, exist_ok=True)
     yield dump_yaml
     # dump_yaml.unlink(missing_ok=True)
@@ -68,7 +69,7 @@ def dump_yaml():
 @pytest.fixture(scope='function')
 def mm_cfg2tune_cfgs():
     runner = Cfg2TuneRunner(MM_CFG2TUNE,
-                            config_root='py_tools/config/tests/migrate/mm_configs',
+                            config_root='alchemy_cat/py_tools/config/tests/migrate/mm_configs',
                             experiment_root='/tmp/mm_exp')
     yield list(runner.cfg2tune.get_cfgs())
 

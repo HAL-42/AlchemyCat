@@ -12,7 +12,7 @@ import pytest
 import os.path as osp
 
 import sys
-sys.path = ['', 'py_tools/param_tuner/tests'] + sys.path  # noqa: E402
+sys.path = ['alchemy_cat/py_tools/param_tuner/tests'] + sys.path  # noqa: E402
 
 from alchemy_cat.py_tools import Cfg2Tune
 
