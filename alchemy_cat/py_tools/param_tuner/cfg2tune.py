@@ -10,7 +10,6 @@
 """
 import os
 import os.path as osp
-import pickle
 from typing import Iterable, Callable, Any, Generator, cast, Union
 
 from .utils import name_param_val, norm_param_name
@@ -236,7 +235,7 @@ class Cfg2Tune(Config):
         ret.rslt_dir = osp.join(ret.rslt_dir, rslt_dir_suffix)
         return ParamLazy.compute_item_lazy(ret)
 
-    def get_cfgs(self) -> Generator[Config, None, None]:
+    def get_cfgs(self, return_suffix: bool=False) -> Generator[Union[Config, tuple[Config, str]], None, None]:
         """遍历待调参数的所有可能组合，对每个组合，返回其对应的配置。"""
         assert 'rslt_dir' in self
 
@@ -247,13 +246,14 @@ class Cfg2Tune(Config):
 
         for _ in self.dfs_params2tune(list(params2tune.values()), is_root=True):
             rslt_dir_suffix = ",".join([f"{name}={param.cur_val_name}" for name, param in params2tune.items()])
-            yield self.cfg_tuned(rslt_dir_suffix)
+            c = self.cfg_tuned(rslt_dir_suffix)
+            yield c if not return_suffix else (c, rslt_dir_suffix)
 
     def dump_cfgs(self, cfg_dir='configs') -> tuple[list[str], list[Config]]:
         """遍历待调参数的所有组合，将每个组合对应的配置，以json（如果可以）和pkl格式保存到cfg_dir下。"""
         cfg_files, cfgs = [], []
-        for cfg in self.get_cfgs():
-            cfg_save_dir = osp.join(cfg_dir, cfg.rslt_dir)
+        for cfg, rslt_dir_suffix in self.get_cfgs(return_suffix=True):
+            cfg_save_dir = osp.join(cfg_dir, rslt_dir_suffix)
             os.makedirs(cfg_save_dir, exist_ok=True)
 
             cfg.save_py(osp.join(cfg_save_dir, 'cfg.log'))

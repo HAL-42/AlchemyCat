@@ -121,7 +121,7 @@ class Cfg2TuneRunner(object):
 
     def set_cfgs(self):
         """将Cfg2Tune转存为pkl文件，并得到对应的实验文件夹。"""
-        self.cfg_pkls, self.cfgs = self.cfg2tune.dump_cfgs(self.config_root)
+        self.cfg_pkls, self.cfgs = self.cfg2tune.dump_cfgs(osp.dirname(self.cfg2tune_py))
         self.cfg_rslt_dirs = [cfg['rslt_dir'] for cfg in self.cfgs]
 
     def run_cfgs(self):
