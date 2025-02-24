@@ -31,3 +31,4 @@ from .file_md5 import *
 from .loguru_exts import *
 from .config import *
 from .param_tuner import *
+from .json_patch import *
