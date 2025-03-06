@@ -6,7 +6,7 @@
 @Time    : 2025/2/9 17:54
 @File    : dt_constant.py
 @Software: PyCharm
-@Desc    : 
+@Desc    :
 """
 import typing as t
 
@@ -18,3 +18,5 @@ IMAGENET_MEAN: t.Final[type_std_mean] = (0.485, 0.456, 0.406)
 IMAGENET_STD: t.Final[type_std_mean] = (0.229, 0.224, 0.225)
 INCEPTION_MEAN: t.Final[type_std_mean] = (0.5, 0.5, 0.5)
 INCEPTION_STD: t.Final[type_std_mean] = (0.5, 0.5, 0.5)
+
+DINO_PATCH_SIZE: t.Final[int] = 14
