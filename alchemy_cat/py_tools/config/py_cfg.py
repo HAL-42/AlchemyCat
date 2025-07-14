@@ -6,22 +6,24 @@
 @Time    : 2022/5/24 14:37
 @File    : py_cfg.py
 @Software: PyCharm
-@Desc    : 
+@Desc    :
 """
 import copy
 import os
 import pickle
 import pprint
 import sys
+import typing as t
 import warnings
 from keyword import iskeyword
 from pathlib import Path
-from typing import Callable, Any, TypeVar, Type, Generator, final, cast, Iterable, Union, ClassVar, Literal
+from typing import (Any, Callable, ClassVar, Generator, Iterable, Literal,
+                    Type, TypeVar, Union, cast, final)
 
 from colorama import Fore, Style
 
 if sys.version_info >= (3, 11):
-    from typing import Self, Never, TypeAlias
+    from typing import Never, Self, TypeAlias
 else:  # 兼容Python<3.11。
     Self = TypeVar('Self', bound='ADict')
     from typing import NoReturn as Never
@@ -42,7 +44,7 @@ T = TypeVar("T")
 T_dict = TypeVar('T_dict', bound=dict)
 T_ADict = TypeVar('T_ADict', bound='ADict')
 T_Config = TypeVar('T_Config', bound='Config')
-T_IL_Func: TypeAlias = Callable[['Config'], Any]
+T_IL_Func = Callable[['Config'], Any]
 
 
 def is_valid_variable_name(name: str) -> bool:
@@ -96,7 +98,7 @@ class ItemLazy(object):
         return self.func(cfg)
 
     @classmethod
-    def ordered_item_lazy(cls, config: T_Config) -> list[tuple[T_Config, Any, int]]:
+    def ordered_item_lazy(cls, config: T_Config) -> t.List[t.Tuple[T_Config, Any, int]]:
         return sorted(((c, k, l.priority) for c, k, l in config.ckl if isinstance(l, cls)), key=lambda x: x[2])
 
     @classmethod
@@ -299,7 +301,8 @@ class ADict(Dict):
     # -* 字典操作。
 
     def _mount2parent(self) -> None:
-        if (p := self.get_attribute('__parent')) is not None:
+        p = self.get_attribute('__parent')
+        if p is not None:
             p[self.get_attribute('__key')] = self
 
             self.set_attribute('__parent', None)  # CHANGE pk不删除，而是置为None。
@@ -474,7 +477,7 @@ class ADict(Dict):
 
         return dict.pop(self, key, default)
 
-    def popitem(self) -> tuple[Any, Any]:
+    def popitem(self) -> t.Tuple[Any, Any]:
         if self.is_frozen:
             raise RuntimeError(f"{self.__class__} is frozen. ")
 
@@ -508,7 +511,7 @@ class ADict(Dict):
 
     @classmethod
     def _named_branches(cls, dic: dict, name: str='',
-                        memo: set=None) -> Generator[tuple[str, dict], None, None]:
+                        memo: t.Set=None) -> Generator[t.Tuple[str, dict], None, None]:
         if memo is None:
             memo = set()
 
@@ -524,7 +527,7 @@ class ADict(Dict):
                 yield from cls._named_branches(v, subtree_name, memo)  # 若v是子树，则抛出子树的枝条。
 
     @property
-    def named_branches(self) -> Generator[tuple[str, dict], None, None]:
+    def named_branches(self) -> Generator[t.Tuple[str, dict], None, None]:
         yield from self._named_branches(self)
 
     @property
@@ -533,7 +536,7 @@ class ADict(Dict):
 
     @classmethod
     def _named_ckl(cls, dic: dict, prefix: str= '',
-                   memo: set=None) -> Generator[tuple[str, tuple[dict, Any, Any]], None, None]:
+                   memo: t.Set=None) -> Generator[t.Tuple[str, t.Tuple[dict, Any, Any]], None, None]:
         if memo is None:
             memo = set()
 
@@ -550,11 +553,11 @@ class ADict(Dict):
                 yield name, (dic, k, v)  # 若v是叶子，则抛出名字、父节点、键、值。
 
     @property
-    def named_ckl(self) -> Generator[tuple[str, tuple[dict, Any, Any]], None, None]:
+    def named_ckl(self) -> Generator[t.Tuple[str, t.Tuple[dict, Any, Any]], None, None]:
         yield from self._named_ckl(self)
 
     @property
-    def ckl(self) -> Generator[tuple[dict, Any, Any], None, None]:
+    def ckl(self) -> Generator[t.Tuple[dict, Any, Any], None, None]:
         yield from ((c, k, l) for _, (c, k, l) in self.named_ckl)
 
     @property
@@ -610,8 +613,10 @@ class ADict(Dict):
                     (isinstance(b, Config) and b.get_attribute('_cfgs_update_at_parser'))):
                 line = f"{cr(name, Fore.MAGENTA)}.override({b.is_whole})"  # 打印ADict的_whole属性，该操作还会确保树的存在。
                 # 若为Config且存在依赖，还要打印_cfgs_update_at_parser。
-                if isinstance(b, Config) and (caps := b.get_attribute('_cfgs_update_at_parser')):
-                    line = line + f".set_attribute('_cfgs_update_at_parser', {caps})"
+                if isinstance(b, Config):
+                    caps = b.get_attribute('_cfgs_update_at_parser')
+                    if caps:
+                        line = line + f".set_attribute('_cfgs_update_at_parser', {caps})"
                 lines.append(line)
 
         # NOTE 所有值和普通非空树在此处构造。
@@ -643,11 +648,11 @@ class Config(ADict):
     # -* Config的初始化与解析。
 
     def __init__(self, *cfgs: Union[dict, str],
-                 cfgs_update_at_parser: Union[tuple[str, ...], str]=(), caps: Union[tuple[str, ...], str]=(), **kwargs):
+                 cfgs_update_at_parser: Union[t.Tuple[str, ...], str]=(), caps: Union[t.Tuple[str, ...], str]=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
-            *cfgs: List[配置树所在模块|配置树]
+            *cfgs: t.List[配置树所在模块|配置树]
             cfgs_update_at_parser: 解析时用于更新的基配置。
             caps: cfgs_update_at_parser的别名。
             **kwargs: 传递给Dict，不应该使用。
@@ -677,13 +682,15 @@ class Config(ADict):
             # * 将配置树更新到本配置树上。
             self.dict_update(cfg)
             # * 将配置树的parser时配置更新上来，且优先级更高。
-            if isinstance(cfg, Config) and (cfg_dep := cfg.get_attribute('_cfgs_update_at_parser')):
-                # A --解析时--> B; D, B --解析时--> C 含义明确，即加载时DFS，从祖先开始增量更新到C，优先级为B、A、D。
-                # A --解析时--> B; D, B --加载时--> C 若D与A冲突，则D中键值会阻塞A，优先级为B、D、A，这是我们不希望的。
-                # 因此，最好不要混用解析时和加载时依赖。
-                warnings.warn(f"{cfg=}存在解析时依赖{cfg_dep=}。\n"
-                              f"因此，该配置也应该作为当前配置的解析时依赖。否则并列的加载时依赖，可能干扰cfg_dep更新cfg。")
-                cfgs_update_at_parser = cfgs_update_at_parser + cfg_dep
+            if isinstance(cfg, Config):
+                cfg_dep = cfg.get_attribute('_cfgs_update_at_parser')
+                if cfg_dep:
+                    # A --解析时--> B; D, B --解析时--> C 含义明确，即加载时DFS，从祖先开始增量更新到C，优先级为B、A、D。
+                    # A --解析时--> B; D, B --加载时--> C 若D与A冲突，则D中键值会阻塞A，优先级为B、D、A，这是我们不希望的。
+                    # 因此，最好不要混用解析时和加载时依赖。
+                    warnings.warn(f"{cfg=}存在解析时依赖{cfg_dep=}。\n"
+                                  f"因此，该配置也应该作为当前配置的解析时依赖。否则并列的加载时依赖，可能干扰cfg_dep更新cfg。")
+                    cfgs_update_at_parser = cfgs_update_at_parser + cfg_dep
 
         # -* 记录基配置。
         # self.set_attribute('_cfgs_update_at_init', cfgs)  # ! 该值除了debug，根本用不到。如果cfgs不是str而是字典，pickle还会增加额外的负担。
@@ -732,7 +739,7 @@ class Config(ADict):
         return load_config(self, experiments_root, config_root, create_rslt_dir)
 
     @property
-    def subtrees_wt_COM(self: T_ADict) -> list[T_ADict]:
+    def subtrees_wt_COM(self: T_ADict) -> t.List[T_ADict]:
         return [subtree for subtree in self.branches if 'COM_' in subtree]
 
     def _check_COM(self: T_ADict):
@@ -804,7 +811,7 @@ class Config(ADict):
         self.set_attribute('__parent', None)
         self.set_attribute('__key', None)
 
-    def find_root(self, level: Union[int, float]=float('inf')) -> tuple[Self, int]:
+    def find_root(self, level: Union[int, float]=float('inf')) -> t.Tuple[Self, int]:
         """寻找树根。"""
         root = self
         count = level
@@ -861,7 +868,8 @@ class Config(ADict):
         if self.is_frozen:
             raise RuntimeError(f"{self.__class__} is frozen. ")
 
-        if self.is_subtree(v := self[key], self):
+        v = self[key]
+        if self.is_subtree(v, self):
             v.demount()
         dict.__delitem__(self, key)
 
@@ -887,7 +895,7 @@ class Config(ADict):
 
         return ret
 
-    def popitem(self) -> tuple[Any, Any]:
+    def popitem(self) -> t.Tuple[Any, Any]:
         if self.is_frozen:
             raise RuntimeError(f"{self.__class__} is frozen. ")
 
@@ -934,7 +942,8 @@ class Config(ADict):
         return self.to_txt(color=True)
 
     def save_py(self, file: Union[str, os.PathLike]) -> Path:
-        (file := Path(file)).parent.mkdir(parents=True, exist_ok=True)
+        file = Path(file)
+        file.parent.mkdir(parents=True, exist_ok=True)
 
         cfg_str = f"""
 # -*- THIS CONFIG FILE IS AUTO-GENERATED BY AlchemyCat -*-
@@ -948,7 +957,8 @@ from alchemy_cat.dl_config import {type(self).__name__}
         return file
 
     def save_pkl(self, file: Union[str, os.PathLike], save_copy: bool=True) -> Path:
-        (file := Path(file)).parent.mkdir(parents=True, exist_ok=True)
+        file = Path(file)
+        file.parent.mkdir(parents=True, exist_ok=True)
 
         file.write_bytes(pickle.dumps(self.branch_copy() if save_copy else self))
 
@@ -969,7 +979,8 @@ from alchemy_cat.dl_config import {type(self).__name__}
     def save_yaml(self, file: Union[str, os.PathLike]) -> Path:
         import yaml
 
-        (file := Path(file)).parent.mkdir(parents=True, exist_ok=True)
+        file = Path(file)
+        file.parent.mkdir(parents=True, exist_ok=True)
 
         file.write_text(yaml.dump(self._save_cfg_for_other_cfg_system()))
 
@@ -990,7 +1001,7 @@ from alchemy_cat.dl_config import {type(self).__name__}
         return file
 
     @classmethod
-    def from_x_to_y(cls: type[T_Config], x: Union[str, os.PathLike], y: Union[str, os.PathLike],
+    def from_x_to_y(cls: Type[T_Config], x: Union[str, os.PathLike], y: Union[str, os.PathLike],
                     y_type: Literal['yaml', 'mmcv', 'alchemy-cat']='alchemy-cat') -> T_Config:
         """Convert a Config, yaml, yacs or MMCV-Config file to a desired file type.
 

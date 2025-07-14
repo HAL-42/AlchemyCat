@@ -57,6 +57,9 @@ checkpoints/
 **/tmp.*
 **/Tmp.*
 
+# ---------------------- uv ----------------------
+uv.lock
+
 # ---------------------- Other python/C files ---------------------------
 
 # Byte-compiled / optimized / DLL files

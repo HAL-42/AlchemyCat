@@ -9,20 +9,20 @@
 @Desc    : 阻塞直至指定CUDA设备释放。
 """
 import os
+import typing as t
+from time import sleep
 from typing import Union
 
-from time import sleep
+from gpustat import GPUStat, new_query
 
-from gpustat import new_query, GPUStat
-
-from alchemy_cat.py_tools import yprint, gprint
+from alchemy_cat.py_tools import gprint, yprint
 
 __all__ = ['parse_cudas', 'cudas2CUDA_VISIBLE_DEVICES', 'block_get_available_cuda', 'get_cudas']
 
 kSleepSecs = 30
 
 
-def parse_cudas(cudas: Union[list[Union[str, int]], str]) -> list[int]:
+def parse_cudas(cudas: t.Union[t.List[t.Union[str, int]], str]) -> t.List[int]:
     if isinstance(cudas, str):
         cudas = [int(cuda) for cuda in cudas.split(',')]
     else:
@@ -30,14 +30,14 @@ def parse_cudas(cudas: Union[list[Union[str, int]], str]) -> list[int]:
     return cudas
 
 
-def cudas2CUDA_VISIBLE_DEVICES(cudas: Union[list[Union[str, int]], str]) -> str:
+def cudas2CUDA_VISIBLE_DEVICES(cudas: t.Union[t.List[t.Union[str, int]], str]) -> str:
     return ','.join([str(cuda) for cuda in parse_cudas(cudas)])
 
 
-def block_get_available_cuda(cudas: Union[list[Union[str, int]], str],
+def block_get_available_cuda(cudas: t.Union[t.List[t.Union[str, int]], str],
                              cuda_need: int=-1, memory_need: float=-1., max_process: int=-1,
                              sleep_secs: int=kSleepSecs, verbosity: bool=True,
-                             cudas_prefer: list[int]=None) -> list[int]:
+                             cudas_prefer: t.List[int]=None) -> t.List[int]:
     """Block the program util find enough available CUDA devices.
 
     Args:
@@ -79,8 +79,8 @@ def block_get_available_cuda(cudas: Union[list[Union[str, int]], str],
 
     # -* 遍历，直到有足够的空闲GPU。
     while True:
-        gpu_states: list[GPUStat] = list(new_query())
-        available_cudas: list[int] = []
+        gpu_states: t.List[GPUStat] = list(new_query())
+        available_cudas: t.List[int] = []
 
         for c, gpu_state in ((cuda, gpu_states[cuda]) for cuda in cudas):
             if (gpu_state.memory_available >= memory_need) and (len(gpu_state.processes) <= max_process):
@@ -107,7 +107,7 @@ def block_get_available_cuda(cudas: Union[list[Union[str, int]], str],
     return ret
 
 
-def get_cudas() -> tuple[list[int], str]:
+def get_cudas() -> t.Tuple[t.List[int], str]:
     """Get CUDA_VISIBLE_DEVICES environment variable. If not exist, return all device.
 
     Returns:

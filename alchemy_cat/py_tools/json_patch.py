@@ -32,7 +32,7 @@ class JSONPatcher:
 
     def __init__(
         self,
-        custom_serializer: t.Optional[t.Callable[[t.Any], str | int | float | bool | None | dict | list]] = None,
+        custom_serializer: t.Optional[t.Callable[[t.Any], t.Union[str, int, float, bool, None, dict, list]]] = None,
         ensure_ascii: bool = False,
     ):
         super().__init__()

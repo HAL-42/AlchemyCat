@@ -6,14 +6,15 @@
 @Time    : 2021/5/6 19:33
 @File    : cfg2tune.py
 @Software: PyCharm
-@Desc    : 
+@Desc    :
 """
 import os
 import os.path as osp
-from typing import Iterable, Callable, Any, Generator, cast, Union
+import typing as t
+from typing import Any, Callable, Generator, Iterable, Union, cast
 
+from ..config import Config, ItemLazy, auto_rslt_dir, open_config
 from .utils import name_param_val, norm_param_name
-from ..config import Config, auto_rslt_dir, ItemLazy, open_config
 
 __all__ = ["Param2Tune", "ParamLazy", "PL", "Cfg2Tune", "P_DEP"]
 
@@ -76,7 +77,7 @@ class Param2Tune(object):
         self._cur_val = None
         self._cur_val_name = None
 
-    def __iter__(self) -> Generator[tuple[Any, str], None, None]:
+    def __iter__(self) -> Generator[t.Tuple[Any, str], None, None]:
         for opt_val, opt_val_name in zip(self.optional_val, self.optional_val_name):
             if self.subject_to(opt_val):
                 self._cur_val = opt_val
@@ -101,7 +102,7 @@ class Cfg2Tune(Config):
     """Config to be tuned with parameters to be tuned."""
 
     def __init__(self, *cfgs: Union[dict, str],
-                 cfgs_update_at_parser: Union[tuple[str, ...], str]=(), caps: Union[tuple[str, ...], str]=(), **kwargs):
+                 cfgs_update_at_parser: Union[t.Tuple[str, ...], str]=(), caps: Union[t.Tuple[str, ...], str]=(), **kwargs):
         """支持从其他其他配置树模块路径或配置树dict初始化。所有配置树会被逐个dict_update到当前配置树上。
 
         Args:
@@ -119,7 +120,7 @@ class Cfg2Tune(Config):
         assert kExplicitCapsKey not in self  # cfgs_update_at_parser若定义则必用于调参，故务必在顶层定义，不可来自导入。
 
     @property
-    def ordered_params2tune(self) -> dict[str, Param2Tune]:
+    def ordered_params2tune(self) -> t.Dict[str, Param2Tune]:
         # 按照优先级排序p2t，未被设置优先级的p2t，优先级默认为最高。
         ret = dict(sorted_params2tune := sorted(((k, l) for c, k, l in self.ckl if isinstance(l, Param2Tune)),
                                                 key=lambda x: x[1].priority if x[1].is_priority_set else float('-inf')))
@@ -151,7 +152,7 @@ class Cfg2Tune(Config):
                     value.priority = cur_max_priority_p2t.priority + 1
 
     @staticmethod
-    def dfs_params2tune(params2tune: list[Param2Tune], is_root: bool=True):
+    def dfs_params2tune(params2tune: t.List[Param2Tune], is_root: bool=True):
         """协程每找到一个新的参数组合，yield一次。"""
         assert len(params2tune) > 0, "The params2tune must have more than 1 Param2Tune."
 
@@ -170,7 +171,7 @@ class Cfg2Tune(Config):
                 yield from Cfg2Tune.dfs_params2tune(params2tune[1:], is_root=False)
 
     @property
-    def param_combs(self) -> list[dict[str, tuple[Any, str]]]:
+    def param_combs(self) -> t.List[t.Dict[str, t.Tuple[Any, str]]]:
         params2tune = self.ordered_params2tune
         assert len(params2tune) > 0, "The Cfg2Tune must have more than 1 Param2Tune."
 
@@ -235,7 +236,7 @@ class Cfg2Tune(Config):
         ret.rslt_dir = osp.join(ret.rslt_dir, rslt_dir_suffix)
         return ParamLazy.compute_item_lazy(ret)
 
-    def get_cfgs(self, return_suffix: bool=False) -> Generator[Union[Config, tuple[Config, str]], None, None]:
+    def get_cfgs(self, return_suffix: bool=False) -> Generator[Union[Config, t.Tuple[Config, str]], None, None]:
         """遍历待调参数的所有可能组合，对每个组合，返回其对应的配置。"""
         assert 'rslt_dir' in self
 
@@ -249,7 +250,7 @@ class Cfg2Tune(Config):
             c = self.cfg_tuned(rslt_dir_suffix)
             yield c if not return_suffix else (c, rslt_dir_suffix)
 
-    def dump_cfgs(self, cfg_dir='configs') -> tuple[list[str], list[Config]]:
+    def dump_cfgs(self, cfg_dir='configs') -> t.Tuple[t.List[str], t.List[Config]]:
         """遍历待调参数的所有组合，将每个组合对应的配置，以json（如果可以）和pkl格式保存到cfg_dir下。"""
         cfg_files, cfgs = [], []
         for cfg, rslt_dir_suffix in self.get_cfgs(return_suffix=True):
@@ -279,7 +280,7 @@ class Cfg2Tune(Config):
             2）load是也能import cfg2tune_import_path。
         注意，subject_to函数、ParamLazy函数不会被pickle，二者只在生成Addict时被执行。
         '''
-        cfg2tune, _ = cast(tuple[Cfg2Tune, bool], open_config(cfg2tune_py))
+        cfg2tune, _ = cast(t.Tuple[Cfg2Tune, bool], open_config(cfg2tune_py))
 
         if cfg2tune.get('rslt_dir', ...) is ...:
             cfg2tune['rslt_dir'] = auto_rslt_dir(cfg2tune_py,

@@ -9,6 +9,7 @@
 @Desc    : 自动分配cuda设备。
 """
 import os
+import typing as t
 
 from .get_cuda import block_get_available_cuda, get_cudas, cudas2CUDA_VISIBLE_DEVICES
 
@@ -18,7 +19,7 @@ __all__ = ['allocate_cuda_by_group_rank']
 def allocate_cuda_by_group_rank(group_rank: int,
                                 group_cuda_num: int=None, group_num: int=None,
                                 block: bool=True, verbosity: bool=True,
-                                memory_need: float=-1., max_process: int=-1) -> tuple[list[int], dict[str, str]]:
+                                memory_need: float=-1., max_process: int=-1) -> t.Tuple[t.List[int], t.Dict[str, str]]:
     """Auto allocate cuda.
 
     Args:

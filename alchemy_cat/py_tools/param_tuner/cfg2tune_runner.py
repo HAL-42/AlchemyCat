@@ -6,16 +6,19 @@
 @Time    : 2021/5/27 14:08
 @File    : cfg2tune_runner.py
 @Software: PyCharm
-@Desc    : 
+@Desc    :
 """
 import os.path as osp
 import subprocess
 import sys
 import traceback
+import typing as t
 from functools import wraps
 from multiprocessing import Pool
 from pprint import pprint
-from typing import List, Optional, Any, Callable
+from typing import Any, Callable, List, Optional
+
+from regex import T
 
 if sys.version_info >= (3, 11):
     from typing import TypeAlias
@@ -26,19 +29,19 @@ import pandas as pd
 from openpyxl import load_workbook
 from tqdm import tqdm
 
-from .cfg2tune import Cfg2Tune
+from ...cuda_tools import allocate_cuda_by_group_rank, get_cudas
+from ..color_print import gprint, rprint, yprint
 from ..config.py_cfg import Config
 from ..logger import Logger
 from ..str_formatters import get_local_time_str
-from ...cuda_tools import allocate_cuda_by_group_rank, get_cudas
-from ..color_print import yprint, gprint, rprint
+from .cfg2tune import Cfg2Tune
 
 __all__ = ["Cfg2TuneRunner"]
 
-WORK_WRAPPER_INPUT_TYPE: TypeAlias = tuple[int, tuple[Config, str, str, dict[str, Any]]]
-WORK_INPUT_TYPE: TypeAlias = tuple[int, Config, str, str, dict[str, str]]
+WORK_WRAPPER_INPUT_TYPE: TypeAlias = t.Tuple[int, t.Tuple[Config, str, str, t.Dict[str, Any]]]
+WORK_INPUT_TYPE: TypeAlias = t.Tuple[int, Config, str, str, t.Dict[str, str]]
 WORK_WRAPPER_TYPE: TypeAlias = Callable[[WORK_WRAPPER_INPUT_TYPE], Any]
-WORK_TYPE: TypeAlias = Callable[[int, Config, str, str, dict[str, str]], Any]
+WORK_TYPE: TypeAlias = Callable[[int, Config, str, str, t.Dict[str, str]], Any]
 
 
 class Cfg2TuneRunner(object):
@@ -46,7 +49,7 @@ class Cfg2TuneRunner(object):
     def __init__(self, cfg2tune_py: str, config_root: str='./configs', experiment_root="experiment",
                  pool_size: int=0, work_gpu_num: int=None,
                  metric_names: Optional[List[str]]=None,
-                 gather_metric_fn: Callable[[Config, str, Any, dict[str, tuple[Any, str]]], dict[str, Any]]=None,
+                 gather_metric_fn: Callable[[Config, str, Any, t.Dict[str, t.Tuple[Any, str]]], t.Dict[str, Any]]=None,
                  work_fn: WORK_WRAPPER_TYPE=None,
                  allow_fail_gather: bool=True,
                  block: bool=True, verbosity: bool=True,
@@ -98,16 +101,16 @@ class Cfg2TuneRunner(object):
             self.metric_names = metric_names
 
         # * 所有参数组合+参数组合对应的metric。
-        self.param_combs: List[dict[str, tuple[Any, str]]] = self.cfg2tune.param_combs
+        self.param_combs: t.List[t.Dict[str, t.Tuple[Any, str]]] = self.cfg2tune.param_combs
         self.metric_frame: Optional[pd.DataFrame] = None
 
         # * 每个配置的pkl及其对应的实验文件夹。
-        self.cfg_pkls: List[str] = []
-        self.cfgs: list[Config] = []
-        self.cfg_rslt_dirs: List[str] = []
+        self.cfg_pkls: t.List[str] = []
+        self.cfgs: t.List[Config] = []
+        self.cfg_rslt_dirs: t.List[str] = []
 
         # * 保存每个配置的运行结果。
-        self.run_rslts: List[subprocess.CompletedProcess] = []
+        self.run_rslts: t.List[subprocess.CompletedProcess] = []
         self.cuda_env_kwargs = {'group_num': self.pool_size,
                                 'block': block, 'verbosity': verbosity,
                                 'memory_need': memory_need, 'max_process': max_process}
@@ -197,8 +200,8 @@ class Cfg2TuneRunner(object):
         if gather_failed:
             yprint("[WARNING] Some gather_metric failed. Please check the error message above.")
 
-    def gather_metric(self, cfg: Config, cfg_rslt_dir: str, run_rslt: Any, param_comb: dict[str, tuple[Any, str]]) \
-            -> dict[str, Any]:
+    def gather_metric(self, cfg: Config, cfg_rslt_dir: str, run_rslt: Any, param_comb: t.Dict[str, t.Tuple[Any, str]]) \
+            -> t.Dict[str, Any]:
         """Given cfg_rslt_dir, run_stdout, param_comb, return {metric_name: metric}"""
         if self.gather_metric_fn is not None:
             return self.gather_metric_fn(cfg, cfg_rslt_dir, run_rslt, param_comb)
@@ -206,8 +209,8 @@ class Cfg2TuneRunner(object):
             raise NotImplementedError("gather_metric not implemented")
 
     def register_gather_metric_fn(self,
-                                  gather_metric_fn: Callable[[Config, str, Any, dict[str, tuple[Any, str]]],
-                                                             dict[str, Any]]):
+                                  gather_metric_fn: Callable[[Config, str, Any, t.Dict[str, t.Tuple[Any, str]]],
+                                                             t.Dict[str, Any]]):
         """Register gather_metric_fn. Use as a decorator."""
         self.gather_metric_fn = gather_metric_fn
         return gather_metric_fn
