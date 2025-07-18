@@ -6,8 +6,10 @@
 @Time    : 2022/9/14 15:24
 @File    : swa_train_env.py
 @Software: PyCharm
-@Desc    : 
+@Desc    :
 """
+import typing as t
+
 import torch
 import torch.nn as nn
 
@@ -20,7 +22,7 @@ __all__ = ['SWATrainEnv']
 
 class SWATrainEnv(object):
     """创建SWA训练环境。"""
-    def __init__(self, model: nn.Module, device: str | int | torch.device, seed: int | str,
+    def __init__(self, model: nn.Module, device: t.Union[str, int, torch.device], seed: t.Union[int, str],
                  norm_init: bool=True, cumulative_avg=True):
         """SWA训练环境。
 

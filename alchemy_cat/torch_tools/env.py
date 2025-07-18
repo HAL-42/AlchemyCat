@@ -65,10 +65,10 @@ def welcome():
 
 
 def init_env(*, is_cuda: Union[bool, int] = True, is_benchmark: bool = False, is_train: bool = True,
-             config_path: str | dict = None, config_root: str='./configs',
+             config_path: Union[str, dict] = None, config_root: str='./configs',
              experiments_root: str = "experiment", rand_seed: Union[bool, str, int] = False,
              cv2_num_threads: int = -1,
-             verbosity: bool = True, log_stdout: Union[bool, str] = False, loguru_ini: bool | dict=True,
+             verbosity: bool = True, log_stdout: Union[bool, str] = False, loguru_ini: Union[bool, dict] = True,
              local_rank: Optional[int] = None, silence_non_master_rank: Optional[bool] = False,
              reproducibility: Optional[bool] = False,
              is_debug: bool=False) \

@@ -6,8 +6,10 @@
 @Time    : 2022/9/7 15:05
 @File    : avg_models.py
 @Software: PyCharm
-@Desc    : 
+@Desc    :
 """
+import typing as t
+
 from tqdm import tqdm
 
 import torch
@@ -15,7 +17,7 @@ import torch
 __all__ = ['avg_states']
 
 
-def avg_states(state_files: list[str], device: torch.device= 'cpu', verbosity: bool=True) -> dict[str, torch.Tensor]:
+def avg_states(state_files: t.List[str], device: torch.device= 'cpu', verbosity: bool=True) -> t.Dict[str, torch.Tensor]:
     """多个模型参数取平均。
 
     Args:
