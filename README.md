@@ -57,7 +57,7 @@ AlchemyCat implements all features of current popular config systems, while full
 [Migrate](https://github.com/HAL-42/AlchemyCat/blob/master/README.md#-migration) from config systems listed above to AlchemyCat is effortless. Just spend 15 minutes reading the [documentation](https://github.com/HAL-42/AlchemyCat/blob/master/README.md#-documentation-) and apply AlchemyCat to your project, and your GPU will never be idle again!
 
 ## Quick Glance
-Deep learning relies on numerous empirical hyperparameters, such as learning rate, loss weights, max iterations, sliding window size, drop probability, thresholds, and even random seeds. 
+Deep learning relies on numerous empirical hyperparameters, such as learning rate, loss weights, max iterations, sliding window size, drop probability, thresholds, and even random seeds.
 
 The relationship between hyperparameters and performance is hard to predict theoretically. The only certainty is that arbitrarily chosen hyperparameters are unlikely to be optimal. Practice has shown that grid search through the hyperparameter space can significantly enhance model performance; sometimes its effect even surpasses so-called "contributions." Achieving SOTA often depends on this!
 
@@ -77,7 +77,7 @@ cfg.model.auxiliary_head.loss_decode.loss_weight = 0.2
 # Tuning parameters: grid search batch_size and max_iters
 cfg.train_dataloader.batch_size = Param2Tune([4, 8])
 cfg.train_cfg.max_iters = Param2Tune([20_000, 40_000])
-# ... 
+# ...
 ```
 Next, write a script specifying how to run a single config and read its results:
 ```python
@@ -174,7 +174,7 @@ We also provide a script to convert between different config formats:
 ```bash
 python -m alchemy_cat.dl_config.from_x_to_y --x X --y Y --y_type=yaml/mmcv/alchemy-cat
 ```
-where: 
+where:
 * `--x`: Source config file path, can be YAML / YACS / MMCV / AlchemyCat config.
 * `--y`: Target config file path.
 * `--y_type`: Target config format, can be `yaml`, `mmcv`, or `alchemy-cat`.
@@ -236,7 +236,8 @@ cfg.dt.ini.train = True
 Here, we first instantiate a `Config` object `cfg`, and then add config items through attribute operator `.`. Config items can be any Python objects, including functions, methods, and classes.
 
 > [!TIP]
-> **Best Practice: We prefer specifying functions or classes directly in config over using strings/semaphores to control the program behavior. This enables IDE navigation, simplifying reading and debugging.**
+> **Best Practice: We prefer specifying functions or classes directly in config over using strings/semaphores to control the program behavior. This enables IDE navigation, simplifying reading and debugging.** Refer to the "Advanced Usage" chapter's "Dependency Injection Configuration" for details.
+
 
 `Config` is a subclass of Python's `dict`. The above code defines a nested dictionary with a **tree structure**:
 ```text
@@ -391,7 +392,7 @@ cfg = Config(caps=('configs/mnist/plain_usage/cfg.py', 'alchemy_cat/dl_config/ex
   )}}
 ```
 > _Inheritance Implementation Details_
-> 
+>
 > We copy the base config tree and update it with the new config, ensuring isolation between them. This means changes to the new config do not affect the base. Complex inheritance like diamond inheritance is supported but not recommended due to readability issues. \
 > Note that leaf node values are passed by reference; modifying them inplace will affect the entire inheritance chain.
 
@@ -483,7 +484,7 @@ When a dependency relies on another dependency, they must be computed in the cor
 * If dependencies are interdependent, use the `priority` parameter to specify the computation order; otherwise, they resolve in the order of definition.
 
 ## Composition
-Composition allows reusing configs by compose predefined config subtrees to form a complete config. For instance, the following [config subtree](alchemy_cat/dl_config/examples/configs/addons/linear_warm_cos_sched.py) defines a learning rate strategy: 
+Composition allows reusing configs by compose predefined config subtrees to form a complete config. For instance, the following [config subtree](alchemy_cat/dl_config/examples/configs/addons/linear_warm_cos_sched.py) defines a learning rate strategy:
 
 ```python
 # -- configs/addons/linear_warm_cos_sched.py --
@@ -509,7 +510,7 @@ cfg.main.ini.T_max = DEP(lambda c: c.epochs - c.warm.ini.total_iters,
                          priority=2)  # main_epochs = total_epochs - warm_epochs
 
 ```
-In the [final config](alchemy_cat/dl_config/examples/configs/mnist/base,sched_from_addon/cfg.py), we compose this set of learning rate strategy: 
+In the [final config](alchemy_cat/dl_config/examples/configs/mnist/base,sched_from_addon/cfg.py), we compose this set of learning rate strategy:
 ```python
 # -- configs/mnist/base,sched_from_addon/cfg.py --
 # ... Code Omitted.
@@ -532,14 +533,14 @@ cfg.sched.main.cls = <class 'torch.optim.lr_scheduler.CosineAnnealingLR'>
 cfg.sched.main.ini.T_max = 27
 ```
 
-It looks very simple! Just assign/mount the predefined config sub-subtree to the final config. `Config('path/to/cfg.py')` returns a copy of the `cfg` object in the config file, ensuring modifications before and after copying are isolated. 
+It looks very simple! Just assign/mount the predefined config sub-subtree to the final config. `Config('path/to/cfg.py')` returns a copy of the `cfg` object in the config file, ensuring modifications before and after copying are isolated.
 
 > _Implementation Details of Composition and Dependency_
-> 
+>
 > Attentive readers might wonder how `DEP` determines the parameter `c` for the dependency computation function, specifically which Config object is passed. In this chapter's example, `c` is the config subtree of learning rate; thus, the calculation function for `cfg.warm.ini.total_iters` is `lambda c: c.warm_epochs`. However, in the [previous chapter's](#dependency) example, `c` is the final config; hence, the calculation function for `cfg.sched.warm.ini.total_iters` is `lambda c: c.sched.warm_epochs`.
-> 
+>
 > In fact, `c` is the root node of the configuration tree where `DEP` was first mounted. The `Config` is a bidirectional tree. When `DEP` is first mounted, it records its relative distance to the root. During computation, it traces back this distance to find and pass the corresponding config tree into the computation function.
-> 
+>
 > To prevent this default behavior, set `DEP(lambda c: ..., rel=False)`, ensuring `c` is always the complete configuration.
 
 **Best Practice: Both composition and inheritance aim to reuse config. Composition is more flexible and loosely coupled, so it should be prioritized over inheritance.**
@@ -731,7 +732,7 @@ The auto-tuner traverses through tunable config's parameter combinations, genera
 
 ```text
 config to be tuned T ───> config C1 + algorithm code A ───> reproducible experiment E1(C1, A) ───> summary table S(T,A)
-                     │                                                                          │  
+                     │                                                                          │ 
                      ├──> config C2 + algorithm code A ───> reproducible experiment E1(C2, A) ──│ 
                     ...                                                                         ...
 ```
@@ -754,7 +755,7 @@ Its writing style is similar to the [normal configuration](alchemy_cat/dl_config
 
 The tunable config above will search a parameter space of size 3×2=6 and generate these 6 sub-configs:
 ```text
-batch_size  epochs  child_configs            
+batch_size  epochs  child_configs
 128         5       configs/tune/tune_bs_epoch/batch_size=128,epochs=5/cfg.pkl
             15      configs/tune/tune_bs_epoch/batch_size=128,epochs=15/cfg.pkl
 256         5       configs/tune/tune_bs_epoch/batch_size=256,epochs=5/cfg.pkl
@@ -777,7 +778,7 @@ cfg.sched.epochs = Param2Tune([5, 15], priority=0)
 ```
 whose search space is:
 ```text
-epochs batch_size  child_configs                    
+epochs batch_size  child_configs
 5      1xbs        configs/tune/tune_bs_epoch,pri,name/epochs=5,batch_size=1xbs/cfg.pkl
        2xbs        configs/tune/tune_bs_epoch,pri,name/epochs=5,batch_size=2xbs/cfg.pkl
        4xbs        configs/tune/tune_bs_epoch,pri,name/epochs=5,batch_size=4xbs/cfg.pkl
@@ -801,8 +802,8 @@ cfg.sched.epochs = Param2Tune([5, 15],
 ```
 whose search space is:
 ```text
-batch_size epochs  child_configs                 
-128        5       configs/tune/tune_bs_epoch,subject_to/batch_size=128,epochs=5/cfg.pkl  
+batch_size epochs  child_configs
+128        5       configs/tune/tune_bs_epoch,subject_to/batch_size=128,epochs=5/cfg.pkl
            15      configs/tune/tune_bs_epoch,subject_to/batch_size=128,epochs=15/cfg.pkl
 256        5       configs/tune/tune_bs_epoch,subject_to/batch_size=256,epochs=5/cfg.pkl
 ```
@@ -839,22 +840,22 @@ The script performs these operations:
   - `cfg_pkl`: pickle save path for this sub-config
   - `cfg_rslt_dir`: experiment directory.
   - `cuda_env`: If `work_gpu_num` is set, then `cuda_env` will allocate non-overlapping `CUDA_VISIBLE_DEVICES` environment variables for parallel sub-configs.
-  
+
   Commonly, we only need to pass `cfg_pkl` as the config file into the training script, since `load_cfg` supports reading config in pickle format. For deep learning tasks, different `CUDA_VISIBLE_DEVICES` are needed for each sub-config.
 * Registers a summary function that returns an experimental result as a `{metric_name: metric_value}` dictionary. The auto-tunner will traverse all experimental results and summary into a table. The summary function accepts these parameters:
   - `cfg`: the sub-configuration
   - `cfg_rslt_dir`: experiment directory
   - `run_rslt`: returned from working functions
   - `param_comb`: parameter combinations for that particular sub-configuration.
-  
+
   Generally, only need to read results from `cfg_rslt_dir` and return them.
 * Calls `runner.tuning()` to start automatic tuning.
 
 After tuning, the tuning results will be printed:
 ```text
-Metric Frame: 
+Metric Frame:
                   test_loss    acc
-batch_size epochs                 
+batch_size epochs
 128        5       1.993285  32.63
            15      0.016772  99.48
 256        5       1.889874  37.11
@@ -929,13 +930,13 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', type=str)
     parser.add_argument('--local_rank', type=int, default=-1)
     args = parser.parse_args()
-    
+
     device, cfg = init_env(config_path=args.config,             # config file path，read to `cfg`
                            is_cuda=True,                        # if True，`device` is cuda，else cpu
                            is_benchmark=bool(args.benchmark),   # torch.backends.cudnn.benchmark = is_benchmark
                            is_train=True,                       # torch.set_grad_enabled(is_train)
                            experiments_root="experiment",       # root of experiment dir
-                           rand_seed=True,                      # set python, numpy, torch rand seed. If True, read cfg.rand_seed as seed, else use actual parameter as rand seed. 
+                           rand_seed=True,                      # set python, numpy, torch rand seed. If True, read cfg.rand_seed as seed, else use actual parameter as rand seed.
                            cv2_num_threads=0,                   # set cv2 num threads
                            verbosity=True,                      # print more env init info
                            log_stdout=True,                     # where fork stdout to log file
@@ -984,16 +985,16 @@ In summary, although circular references are supported, they are neither necessa
 ### Traverse the Config Tree
 `Config.named_branchs` and `Config.named_ckl` respectively traverse all branches and leaves of the config tree (the branch, key name, and value they are in):
 ```text
->>> list(cfg.named_branches) 
-[('', {'foo': {'bar': {'a': 1}},  
-       'bar': {'foo': {'b': ['str1', 'str2']}},  
+>>> list(cfg.named_branches)
+[('', {'foo': {'bar': {'a': 1}},
+       'bar': {'foo': {'b': ['str1', 'str2']}},
        'whole': {}}),
  ('foo', {'bar': {'a': 1}}),
  ('foo.bar', {'a': 1}),
  ('bar', {'foo': {'b': ['str1', 'str2']}}),
  ('bar.foo', {'b': ['str1', 'str2']}),
  ('whole', {})]
- 
+
 >>> list(cfg.ckl)
 [({'a': 1}, 'a', 1), ({'b': ['str1', 'str2']}, 'b', ['str1', 'str2'])]
 ```
@@ -1023,7 +1024,7 @@ We also provide a [script](alchemy_cat/torch_tools/scripts/tag_exps.py) that run
 ### Automatically Allocate idle GPUs
 The `work` function receives the idle GPU automatically allocated by `Cfg2TuneRunner` through the `cuda_env` parameter. We can further control the definition of 'idle GPU':
 ```python
-runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', work_gpu_num=1, 
+runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', work_gpu_num=1,
                         block=True,             # Try to allocate idle GPU
                         memory_need=10 * 1024,  # Need 10 GB memory
                         max_process=2)          # Max 2 process already ran on each GPU
@@ -1049,5 +1050,45 @@ The `Config.empty_leaf()` combines `Config.clear()` and `Config.override()` to g
 Let `cfg` be a `Config` instance and `base_cfg` be a `dict` instance. The effects of `cfg.dict_update(base_cfg)`, `cfg.update(base_cfg)`, and `cfg |= base_cfg` are similar to inheriting `Config(base_cfg)` from `cfg`.
 
 Run `cfg.dict_update(base_cfg, incremental=True)` to ensure only incremental updates, that is, only add keys that do not exist in `cfg` without overwriting existing keys.
+
+### Best Practice: Dependency Injection Configuration
+When configuring runtime data structures (such as functions, classes), there are two different writing styles.
+
+Style A:
+```python
+# Config code snippet
+cfg = Config()
+
+cfg.dt.cls = 'MNIST'
+cfg.dt.root = '/tmp/data'
+cfg.dt.train = True
+
+# Runtime code snippet
+import torchvision.datasets as tv_datasets
+
+dataset_cls = getattr(tv_datasets, cfg.dt.cls)
+dataset = dataset_cls(root=cfg.dt.root, train=cfg.dt.train)
+```
+
+Style B:
+```python
+# Config code snippet
+from torchvision.datasets import MNIST
+
+cfg = Config()
+
+cfg.dt.cls = MNIST  # 免反射
+cfg.dt.ini.root = '/tmp/data'
+cfg.dt.ini.train = True
+
+# Runtime code snippet
+dataset = cfg.dt.cls(**cfg.dt.ini)  # 直通传参
+```
+
+Compared to style A, style B is more robust, flexible, and maintainable due to these two improvements:
+- *Reflection-free*: In style B, `cfg.dt.cls` directly references the class object, avoiding runtime reflection lookups. This approach is more IDE-friendly, allowing for error detection during code writing, facilitating auto-completion, definition navigation, and synchronized updates during refactoring.
+- *Direct parameter passing*: In style B, `cfg.dt.ini` directly stores initialization key-value pairs, which are then passed to the constructor using `**` expansion, eliminating the need for manual parameter mapping in runtime code. This approach adheres to the "Open/Closed Principle," decoupling runtime code from parameters: changes to the class or parameter modifications only require updates to the configuration, without altering the runtime code. Additionally, direct parameter passing will immediately raise errors when setting redundant or incorrect parameters, whereas style A may lead to hidden bugs if the runtime code is not updated accordingly.
+
+We collectively refer to the two changes in style B, *reflection-free* and *direct parameter passing*, as **Dependency Injection Configuration**. When using `alchemy_cat.dl_config`, it is strongly recommended to adopt Dependency Injection Configuration, as this approach is more robust, convenient, flexible, and safe.
 
 </details>

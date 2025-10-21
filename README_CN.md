@@ -32,7 +32,7 @@
 * 配置文件如 YAML / YACS / MMCV 冗长复杂。条目间如果相互依赖，修改时还需格外小心，容易出错。
 * 调参时，需要为每组参数重写配置，代码大量重复，且修改部分不易追踪。
 * 调参时，需要手动遍历参数空间并汇总结果，耗时且效率低下。
-* 调参不充分，埋没了有效的设计。  
+* 调参不充分，埋没了有效的设计。
 * 调参不充分，方法虽然有效，但性能不及SOTA，工作说服力不够。
 
 AlchemyCat 是一个专为算法研究设计的配置系统，旨在解决上述困扰。AlchemyCat 通过简化复现、修改配置和调参等重复性工作，帮助研究者迅速穷尽算法的调参潜力。
@@ -79,7 +79,7 @@ cfg.model.auxiliary_head.loss_decode.loss_weight = 0.2
 # Tuning parameters: grid search batch_size and max_iters
 cfg.train_dataloader.batch_size = Param2Tune([4, 8])
 cfg.train_cfg.max_iters = Param2Tune([20_000, 40_000])
-# ... 
+# ...
 ```
 随后编写一个脚本，指定如何运行单个配置并读取其实验结果：
 ```python
@@ -238,7 +238,7 @@ cfg.dt.ini.train = True
 这里我们首先实例化一个`Config`类别对象`cfg`，随后通过属性操作`.`来添加配置项。配置项可以是任意 python 对象，包括函数、方法、类。
 
 > [!TIP]
-> **最佳实践：我们推荐直接在配置项中指定函数或类，而不是通过字符串/信号量来控制程序行为。前者支持 IDE 跳转，便于阅读和调试。**
+> **最佳实践：我们推荐直接在配置项中指定函数或类，而不是通过字符串/信号量来控制程序行为。前者支持 IDE 跳转，便于阅读和调试。** 详见“进阶”章节的“依赖注入式配置”。
 
 `Config`是python `dict`的子类，上面代码定义了一个**树结构**的嵌套字典：
 ```text
@@ -247,7 +247,7 @@ cfg.dt.ini.train = True
  'dt': {'cls': <class 'torchvision.datasets.mnist.MNIST'>,
         'ini': {'root': '/tmp/data', 'train': True}}}
 ```
-`Config` 实现了 Python `dict`的所有API： 
+`Config` 实现了 Python `dict`的所有API：
 ```test
 >>> cfg.keys()
 dict_keys(['rand_seed', 'dt'])
@@ -391,7 +391,7 @@ cfg = Config(caps=('configs/mnist/plain_usage/cfg.py', 'alchemy_cat/dl_config/ex
   )}}
 ```
 > _继承的实现细节_
-> 
+>
 > 继承时，我们先拷贝整棵基配置树，再以新配置更新之，确保新配置和基配置的树结构相互隔离——即增、删、改新配置不会影响基配置。因此，更复杂继承关系，如菱形继承也是支持的，只是不太可读，不建议使用。\
 > 注意，叶结点的值被引用传递，原地修改将影响整条继承链。
 
@@ -535,9 +535,9 @@ cfg.sched.main.ini.T_max = 27
 > _组合和依赖的实现细节_
 >
 > 细心的读者可能会疑惑，`DEP`如何决定依赖项计算函数的参数`c`，具体传入哪个`Config`对象？在本章的例子中，`c`的实参是学习率子配置，因此`cfg.warm.ini.total_iters`的计算函数为`lambda c: c.warm_epochs`。然而，在[上一章](#依赖)的例子中，`c`是完整配置，`cfg.sched.warm.ini.total_iters`的计算函数为`lambda c: c.sched.warm_epochs`。
-> 
+>
 > 其实，`c`的实参是配置树的根节点，在该树上，`DEP`第一次被挂载。`Config`在是一棵双向树，`DEP`第一次被挂载时，会上溯到根节点，记录`DEP`到根的相对距离。计算时，上溯相同距离，找到对应的配置树，并传入计算函数。
-> 
+>
 > 要阻止该默认行为，设置`DEP(lambda c: ..., rel=False)`，此时`c`的实参总是为完整配置。
 
 **最佳实践：组合和继承，其目的都是复用配置。组合更加灵活、低耦合，应当优先使用组合，尽量减少继承层次。**
@@ -729,7 +729,7 @@ if cfg.log:
 自动调参机遍历可调配置的参数组合，生成`N`个子配置，运行得到`N`份实验结果，并将所有实验结果总结到 excel 表格中：
 ```text
 config to be tuned T ───> config C1 + algorithm code A ───> reproducible experiment E1(C1, A) ───> summary table S(T,A)
-                     │                                                                          │  
+                     │                                                                          │ 
                      ├──> config C2 + algorithm code A ───> reproducible experiment E1(C2, A) ──│ 
                     ...                                                                         ...
 ```
@@ -752,7 +752,7 @@ cfg.sched.epochs = Param2Tune([5, 15])
 
 上面的可调配置，会搜索一个 3×2=6 大小的参数空间，并生成如下6个子配置：
 ```text
-batch_size  epochs  child_configs            
+batch_size  epochs  child_configs
 128         5       configs/tune/tune_bs_epoch/batch_size=128,epochs=5/cfg.pkl
             15      configs/tune/tune_bs_epoch/batch_size=128,epochs=15/cfg.pkl
 256         5       configs/tune/tune_bs_epoch/batch_size=256,epochs=5/cfg.pkl
@@ -776,7 +776,7 @@ cfg.sched.epochs = Param2Tune([5, 15], priority=0)
 ```
 其搜索空间为：
 ```text
-epochs batch_size  child_configs                    
+epochs batch_size  child_configs
 5      1xbs        configs/tune/tune_bs_epoch,pri,name/epochs=5,batch_size=1xbs/cfg.pkl
        2xbs        configs/tune/tune_bs_epoch,pri,name/epochs=5,batch_size=2xbs/cfg.pkl
        4xbs        configs/tune/tune_bs_epoch,pri,name/epochs=5,batch_size=4xbs/cfg.pkl
@@ -800,8 +800,8 @@ cfg.sched.epochs = Param2Tune([5, 15],
 ```
 其搜索空间为：
 ```text
-batch_size epochs  child_configs                 
-128        5       configs/tune/tune_bs_epoch,subject_to/batch_size=128,epochs=5/cfg.pkl  
+batch_size epochs  child_configs
+128        5       configs/tune/tune_bs_epoch,subject_to/batch_size=128,epochs=5/cfg.pkl
            15      configs/tune/tune_bs_epoch,subject_to/batch_size=128,epochs=15/cfg.pkl
 256        5       configs/tune/tune_bs_epoch,subject_to/batch_size=256,epochs=5/cfg.pkl
 ```
@@ -831,7 +831,7 @@ def gather_metric(cfg: Config, cfg_rslt_dir: str, run_rslt: ..., param_comb: dic
 runner.tuning()
 ```
 上面的脚本执行了如下操作：
-* 传入可调配置的路径，实例化调参机`runner = Cfg2TuneRunner(...)`。<br> 
+* 传入可调配置的路径，实例化调参机`runner = Cfg2TuneRunner(...)`。<br>
 自动调参机默认逐个运行子配置。设置参数`work_gpu_num`，可以并行运行`len(os.environ['CUDA_VISIBLE_DEVICES']) // work_gpu_num`个子配置。
 * 注册工作函数，该函数用于运行单个子配置。函数参数为：
   * `pkl_idx`：子配置的序号
@@ -852,9 +852,9 @@ runner.tuning()
 
 调参结束后，将打印调参结果：
 ```text
-Metric Frame: 
+Metric Frame:
                   test_loss    acc
-batch_size epochs                 
+batch_size epochs
 128        5       1.993285  32.63
            15      0.016772  99.48
 256        5       1.889874  37.11
@@ -929,13 +929,13 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', type=str)
     parser.add_argument('--local_rank', type=int, default=-1)
     args = parser.parse_args()
-    
+
     device, cfg = init_env(config_path=args.config,             # config file path，read to `cfg`
                            is_cuda=True,                        # if True，`device` is cuda，else cpu
                            is_benchmark=bool(args.benchmark),   # torch.backends.cudnn.benchmark = is_benchmark
                            is_train=True,                       # torch.set_grad_enabled(is_train)
                            experiments_root="experiment",       # root of experiment dir
-                           rand_seed=True,                      # set python, numpy, torch rand seed. If True, read cfg.rand_seed as seed, else use actual parameter as rand seed. 
+                           rand_seed=True,                      # set python, numpy, torch rand seed. If True, read cfg.rand_seed as seed, else use actual parameter as rand seed.
                            cv2_num_threads=0,                   # set cv2 num threads
                            verbosity=True,                      # print more env init info
                            log_stdout=True,                     # where fork stdout to log file
@@ -984,16 +984,16 @@ True
 ### 遍历配置树
 `Config.named_branches`和`Config.named_ckl`分别遍历配置树的所有分支和叶节点（所在的分支、键名和值）：
 ```text
->>> list(cfg.named_branches) 
-[('', {'foo': {'bar': {'a': 1}},  
-       'bar': {'foo': {'b': ['str1', 'str2']}},  
+>>> list(cfg.named_branches)
+[('', {'foo': {'bar': {'a': 1}},
+       'bar': {'foo': {'b': ['str1', 'str2']}},
        'whole': {}}),
  ('foo', {'bar': {'a': 1}}),
  ('foo.bar', {'a': 1}),
  ('bar', {'foo': {'b': ['str1', 'str2']}}),
  ('bar.foo', {'b': ['str1', 'str2']}),
  ('whole', {})]
- 
+
 >>> list(cfg.ckl)
 [({'a': 1}, 'a', 1), ({'b': ['str1', 'str2']}, 'b', ['str1', 'str2'])]
 ```
@@ -1022,7 +1022,7 @@ cfg.sched.epochs = 15
 ### 自动分配空闲显卡
 `work`函数通过`cuda_env`参数，接收`Cfg2TuneRunner`自动分配的空闲显卡。我们还可以进一步控制『空闲显卡』的定义：
 ```python
-runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', work_gpu_num=1, 
+runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', work_gpu_num=1,
                         block=True,             # Try to allocate idle GPU
                         memory_need=10 * 1024,  # Need 10 GB memory
                         max_process=2)          # Max 2 process already ran on each GPU
@@ -1049,5 +1049,46 @@ runner = Cfg2TuneRunner(args.cfg2tune, experiment_root='/tmp/experiment', work_g
 `cfg`是一个`Config`实例，`base_cfg`是一个`dict`实例，`cfg.dict_update(base_cfg)`、`cfg.update(base_cfg)`、`cfg |= base_cfg`的效果与让`Config(base_cfg)`继承`cfg`类似。
 
 `cfg.dict_update(base_cfg, incremental=True)`则确保只做增量式更新——即只会增加`cfg`中不存在的键，而不会覆盖已有键。
+
+### 最佳实践：依赖注入式配置
+在配置运行时的数据结构（如函数、类）时，有两种不同的写法。
+
+
+写法A：
+```python
+# Config code snippet
+cfg = Config()
+
+cfg.dt.cls = 'MNIST'
+cfg.dt.root = '/tmp/data'
+cfg.dt.train = True
+
+# Runtime code snippet
+import torchvision.datasets as tv_datasets
+
+dataset_cls = getattr(tv_datasets, cfg.dt.cls)
+dataset = dataset_cls(root=cfg.dt.root, train=cfg.dt.train)
+```
+
+写法B：
+```python
+# Config code snippet
+from torchvision.datasets import MNIST
+
+cfg = Config()
+
+cfg.dt.cls = MNIST  # 免反射
+cfg.dt.ini.root = '/tmp/data'
+cfg.dt.ini.train = True
+
+# Runtime code snippet
+dataset = cfg.dt.cls(**cfg.dt.ini)  # 直通传参
+```
+
+相比写法A，写法B在以下两点做出改进，因而在健壮性、灵活性和可维护性上远胜于写法A：
+- *免反射*：写法B的`cfg.dt.cls`直接引用类对象，避免了运行时的反射查找。这种写法对IDE更加友好，在代码编写阶段就能发现拼写或导入错误，便于自动补全、跳转到定义，且在重构时可以同步更新。
+- *直通传参*：写法B的`cfg.dt.ini`直接存储初始化键值对，之后通过`**`展开传递给构造函数，而无需在运行时代码中手动映射参数。该写法符合“开闭原则”，将运行时代码与参数解耦：改变类或增删改参数后只需修改配置，而无需改动运行时代码。此外，直通传参写法在设置多余或错误参数时将直接报错，而A写法可能会因忘记同步更新运行时代码而导致隐蔽的bug。
+
+我们将B中*免反射*和*直通传参*两项改动统称为**依赖注入式配置**（Dependency Injection Configuration）。在使用`alchemy_cat.dl_config`时，强烈建议采用依赖注入式配置，该写法更加健壮、便利、灵活、安全。
 
 </details>
