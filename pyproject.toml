@@ -33,7 +33,6 @@ dependencies = [
     "gpustat>=0.6.0",
     "Pillow",
     "regex>=2024.11.6",
-    "pytest>=8.3.5",
 ]
 
 [project.optional-dependencies]
@@ -65,3 +64,8 @@ where = ["."]  # list of folders that contain the packages (["."] by default)
 include = ["*"]  # package names should match these glob patterns (["*"] by default)
 exclude = ["Temp"]  # exclude packages matching these glob patterns (empty by default)
 namespaces = true  # to disable scanning PEP 420 namespaces (true by default)
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
