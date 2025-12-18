@@ -46,14 +46,24 @@ WORK_TYPE: TypeAlias = Callable[[int, Config, str, str, t.Dict[str, str]], Any]
 
 class Cfg2TuneRunner(object):
     """Running cfg2tune"""
-    def __init__(self, cfg2tune_py: str, config_root: str='./configs', experiment_root="experiment",
-                 pool_size: int=0, work_gpu_num: int=None,
-                 metric_names: Optional[List[str]]=None,
-                 gather_metric_fn: Callable[[Config, str, Any, t.Dict[str, t.Tuple[Any, str]]], t.Dict[str, Any]]=None,
-                 work_fn: WORK_WRAPPER_TYPE=None,
-                 allow_fail_gather: bool=True,
-                 block: bool=True, verbosity: bool=True,
-                 memory_need: float=-1., max_process: int=-1):
+
+    def __init__(
+        self,
+        cfg2tune_py: str,
+        config_root: str = "./configs",
+        experiment_root="experiment",
+        pool_size: int = 0,
+        work_gpu_num: int = None,
+        metric_names: Optional[List[str]] = None,
+        gather_metric_fn: Callable[[Config, str, Any, t.Dict[str, t.Tuple[Any, str]]], t.Dict[str, Any]] = None,
+        work_fn: WORK_WRAPPER_TYPE = None,
+        allow_fail_gather: bool = True,
+        allocate_cuda: bool = True,
+        block: bool = True,
+        verbosity: bool = True,
+        memory_need: float = -1.0,
+        max_process: int = -1,
+    ):
         """Running a cfg2tune.
 
         Args:
@@ -64,6 +74,7 @@ class Cfg2TuneRunner(object):
             work_gpu_num: Number of GPUs in a group.
             metric_names: Name of metrics to be gathered.
             allow_fail_gather: Whether allow gather_metric_fn to fail.
+            allocate_cuda: Whether to allocate CUDA devices via `allocate_cuda_by_group_rank`.
             block: Refer to `alchemy_cat.cuda_tools.allocate_cuda_by_group_rank`.
             verbosity: Refer to `alchemy_cat.cuda_tools.allocate_cuda_by_group_rank`.
             memory_need: Refer to `alchemy_cat.cuda_tools.allocate_cuda_by_group_rank`.
@@ -111,36 +122,43 @@ class Cfg2TuneRunner(object):
 
         # * 保存每个配置的运行结果。
         self.run_rslts: t.List[subprocess.CompletedProcess] = []
-        self.cuda_env_kwargs = {'group_num': self.pool_size,
-                                'block': block, 'verbosity': verbosity,
-                                'memory_need': memory_need, 'max_process': max_process}
+        self.cuda_env_kwargs = {
+            "enabled": allocate_cuda,
+            "group_num": self.pool_size,
+            "block": block,
+            "verbosity": verbosity,
+            "memory_need": memory_need,
+            "max_process": max_process,
+        }
 
     def build_metrics(self):
         """得到参数组合与metric frame。"""
-        midx = pd.MultiIndex.from_tuples([tuple(val[1] for val in param_comb.values())
-                                          for param_comb in self.param_combs],
-                                         names=list(self.param_combs[0].keys()))
+        midx = pd.MultiIndex.from_tuples(
+            [tuple(val[1] for val in param_comb.values()) for param_comb in self.param_combs],
+            names=list(self.param_combs[0].keys()),
+        )
         self.metric_frame = pd.DataFrame(index=midx, columns=self.metric_names)
 
     def set_cfgs(self):
         """将Cfg2Tune转存为pkl文件，并得到对应的实验文件夹。"""
         self.cfg_pkls, self.cfgs = self.cfg2tune.dump_cfgs(osp.dirname(self.cfg2tune_py))
-        self.cfg_rslt_dirs = [cfg['rslt_dir'] for cfg in self.cfgs]
+        self.cfg_rslt_dirs = [cfg["rslt_dir"] for cfg in self.cfgs]
 
     def run_cfgs(self):
         """并行或串行地，根据每个配置，执行work函数。work函数内，应当完成一次实验。"""
         work = self.work_fn if self.work_fn is not None else self.work
 
-        work_inputs = enumerate(zip(self.cfgs, self.cfg_pkls, self.cfg_rslt_dirs,
-                                    [self.cuda_env_kwargs] * len(self.cfgs)))
+        work_inputs = enumerate(
+            zip(self.cfgs, self.cfg_pkls, self.cfg_rslt_dirs, [self.cuda_env_kwargs] * len(self.cfgs))
+        )
 
         if self.pool_size > 0:
             with Pool(self.pool_size) as p:
                 map_it = p.imap(work, work_inputs, chunksize=1)
-                for run_rslt in tqdm(map_it, 'Tuning', len(self.cfg_pkls), unit='configs', dynamic_ncols=True):
+                for run_rslt in tqdm(map_it, "Tuning", len(self.cfg_pkls), unit="configs", dynamic_ncols=True):
                     self.run_rslts.append(run_rslt)
         else:
-            for work_input in tqdm(work_inputs, 'Tuning', len(self.cfg_pkls), unit='configs', dynamic_ncols=True):
+            for work_input in tqdm(work_inputs, "Tuning", len(self.cfg_pkls), unit="configs", dynamic_ncols=True):
                 try:
                     run_rslt = work(work_input)
                 except subprocess.CalledProcessError as e:
@@ -162,10 +180,12 @@ class Cfg2TuneRunner(object):
 
     def register_work_fn(self, work_fn: WORK_TYPE) -> WORK_WRAPPER_TYPE:
         """Register work_fn. Use as a decorator."""
+
         @wraps(work_fn)
         def wrapper(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env_kwargs: WORK_WRAPPER_INPUT_TYPE):
-            pkl_idx, cfg, cfg_pkl, cfg_rslt_dir, cuda_env = (
-                Cfg2TuneRunner.parse_work_param(pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env_kwargs))
+            pkl_idx, cfg, cfg_pkl, cfg_rslt_dir, cuda_env = Cfg2TuneRunner.parse_work_param(
+                pkl_idx_cfg_cfg_pkl_cfg_rslt_dir_cuda_env_kwargs
+            )
             return work_fn(pkl_idx, cfg, cfg_pkl, cfg_rslt_dir, cuda_env)
 
         self.work_fn = wrapper
@@ -174,8 +194,9 @@ class Cfg2TuneRunner(object):
 
     def gather_metrics(self):
         gather_failed = False
-        for cfg, cfg_rslt_dir, run_rslt, param_comb in zip(self.cfgs, self.cfg_rslt_dirs,
-                                                           self.run_rslts, self.param_combs):
+        for cfg, cfg_rslt_dir, run_rslt, param_comb in zip(
+            self.cfgs, self.cfg_rslt_dirs, self.run_rslts, self.param_combs
+        ):
             try:
                 metric = self.gather_metric(cfg, cfg_rslt_dir, run_rslt, param_comb)
             except Exception as e:
@@ -192,42 +213,47 @@ class Cfg2TuneRunner(object):
                     self.metric_names = list(metric.keys())
                 self.build_metrics()
             else:
-                assert set(metric.keys()) == set(self.metric_names), \
-                    f"metric.keys()={metric.keys()} != self.metric_names={self.metric_names}"
+                assert set(metric.keys()) == set(
+                    self.metric_names
+                ), f"metric.keys()={metric.keys()} != self.metric_names={self.metric_names}"
 
             self.metric_frame.loc[tuple(val[1] for val in param_comb.values())] = metric
 
         if gather_failed:
             yprint("[WARNING] Some gather_metric failed. Please check the error message above.")
 
-    def gather_metric(self, cfg: Config, cfg_rslt_dir: str, run_rslt: Any, param_comb: t.Dict[str, t.Tuple[Any, str]]) \
-            -> t.Dict[str, Any]:
+    def gather_metric(
+        self, cfg: Config, cfg_rslt_dir: str, run_rslt: Any, param_comb: t.Dict[str, t.Tuple[Any, str]]
+    ) -> t.Dict[str, Any]:
         """Given cfg_rslt_dir, run_stdout, param_comb, return {metric_name: metric}"""
         if self.gather_metric_fn is not None:
             return self.gather_metric_fn(cfg, cfg_rslt_dir, run_rslt, param_comb)
         else:
             raise NotImplementedError("gather_metric not implemented")
 
-    def register_gather_metric_fn(self,
-                                  gather_metric_fn: Callable[[Config, str, Any, t.Dict[str, t.Tuple[Any, str]]],
-                                                             t.Dict[str, Any]]):
+    def register_gather_metric_fn(
+        self, gather_metric_fn: Callable[[Config, str, Any, t.Dict[str, t.Tuple[Any, str]]], t.Dict[str, Any]]
+    ):
         """Register gather_metric_fn. Use as a decorator."""
         self.gather_metric_fn = gather_metric_fn
         return gather_metric_fn
 
     def save_metrics(self):
-        exp_short_id = osp.basename(osp.dirname(self.cfg2tune_py)).split('@')[-1]
+        exp_short_id = osp.basename(osp.dirname(self.cfg2tune_py)).split("@")[-1]
         # 美观起见，excel选择merge cells。需要时可以手动解除merge。
-        self.metric_frame.to_excel(osp.join(self.rslt_dir, f'{exp_short_id}.xlsx'), sheet_name='MetricFrame',
-                                   merge_cells=True)
+        self.metric_frame.to_excel(
+            osp.join(self.rslt_dir, f"{exp_short_id}.xlsx"), sheet_name="MetricFrame", merge_cells=True
+        )
         # 将刚才保存的xlsx转储为xlsm，用于数据分析。
-        load_workbook(filename=osp.join(self.rslt_dir, f'{exp_short_id}.xlsx'),
-                      read_only=False, keep_vba=True).save(osp.join(self.rslt_dir, f'{exp_short_id}.xlsm'))
-        self.metric_frame.to_pickle(osp.join(self.rslt_dir, f'{exp_short_id}.pkl'))
+        load_workbook(filename=osp.join(self.rslt_dir, f"{exp_short_id}.xlsx"), read_only=False, keep_vba=True).save(
+            osp.join(self.rslt_dir, f"{exp_short_id}.xlsm")
+        )
+        self.metric_frame.to_pickle(osp.join(self.rslt_dir, f"{exp_short_id}.pkl"))
 
     def tuning(self):
-        stdout_log_file = osp.join(self.rslt_dir, 'stdout',
-                                   '-'.join(['stdout', get_local_time_str(for_file_name=True)]) + '.log')
+        stdout_log_file = osp.join(
+            self.rslt_dir, "stdout", "-".join(["stdout", get_local_time_str(for_file_name=True)]) + ".log"
+        )
         Logger(stdout_log_file, real_time=True)
         print(f"Log stdout at {stdout_log_file}")
 

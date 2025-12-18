@@ -11,15 +11,22 @@
 import os
 import typing as t
 
-from .get_cuda import block_get_available_cuda, get_cudas, cudas2CUDA_VISIBLE_DEVICES
+from .get_cuda import (block_get_available_cuda, cudas2CUDA_VISIBLE_DEVICES,
+                       get_cudas)
 
-__all__ = ['allocate_cuda_by_group_rank']
+__all__ = ["allocate_cuda_by_group_rank"]
 
 
-def allocate_cuda_by_group_rank(group_rank: int,
-                                group_cuda_num: int=None, group_num: int=None,
-                                block: bool=True, verbosity: bool=True,
-                                memory_need: float=-1., max_process: int=-1) -> t.Tuple[t.List[int], t.Dict[str, str]]:
+def allocate_cuda_by_group_rank(
+    group_rank: int,
+    group_cuda_num: int = None,
+    group_num: int = None,
+    block: bool = True,
+    verbosity: bool = True,
+    memory_need: float = -1.0,
+    max_process: int = -1,
+    enabled: bool = True,
+) -> t.Tuple[t.List[int], t.Dict[str, str]]:
     """Auto allocate cuda.
 
     Args:
@@ -30,10 +37,15 @@ def allocate_cuda_by_group_rank(group_rank: int,
         verbosity: If True, print heartbeat while blocking.
         memory_need: Memory need for available GPU (MB). < -0.5 means need 95% GPU memory.
         max_process: Max process num on available GPU. < 0 means no limit.
+        enabled: If False, skip allocation and return empty cuda list with current env.
 
     Returns:
         tuple[list of cuda indices, dict of environment variables with CUDA_VISIBLE_DEVICES set]
     """
+    # -* 若禁用分配，直接返回。
+    if not enabled:
+        return [], os.environ.copy()
+
     # -* 参数检查：group_cuda_num和group_num必须有且只有一个。
     assert (group_cuda_num is None) ^ (group_num is None), "group_cuda_num and group_num must have and only have one."
 
@@ -56,19 +68,21 @@ def allocate_cuda_by_group_rank(group_rank: int,
     # -* 等待当前CUDA设备空闲。
     # -** 按照索引确定CUDA设备。
     group_idx = group_rank % group_num  # 当前所在组。
-    current_cudas = cudas[group_idx * group_cuda_num:(group_idx + 1) * group_cuda_num]  # 所在组拥有的CUDA设备。
+    current_cudas = cudas[group_idx * group_cuda_num : (group_idx + 1) * group_cuda_num]  # 所在组拥有的CUDA设备。
     # -** 动态分配。
     if block:
-        current_cudas = block_get_available_cuda(cudas,
-                                                 cuda_need=group_cuda_num,
-                                                 memory_need=memory_need,
-                                                 max_process=max_process,
-                                                 verbosity=verbosity,
-                                                 cudas_prefer=current_cudas)
+        current_cudas = block_get_available_cuda(
+            cudas,
+            cuda_need=group_cuda_num,
+            memory_need=memory_need,
+            max_process=max_process,
+            verbosity=verbosity,
+            cudas_prefer=current_cudas,
+        )
 
     # -* 获取当前指定了当前设备的环境变量。
     env_with_current_cuda = os.environ.copy()
-    env_with_current_cuda['CUDA_VISIBLE_DEVICES'] = cudas2CUDA_VISIBLE_DEVICES(current_cudas)
+    env_with_current_cuda["CUDA_VISIBLE_DEVICES"] = cudas2CUDA_VISIBLE_DEVICES(current_cudas)
 
     # -* 返回分配的cuda设备。
     return current_cudas, env_with_current_cuda
